@@ -259,11 +259,12 @@ export default function NuevoEvento() {
               <button
                 type="button"
                 onClick={() => { setIgnorarConflictos(true); setConflictosPorEvento({}); crearTodos() }}
+                className="portal-button-secondary"
                 style={styles.botonGuardarDeTodosModos}
               >
                 Crear de todos modos
               </button>
-              <button type="button" onClick={() => setConflictosPorEvento({})} style={styles.botonCancelarConflicto}>
+              <button type="button" onClick={() => setConflictosPorEvento({})} className="portal-button-secondary" style={styles.botonCancelarConflicto}>
                 Revisar horarios
               </button>
             </div>
@@ -278,10 +279,10 @@ export default function NuevoEvento() {
                   <div style={styles.eventoCardHeader}>
                     <span style={styles.eventoNumero}>Evento {idx + 1}</span>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <button type="button" onClick={() => duplicarEvento(ev.id)} style={styles.botonMini}>
+                      <button type="button" onClick={() => duplicarEvento(ev.id)} className="portal-button-secondary" style={styles.botonMini}>
                         Duplicar
                       </button>
-                      <button type="button" onClick={() => quitarEvento(ev.id)} style={styles.botonMiniEliminar}>
+                      <button type="button" onClick={() => quitarEvento(ev.id)} className="portal-button-secondary" style={styles.botonMiniEliminar}>
                         Quitar
                       </button>
                     </div>
@@ -404,7 +405,7 @@ export default function NuevoEvento() {
                   </select>
                 </label>
 
-                <button type="button" onClick={() => toggleChecklist(ev.id)} style={styles.botonToggleChecklist}>
+                <button type="button" onClick={() => toggleChecklist(ev.id)} className="portal-button-secondary" style={styles.botonToggleChecklist}>
                   {ev.mostrarChecklist ? '− Ocultar' : '+ Elegir'} ministerios requeridos
                   {ev.ministeriosRequeridos.length > 0 ? ` (${ev.ministeriosRequeridos.length})` : ''}
                 </button>
@@ -428,7 +429,7 @@ export default function NuevoEvento() {
             ))}
           </div>
 
-          <button type="button" onClick={agregarEvento} style={styles.buttonAgregar}>
+          <button type="button" onClick={agregarEvento} className="portal-button-secondary" style={styles.buttonAgregar}>
             + Agregar otro evento
           </button>
 

@@ -350,6 +350,7 @@ export default function EditarItemInventario() {
               <button
                 type="button"
                 onClick={() => setMostrarModalCategorias(true)}
+                className="portal-button-secondary"
                 style={manageBtnStyle}
               >
                 Gestionar
@@ -613,7 +614,7 @@ const errorStyle = {
 const submitBtnStyle = {
   color: '#fff',
   border: 'none',
-  borderRadius: '8px',
+  borderRadius: '999px',
   padding: '12px 20px',
   fontSize: '15px',
   fontWeight: 600,

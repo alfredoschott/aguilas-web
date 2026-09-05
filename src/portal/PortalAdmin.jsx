@@ -1,21 +1,22 @@
 import { useState, useEffect } from 'react'
-import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
-import { auth, googleProvider, db, storage } from '../firebase'
+import { Link } from 'react-router-dom'
+import { db, storage } from '../firebase'
 import {
   collection, addDoc, updateDoc, deleteDoc, doc,
   onSnapshot, orderBy, query, serverTimestamp, setDoc
 } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import imageCompression from 'browser-image-compression'
+import { usePortalAuth } from './PortalAuthContext'
+import './portal.css'
 
 const CORREO_AUTORIZADO = 'schottalfredo@gmail.com'
-const VERDE = '#3DDC04'
-const VERDE_HOVER = '#2BAF1E'
-const FONDO = '#0B0F0A'
-const CARD = '#131813'
-const BORDE = '#232823'
-const TEXTO = '#F2F2ED'
-const TEXTO_SUAVE = '#9A9F98'
+const VERDE = 'var(--portal-verde)'
+const FONDO = 'var(--portal-bg)'
+const CARD = 'var(--portal-card-bg)'
+const BORDE = 'var(--portal-card-border)'
+const TEXTO = 'var(--portal-text)'
+const TEXTO_SUAVE = 'var(--portal-muted)'
 
 const inputStyle = {
   width: '100%',
@@ -75,63 +76,19 @@ function ordenValor(item) {
   return item.creado?.toMillis ? item.creado.toMillis() : 0
 }
 
-function Admin() {
-  const [usuario, setUsuario] = useState(null)
-  const [cargando, setCargando] = useState(true)
+export default function PortalAdmin() {
+  const { user } = usePortalAuth()
   const [tab, setTab] = useState('anuncios')
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUsuario(user)
-      setCargando(false)
-    })
-    return () => unsubscribe()
-  }, [])
+  const tieneAcceso = user?.email?.toLowerCase() === CORREO_AUTORIZADO
 
-  const entrar = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider)
-    } catch (error) {
-      console.error('Error al iniciar sesión:', error)
-    }
-  }
-
-  const salir = () => signOut(auth)
-
-  if (cargando) {
+  if (!tieneAcceso) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: FONDO, color: TEXTO_SUAVE, fontFamily: 'Inter, sans-serif' }}>
-        Cargando...
-      </div>
-    )
-  }
-
-  if (!usuario) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: FONDO, fontFamily: 'Inter, sans-serif', gap: '1.5rem' }}>
-        <h1 style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: '900', color: TEXTO, fontSize: '1.8rem' }}>
-          Panel de administración
-        </h1>
-        <button
-          onClick={entrar}
-          style={{ backgroundColor: VERDE, color: '#000', fontWeight: '700', border: 'none', padding: '1rem 2rem', borderRadius: '999px', cursor: 'pointer', fontSize: '1rem', fontFamily: 'Montserrat, sans-serif', transition: 'background-color 0.2s ease' }}
-          onMouseEnter={e => e.currentTarget.style.backgroundColor = VERDE_HOVER}
-          onMouseLeave={e => e.currentTarget.style.backgroundColor = VERDE}
-        >
-          Entrar con Google
-        </button>
-      </div>
-    )
-  }
-
-  if (usuario.email !== CORREO_AUTORIZADO) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: FONDO, fontFamily: 'Inter, sans-serif', gap: '1rem', color: TEXTO }}>
-        <h2 style={{ fontFamily: 'Montserrat, sans-serif' }}>Sin acceso</h2>
-        <p style={{ color: TEXTO_SUAVE }}>Esta cuenta no tiene permiso para entrar al panel.</p>
-        <button onClick={salir} style={{ cursor: 'pointer', background: 'none', border: `1px solid ${BORDE}`, color: TEXTO, padding: '0.6rem 1.2rem', borderRadius: '8px' }}>
-          Cerrar sesión
-        </button>
+      <div style={{ minHeight: '100vh', backgroundColor: FONDO, fontFamily: 'Inter, sans-serif', padding: '2.5rem 1.5rem' }}>
+        <div style={{ maxWidth: '760px', margin: '0 auto' }}>
+          <Link to="/lideres/dashboard" style={{ color: TEXTO_SUAVE, fontSize: '0.9rem', textDecoration: 'none' }}>← Volver al dashboard</Link>
+          <p style={{ color: TEXTO_SUAVE, marginTop: '1.5rem' }}>Esta sección es solo para administración general.</p>
+        </div>
       </div>
     )
   }
@@ -141,12 +98,12 @@ function Admin() {
       <div style={{ maxWidth: '760px', margin: '0 auto', padding: '2.5rem 1.5rem 0' }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h1 style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: '900', color: TEXTO, fontSize: '1.6rem', margin: 0 }}>
-            Panel de administración
-          </h1>
-          <button onClick={salir} style={{ cursor: 'pointer', background: 'none', border: `1px solid ${BORDE}`, color: TEXTO_SUAVE, padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.85rem' }}>
-            Cerrar sesión
-          </button>
+          <div>
+            <Link to="/lideres/dashboard" style={{ color: TEXTO_SUAVE, fontSize: '0.85rem', textDecoration: 'none' }}>← Volver al dashboard</Link>
+            <h1 style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: '900', color: TEXTO, fontSize: '1.6rem', margin: '0.5rem 0 0' }}>
+              Administración del sitio
+            </h1>
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
@@ -975,5 +932,3 @@ function PanelRadgenRegistros() {
     </>
   )
 }
-
-export default Admin

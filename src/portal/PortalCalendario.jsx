@@ -58,7 +58,9 @@ export default function PortalCalendario({ embedded = false }) {
   const navigate = useNavigate()
   const { userData, user } = usePortalAuth()
   const hoy = new Date()
-  const [vista, setVista] = useState('mes')
+  const [vista, setVista] = useState(() => (
+    typeof window !== 'undefined' && window.innerWidth < 640 ? 'semana' : 'mes'
+  ))
   const [mesActual, setMesActual] = useState(hoy.getMonth())
   const [anioActual, setAnioActual] = useState(hoy.getFullYear())
   const [semanaInicio, setSemanaInicio] = useState(inicioDeSemana(hoy))
@@ -338,9 +340,9 @@ export default function PortalCalendario({ embedded = false }) {
 
   const vistaMes = (
     <>
-      <div style={styles.navMes}>
+      <div style={styles.navMes} className="portal-cal-nav">
         <button onClick={() => cambiarMes(-1)} style={styles.navButton} className="no-print">‹</button>
-        <h2 style={styles.mesTitulo}>
+        <h2 style={styles.mesTitulo} className="portal-cal-title">
           {MESES[mesActual]} {anioActual}
           {nombreMinisterioFiltro && <span style={styles.mesSubtitulo}> — {nombreMinisterioFiltro}</span>}
         </h2>
@@ -411,9 +413,9 @@ export default function PortalCalendario({ embedded = false }) {
 
   const vistaSemana = (
     <>
-      <div style={styles.navMes}>
+      <div style={styles.navMes} className="portal-cal-nav">
         <button onClick={() => cambiarSemana(-1)} style={styles.navButton} className="no-print">‹</button>
-        <h2 style={styles.mesTitulo}>
+        <h2 style={styles.mesTitulo} className="portal-cal-title">
           {rangoSemanaTexto}
           {nombreMinisterioFiltro && <span style={styles.mesSubtitulo}> — {nombreMinisterioFiltro}</span>}
         </h2>
@@ -472,10 +474,10 @@ export default function PortalCalendario({ embedded = false }) {
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
           {filtroSelector}
-          <button onClick={() => window.print()} style={styles.buttonSecondary}>
+          <button onClick={() => window.print()} className="portal-button-secondary" style={styles.buttonSecondary}>
             Imprimir / Exportar
           </button>
-          <Link to="/lideres/eventos/nuevo" style={styles.buttonPrimary}>+ Nuevo evento</Link>
+          <Link to="/lideres/eventos/nuevo" className="portal-button-primary" style={styles.buttonPrimary}>+ Nuevo evento</Link>
         </div>
       </div>
       {contenido}

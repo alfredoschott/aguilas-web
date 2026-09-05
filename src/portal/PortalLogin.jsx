@@ -13,7 +13,7 @@ export default function PortalLogin() {
         <h1 style={styles.title}>Portal de Líderes</h1>
         <p style={styles.subtitle}>Águilas Centro Familiar Cristiano Tizayuca</p>
         {error && <p style={styles.error}>{error}</p>}
-        <button onClick={loginConGoogle} disabled={loading} style={styles.button}>
+        <button onClick={loginConGoogle} disabled={loading} className="portal-button-primary" style={styles.button}>
           {loading ? 'Verificando...' : 'Iniciar sesión con Google'}
         </button>
       </div>
@@ -64,12 +64,6 @@ const styles = {
   button: {
     width: '100%',
     padding: '14px 24px',
-    borderRadius: '10px',
-    border: 'none',
-    background: '#3DDC04',
-    color: '#0F0F12',
-    fontWeight: 700,
     fontSize: '16px',
-    cursor: 'pointer',
   },
 }

@@ -283,6 +283,7 @@ export default function InventarioMinisterio() {
           <div style={{ position: 'relative' }}>
             <button
               onClick={() => setMostrarMenuExportar((v) => !v)}
+              className="portal-button-secondary"
               style={secondaryBtnStyle}
               disabled={exportando}
             >
@@ -299,12 +300,12 @@ export default function InventarioMinisterio() {
               </div>
             )}
           </div>
-          <button onClick={() => navigate('/lideres/inventario/prestamos')} style={secondaryBtnStyle}>
+          <button onClick={() => navigate('/lideres/inventario/prestamos')} className="portal-button-secondary" style={secondaryBtnStyle}>
             <ArrowRightLeft size={16} /> Préstamos
           </button>
           {!esRolDirectivo && (
             <>
-              <button onClick={() => setMostrarModalCategorias(true)} style={secondaryBtnStyle}>
+              <button onClick={() => setMostrarModalCategorias(true)} className="portal-button-secondary" style={secondaryBtnStyle}>
                 <Settings size={16} /> Categorías
               </button>
               <button
@@ -565,6 +566,7 @@ const headerStyle = {
 const headerBtnsStyle = {
   display: 'flex',
   gap: '8px',
+  flexWrap: 'wrap',
 };
 
 const primaryBtnStyle = {
@@ -573,7 +575,7 @@ const primaryBtnStyle = {
   gap: '6px',
   color: '#fff',
   border: 'none',
-  borderRadius: '8px',
+  borderRadius: '999px',
   padding: '10px 16px',
   fontSize: '14px',
   fontWeight: 600,
@@ -588,7 +590,7 @@ const secondaryBtnStyle = {
   background: 'var(--portal-button-secondary-bg)',
   color: 'var(--portal-text)',
   border: '1px solid var(--portal-button-secondary-border)',
-  borderRadius: '8px',
+  borderRadius: '999px',
   padding: '10px 16px',
   fontSize: '14px',
   cursor: 'pointer',
@@ -712,6 +714,7 @@ const cardActionsStyle = {
   display: 'flex',
   gap: '8px',
   alignItems: 'center',
+  flexWrap: 'wrap',
   marginTop: '4px',
 };
 

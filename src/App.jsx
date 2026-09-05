@@ -2,7 +2,6 @@ import { Routes, Route, Outlet } from 'react-router-dom'
 import PaginaPrincipal from './pages/PaginaPrincipal'
 import RadGen from './pages/RadGen'
 import Bienvenida from './pages/Bienvenida'
-import Admin from './pages/Admin'
 import { PortalAuthProvider } from './portal/PortalAuthContext'
 import PortalLogin from './portal/PortalLogin'
 import PortalDashboard from './portal/PortalDashboard'
@@ -15,6 +14,8 @@ import InventarioMinisterio from './portal/InventarioMinisterio'
 import NuevoItemInventario from './portal/NuevoItemInventario'
 import EditarItemInventario from './portal/EditarItemInventario'
 import PrestamosInventario from './portal/PrestamosInventario'
+import VisitasNuevas from './portal/VisitasNuevas'
+import PortalAdmin from './portal/PortalAdmin'
 
 function PortalLayout() {
   return (
@@ -30,7 +31,6 @@ function App() {
       <Route path="/" element={<PaginaPrincipal />} />
       <Route path="/radgen" element={<RadGen />} />
       <Route path="/bienvenida" element={<Bienvenida />} />
-      <Route path="/admin" element={<Admin />} />
 
       <Route path="/lideres" element={<PortalLayout />}>
         <Route index element={<PortalLogin />} />
@@ -103,6 +103,22 @@ function App() {
           element={
             <ProtectedRoute>
               <PrestamosInventario />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="visitas"
+          element={
+            <ProtectedRoute>
+              <VisitasNuevas />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin"
+          element={
+            <ProtectedRoute>
+              <PortalAdmin />
             </ProtectedRoute>
           }
         />

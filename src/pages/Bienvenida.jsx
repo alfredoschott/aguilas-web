@@ -2,6 +2,7 @@ import { useState, useLayoutEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
+import { crearNotificacionVisita } from '../portal/notificaciones'
 import { ArrowLeft, ArrowRight, Users, Flame } from 'lucide-react'
 
 const HORARIOS = [
@@ -69,8 +70,13 @@ function Bienvenida() {
         .bienvenida-card-radgen:hover{ transform: translate(-3px,-3px); box-shadow: 11px 11px 0 #0F0F12; }
         .bienvenida-card-radgen:active{ transform: translate(2px,2px); box-shadow: 4px 4px 0 #0F0F12; }
 
-        .bienvenida-volver{ transition: opacity 0.15s ease, transform 0.15s ease; }
+        .bienvenida-volver{ transition: opacity 0.15s ease, transform 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
         .bienvenida-volver:hover{ opacity:1 !important; transform: translateX(-3px); }
+        .bienvenida-volver--general:hover{ border-color: var(--verde) !important; color: var(--verde) !important; }
+        .bienvenida-volver--radgen:hover{ box-shadow: 5px 5px 0 #0F0F12 !important; transform: translate(-3px,-3px) !important; }
+
+        .bienvenida-principal{ transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; }
+        .bienvenida-principal:hover{ transform: translateY(-2px); border-color: var(--verde) !important; color: var(--verde) !important; }
 
         .bienvenida-btn-verde{ transition: transform 0.15s ease, background-color 0.2s ease; }
         .bienvenida-btn-verde:hover{ transform: translateY(-2px); }
@@ -122,22 +128,22 @@ function Elegir({ onElegir }) {
           Bienvenido
         </p>
         <h1 style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900, fontSize: 'clamp(1.8rem, 5vw, 2.8rem)', color: 'var(--texto)', marginBottom: '0.75rem' }}>
-          ¿A qué viniste hoy?
+          Nos alegra que estés aquí, ¿qué te trae hoy?
         </h1>
         <p style={{ color: 'var(--texto-suave)', fontSize: '0.95rem', marginBottom: '2.5rem', maxWidth: '360px' }}>
           Elige una opción y te mostramos justo lo que buscas.
         </p>
 
         <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', justifyContent: 'center', maxWidth: '640px' }}>
-          <button onClick={() => onElegir('general')} className="glass-panel bienvenida-card" style={{
+          <button onClick={() => onElegir('general')} className="bienvenida-card" style={{
             width: '260px', padding: '2rem 1.5rem', borderRadius: '20px', cursor: 'pointer',
-            border: '1px solid var(--borde-glass)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.9rem',
+            background: 'var(--verde)', border: '1px solid var(--verde)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.9rem',
           }}>
-            <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: 'rgba(61,220,4,0.12)', border: '1.5px solid var(--verde)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Users size={24} strokeWidth={1.75} color="var(--verde)" />
+            <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: 'rgba(0,0,0,0.15)', border: '1.5px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Users size={24} strokeWidth={1.75} color="#fff" />
             </div>
-            <span style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: '1.05rem', color: 'var(--texto)' }}>Vengo al servicio</span>
-            <span style={{ color: 'var(--texto-suave)', fontSize: '0.82rem' }}>Horarios, qué esperar y cómo llegar</span>
+            <span style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: '1.05rem', color: '#fff' }}>Vengo al servicio</span>
+            <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.82rem' }}>Horarios, qué esperar y cómo llegar</span>
           </button>
 
           <button onClick={() => onElegir('radgen')} className="bienvenida-card-radgen" style={{
@@ -153,7 +159,11 @@ function Elegir({ onElegir }) {
           </button>
         </div>
 
-        <Link to="/" style={{ marginTop: '2.5rem', color: 'var(--texto-suave)', fontSize: '0.8rem', textDecoration: 'none' }}>
+        <Link to="/" className="bienvenida-principal" style={{
+          marginTop: '2.5rem', color: 'var(--texto)', fontSize: '0.85rem', fontWeight: 700,
+          textDecoration: 'none', padding: '0.6rem 1.3rem', borderRadius: '999px',
+          border: '1.5px solid var(--borde)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+        }}>
           ← Ir al sitio principal
         </Link>
       </div>
@@ -178,6 +188,7 @@ function FormularioVisita({ modo, estiloInput, estiloBoton, textoBoton, colorTex
         atendido: false,
         creado: serverTimestamp(),
       })
+      crearNotificacionVisita({ nombre: form.nombre.trim(), telefono: form.telefono.trim(), modo })
       setEnviado(true)
     } catch (error) {
       console.error(error)
@@ -210,7 +221,12 @@ function ModoGeneral({ onVolver }) {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--fondo)', padding: '2rem 1.5rem 4rem' }}>
       <div className="bienvenida-stagger" style={{ maxWidth: '560px', margin: '0 auto' }}>
-        <button onClick={onVolver} className="bienvenida-volver" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'none', border: 'none', color: 'var(--texto-suave)', fontSize: '0.85rem', cursor: 'pointer', marginBottom: '2rem', opacity: 0.8 }}>
+        <button onClick={onVolver} className="bienvenida-volver bienvenida-volver--general" style={{
+          display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+          background: 'var(--fondo-glass)', border: '1px solid var(--borde-glass)',
+          color: 'var(--texto-suave)', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer',
+          padding: '0.5rem 1rem', borderRadius: '999px', marginBottom: '2rem', opacity: 0.9,
+        }}>
           <ArrowLeft size={15} /> Elegir de nuevo
         </button>
 
@@ -242,7 +258,7 @@ function ModoGeneral({ onVolver }) {
             <li>Llega unos minutos antes para que te ayudemos a encontrar lugar.</li>
             <li>El servicio dura aproximadamente 2 horas.</li>
             <li>Tenemos espacio para niños durante el servicio.</li>
-            <li>Alguien del equipo de bienvenida te va a recibir en la entrada.</li>
+            <li>Alguien del equipo de consolidación te va a recibir en la entrada.</li>
           </ul>
         </div>
 
@@ -296,7 +312,13 @@ function ModoRadgen({ onVolver }) {
         .bienvenida-radgen input:focus{ outline:2.5px solid #3a7bff; }
       `}</style>
       <div className="bienvenida-radgen bienvenida-stagger" style={{ maxWidth: '560px', margin: '0 auto' }}>
-        <button onClick={onVolver} className="bienvenida-volver" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'none', border: 'none', color: '#8a8a90', fontSize: '0.85rem', cursor: 'pointer', marginBottom: '2rem', fontFamily: 'Inter, sans-serif', opacity: 0.8 }}>
+        <button onClick={onVolver} className="bienvenida-volver bienvenida-volver--radgen" style={{
+          display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+          background: '#F5F3EE', border: '2px solid #0F0F12', color: '#0F0F12',
+          fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+          padding: '0.5rem 1rem', borderRadius: '999px', marginBottom: '2rem',
+          boxShadow: '3px 3px 0 #0F0F12', opacity: 1,
+        }}>
           <ArrowLeft size={15} /> Elegir de nuevo
         </button>
 

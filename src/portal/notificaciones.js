@@ -42,6 +42,28 @@ export async function crearNotificacionInventario({
   }
 }
 
+export async function crearNotificacionVisita({ nombre, telefono, modo }) {
+  const destinos = modo === 'radgen'
+    ? ['administrativo', 'pastor', 'consolidacion', 'radgen']
+    : ['administrativo', 'pastor', 'consolidacion']
+  const texto = modo === 'radgen'
+    ? `Nuevo joven en RadGen: ${nombre} · ${telefono}`
+    : `Nueva visita al servicio: ${nombre} · ${telefono}`
+  try {
+    await Promise.all(destinos.map((destino) =>
+      addDoc(collection(db, 'notificaciones_portal'), {
+        ministerioId: destino,
+        texto,
+        tipo: 'visita',
+        leidoPor: [],
+        createdAt: serverTimestamp(),
+      })
+    ))
+  } catch (err) {
+    console.warn('No se pudo crear la notificación de visita:', err)
+  }
+}
+
 export function escucharNotificaciones(ministerioId, callback) {
   if (!ministerioId) return () => {}
   const q = query(

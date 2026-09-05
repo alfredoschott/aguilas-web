@@ -138,7 +138,7 @@ export default function ModalPrestarItem({ item, ministerios, userEmail, onClose
 
             {error && <p style={errorStyle}>{error}</p>}
 
-            <button type="submit" style={submitBtnStyle} disabled={guardando}>
+            <button type="submit" className="portal-button-primary" style={submitBtnStyle} disabled={guardando}>
               {guardando ? 'Guardando...' : 'Registrar préstamo'}
             </button>
           </form>

@@ -313,11 +313,12 @@ export default function EditarEvento() {
               <button
                 type="button"
                 onClick={() => { setIgnorarConflictos(true); setConflictos([]); guardarCambios() }}
+                className="portal-button-secondary"
                 style={styles.botonGuardarDeTodosModos}
               >
                 Guardar de todos modos
               </button>
-              <button type="button" onClick={() => setConflictos([])} style={styles.botonCancelarConflicto}>
+              <button type="button" onClick={() => setConflictos([])} className="portal-button-secondary" style={styles.botonCancelarConflicto}>
                 Cambiar horario
               </button>
             </div>
@@ -445,7 +446,7 @@ export default function EditarEvento() {
 
         <div style={styles.zonaPeligro}>
           {!confirmandoEliminar ? (
-            <button type="button" onClick={() => setConfirmandoEliminar(true)} style={styles.botonEliminar}>
+            <button type="button" onClick={() => setConfirmandoEliminar(true)} className="portal-button-secondary" style={styles.botonEliminar}>
               Eliminar evento
             </button>
           ) : (
@@ -454,10 +455,10 @@ export default function EditarEvento() {
                 ¿Seguro que quieres eliminar "{form.titulo}"? Esto también lo borra de Google Calendar. No se puede deshacer.
               </p>
               <div style={{ display: 'flex', gap: '10px' }}>
-                <button type="button" onClick={handleEliminar} disabled={eliminando} style={styles.botonConfirmarEliminar}>
+                <button type="button" onClick={handleEliminar} disabled={eliminando} className="portal-button-secondary" style={styles.botonConfirmarEliminar}>
                   {eliminando ? 'Eliminando...' : 'Sí, eliminar'}
                 </button>
-                <button type="button" onClick={() => setConfirmandoEliminar(false)} disabled={eliminando} style={styles.buttonSecondary}>
+                <button type="button" onClick={() => setConfirmandoEliminar(false)} disabled={eliminando} className="portal-button-secondary" style={styles.buttonSecondary}>
                   Cancelar
                 </button>
               </div>

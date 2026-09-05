@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { collection, query, orderBy, getDocs } from 'firebase/firestore'
-import { CalendarX2 } from 'lucide-react'
+import { CalendarX2, Menu as MenuIcon, Package, CalendarClock, UserPlus, ShieldCheck, LogOut } from 'lucide-react'
 import { db } from '../firebase'
 import { usePortalAuth } from './PortalAuthContext'
 import PortalCalendario from './PortalCalendario'
@@ -17,6 +17,16 @@ export default function PortalDashboard() {
   const [eventos, setEventos] = useState([])
   const [ministerios, setMinisterios] = useState({})
   const [cargando, setCargando] = useState(true)
+  const [menuAbierto, setMenuAbierto] = useState(false)
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    function clickFuera(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuAbierto(false)
+    }
+    document.addEventListener('mousedown', clickFuera)
+    return () => document.removeEventListener('mousedown', clickFuera)
+  }, [])
 
   useEffect(() => {
     async function cargarDatos() {
@@ -72,6 +82,8 @@ export default function PortalDashboard() {
 
   const ADMINS_TEMPORALES = ['schottalfredo@gmail.com']
   const puedeVerAgendaPastoral = userData?.rol === 'pastor' || userData?.rol === 'administrativo' || ADMINS_TEMPORALES.includes(user?.email)
+  const puedeVerVisitas = userData?.rol === 'pastor' || userData?.rol === 'administrativo' || (userData?.rol === 'lider' && ['consolidacion', 'radgen'].includes(userData?.ministerio))
+  const puedeVerAdmin = user?.email?.toLowerCase() === 'schottalfredo@gmail.com'
 
   const colorMinisterioPropio = userData?.rol === 'lider' && userData?.ministerio ? ministerios[userData.ministerio]?.color : null
   const esRolDirectivo = userData?.rol === 'pastor' || userData?.rol === 'administrativo' || userData?.rol === 'primera_mesa'
@@ -212,20 +224,45 @@ export default function PortalDashboard() {
             </p>
           </div>
         </div>
-        <div className="portal-dashboard-actions" style={{ display: 'flex', gap: '12px', alignItems: 'center', position: 'relative', zIndex: 10 }}>
+        <div className="portal-dashboard-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center', position: 'relative', zIndex: 10 }}>
           <NotificacionesBell />
-<Link to="/lideres/inventario" style={styles.buttonSecondary}>
-  Inventario
-</Link>
-{puedeVerAgendaPastoral && (
-  <Link to="/lideres/agenda-pastoral" style={styles.buttonSecondary}>
-    Agenda Pastoral
-  </Link>
-)}
-<Link to="/lideres/eventos/nuevo" className="portal-button-primary" style={styles.buttonPrimary}>
-  + Nuevo evento
-</Link>
-          <button onClick={logout} style={styles.buttonSecondary}>Cerrar sesión</button>
+          <Link to="/lideres/eventos/nuevo" className="portal-button-primary" style={styles.buttonPrimary}>
+            + Nuevo evento
+          </Link>
+          <div ref={menuRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setMenuAbierto((v) => !v)}
+              style={styles.buttonIcono}
+              aria-label="Más opciones"
+            >
+              <MenuIcon size={18} strokeWidth={2} />
+            </button>
+            {menuAbierto && (
+              <div className="portal-fade-in" style={styles.menuDropdown}>
+                <Link to="/lideres/inventario" style={styles.menuItem} onClick={() => setMenuAbierto(false)}>
+                  <Package size={16} strokeWidth={2} /> Inventario
+                </Link>
+                {puedeVerAgendaPastoral && (
+                  <Link to="/lideres/agenda-pastoral" style={styles.menuItem} onClick={() => setMenuAbierto(false)}>
+                    <CalendarClock size={16} strokeWidth={2} /> Agenda Pastoral
+                  </Link>
+                )}
+                {puedeVerVisitas && (
+                  <Link to="/lideres/visitas" style={styles.menuItem} onClick={() => setMenuAbierto(false)}>
+                    <UserPlus size={16} strokeWidth={2} /> Visitas
+                  </Link>
+                )}
+                {puedeVerAdmin && (
+                  <Link to="/lideres/admin" style={styles.menuItem} onClick={() => setMenuAbierto(false)}>
+                    <ShieldCheck size={16} strokeWidth={2} /> Administración
+                  </Link>
+                )}
+                <button onClick={logout} style={{ ...styles.menuItem, ...styles.menuItemBoton }}>
+                  <LogOut size={16} strokeWidth={2} /> Cerrar sesión
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -339,11 +376,23 @@ statLabel: { fontSize: '11px', color: 'var(--portal-muted)' },
     padding: '10px 18px', borderRadius: '8px', background: '#3DDC04', color: '#0F0F12',
     fontWeight: 700, textDecoration: 'none', fontSize: '14px', whiteSpace: 'nowrap',
   },
-  buttonSecondary: {
-    padding: '10px 18px', borderRadius: '8px', border: '1px solid var(--portal-button-secondary-border)',
-    background: 'var(--portal-button-secondary-bg)', color: 'var(--portal-text)', cursor: 'pointer', fontSize: '14px',
-    whiteSpace: 'nowrap', textDecoration: 'none',
+  buttonIcono: {
+    width: '38px', height: '38px', borderRadius: '8px',
+    border: '1px solid var(--portal-button-secondary-border)', background: 'var(--portal-button-secondary-bg)',
+    color: 'var(--portal-text)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
+  menuDropdown: {
+    position: 'absolute', top: 'calc(100% + 8px)', right: 0, minWidth: '190px',
+    background: 'var(--portal-card-bg)', border: '1px solid var(--portal-card-border)',
+    borderRadius: '10px', boxShadow: '0 12px 32px rgba(0,0,0,0.22)', zIndex: 9999, overflow: 'hidden',
+  },
+  menuItem: {
+    display: 'flex', alignItems: 'center', gap: '9px', width: '100%', padding: '11px 14px',
+    border: 'none', borderBottom: '1px solid var(--portal-card-border)', cursor: 'pointer',
+    fontSize: '13.5px', color: 'var(--portal-text)', fontFamily: 'Inter, sans-serif',
+    textDecoration: 'none', background: 'none', boxSizing: 'border-box',
+  },
+  menuItemBoton: { borderBottom: 'none', color: '#F0997B' },
   card: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px',
     padding: '14px 16px', borderRadius: '10px',

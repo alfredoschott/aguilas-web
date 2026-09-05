@@ -108,7 +108,7 @@ export default function AvisosBanner() {
       })}
 
       {!mostrarForm ? (
-        <button onClick={() => setMostrarForm(true)} style={styles.botonNuevoAviso}>
+        <button onClick={() => setMostrarForm(true)} className="portal-button-secondary" style={styles.botonNuevoAviso}>
           + Publicar aviso
         </button>
       ) : (
@@ -120,10 +120,10 @@ export default function AvisosBanner() {
             style={styles.inputAviso}
             autoFocus
           />
-          <button type="submit" disabled={publicando} style={styles.botonPublicar}>
+          <button type="submit" disabled={publicando} className="portal-button-primary" style={styles.botonPublicar}>
             {publicando ? 'Publicando...' : 'Publicar'}
           </button>
-          <button type="button" onClick={() => setMostrarForm(false)} style={styles.botonCancelarAviso}>
+          <button type="button" onClick={() => setMostrarForm(false)} className="portal-button-secondary" style={styles.botonCancelarAviso}>
             Cancelar
           </button>
         </form>

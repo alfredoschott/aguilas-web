@@ -187,6 +187,7 @@ export default function PrestamosInventario() {
                 {activo && (
                   <button
                     onClick={() => marcarDevuelto(p)}
+                    className="portal-button-secondary"
                     style={devolverBtnStyle}
                     disabled={procesando === p.id}
                   >
@@ -276,7 +277,7 @@ const devolverBtnStyle = {
   background: 'var(--portal-button-secondary-bg)',
   color: 'var(--portal-text)',
   border: '1px solid var(--portal-button-secondary-border)',
-  borderRadius: '8px',
+  borderRadius: '999px',
   padding: '8px 14px',
   fontSize: '13px',
   cursor: 'pointer',

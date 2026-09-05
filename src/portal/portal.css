@@ -1,41 +1,24 @@
+/* El portal de líderes usa la misma identidad de marca que el sitio público:
+   siempre tema oscuro, mismo verde, misma tipografía. Sin modo claro. */
 :root {
-  color-scheme: light dark;
-  --portal-bg: #F7F7F5;
-  --portal-text: #111111;
-  --portal-muted: #666666;
+  color-scheme: dark;
+  --portal-verde: #3DDC04;
+  --portal-bg: #0a0a0a;
+  --portal-text: #f5f5f5;
+  --portal-muted: #aaaaaa;
   --portal-muted-2: #888888;
-  --portal-card-bg: #ffffff;
-  --portal-card-border: #eeeeee;
-  --portal-input-bg: #ffffff;
-  --portal-input-border: #dddddd;
-  --portal-input-text: #111111;
-  --portal-label-text: #333333;
-  --portal-badge-bg: #eeeeee;
-  --portal-badge-text: #555555;
-  --portal-button-secondary-bg: #ffffff;
-  --portal-button-secondary-border: #dddddd;
-  --portal-error-bg: #FEF3F2;
-  --portal-error-text: #D92D20;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --portal-bg: #0F0F12;
-    --portal-text: #F5F3EE;
-    --portal-muted: #A0A0A8;
-    --portal-muted-2: #7A7A82;
-    --portal-card-bg: #1A1A1E;
-    --portal-card-border: #2A2A2E;
-    --portal-input-bg: #1A1A1E;
-    --portal-input-border: #33333A;
-    --portal-input-text: #F5F3EE;
-    --portal-label-text: #D8D8DE;
-    --portal-badge-bg: #2A2A2E;
-    --portal-badge-text: #D0D0D6;
-    --portal-button-secondary-bg: #1A1A1E;
-    --portal-button-secondary-border: #33333A;
-    --portal-error-bg: #3A1414;
-    --portal-error-text: #FF6B6B;
-  }
+  --portal-card-bg: #141414;
+  --portal-card-border: #2a2a2a;
+  --portal-input-bg: #1a1a1a;
+  --portal-input-border: #2a2a2a;
+  --portal-input-text: #f5f5f5;
+  --portal-label-text: #c9c9c9;
+  --portal-badge-bg: #232323;
+  --portal-badge-text: #cfcfcf;
+  --portal-button-secondary-bg: #1a1a1a;
+  --portal-button-secondary-border: #2a2a2a;
+  --portal-error-bg: #3A1414;
+  --portal-error-text: #FF6B6B;
 }
 @keyframes portalFadeIn {
   from { opacity: 0; transform: translateY(10px); }
@@ -60,12 +43,38 @@
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(0,0,0,0.10);
 }
+/* Botón CTA de marca: mismo estilo que el sitio público (píldora, verde, Montserrat) */
 .portal-button-primary {
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  border-radius: 999px !important;
+  background: var(--portal-verde) !important;
+  color: #000 !important;
+  border: none !important;
+  font-family: 'Montserrat', sans-serif !important;
+  font-weight: 700 !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.2s ease;
 }
 .portal-button-primary:hover {
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(61,220,4,0.35);
+  background: #2BAF1E !important;
+}
+.portal-button-primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none !important;
+}
+/* Botones secundarios: misma forma de píldora que el resto del sitio, sin tocar sus colores */
+.portal-button-secondary {
+  border-radius: 999px !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.2s ease;
+}
+.portal-button-secondary:hover {
+  transform: translateY(-1px);
+}
+.portal-button-secondary:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none !important;
 }
 .portal-day-cell {
   transition: transform 0.1s ease, border-color 0.1s ease;
@@ -94,24 +103,36 @@
   }
   .portal-dashboard-actions {
     width: 100% !important;
-    flex-wrap: wrap !important;
     gap: 8px !important;
   }
-  .portal-dashboard-actions > * {
+  .portal-dashboard-actions .portal-button-primary {
     flex: 1 1 auto !important;
     text-align: center !important;
     white-space: normal !important;
     min-width: 0 !important;
-    padding-left: 10px !important;
-    padding-right: 10px !important;
     font-size: 13px !important;
-  }
-  .portal-dashboard-stats {
-    flex-direction: column !important;
   }
   .portal-day-cell {
     min-height: 44px !important;
     padding: 3px !important;
+  }
+  .portal-cal-nav {
+    gap: 10px !important;
+    margin-bottom: 14px !important;
+  }
+  .portal-cal-title {
+    min-width: 0 !important;
+    font-size: 18px !important;
+    flex: 1 1 auto;
+  }
+  .portal-cal-nav .navButton, .portal-cal-nav button {
+    flex-shrink: 0;
+  }
+  .portal-day-cell span {
+    font-size: 11px !important;
+  }
+  .portal-print-grid {
+    gap: 3px !important;
   }
 }
 @media print {
