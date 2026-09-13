@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react'
+import { collection, onSnapshot } from 'firebase/firestore'
+import { db } from '../firebase'
 import useMagnetico from '../hooks/useMagnetico'
 import useSyncedRotation from '../hooks/useSyncedRotation'
 
-const fotos = [
+// Se usa mientras el admin no haya subido fotos propias a Firestore
+// (colección "galeria", sección "hero"), para que la portada nunca se vea vacía.
+const FOTOS_FALLBACK = [
   '/foto-worship.webp',
   '/foto-servicio1.webp',
   '/foto-servicio2.webp',
@@ -12,10 +16,28 @@ const INTERVALO_FOTOS = 5000
 
 const TEXTO_COMPLETO = 'Ven como eres. Sal diferente.'
 
+function useFotosPortada() {
+  const [fotosFirestore, setFotosFirestore] = useState(null)
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'galeria'), (snapshot) => {
+      const docs = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((d) => d.seccion === 'hero')
+      docs.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
+      setFotosFirestore(docs.map((d) => d.imagenUrl))
+    })
+    return () => unsubscribe()
+  }, [])
+
+  return fotosFirestore && fotosFirestore.length > 0 ? fotosFirestore : FOTOS_FALLBACK
+}
+
 function Hero() {
   const [animado, setAnimado] = useState(false)
   const [textoVisible, setTextoVisible] = useState('')
   const { ref: ctaRef, onMouseMove: onCtaMove, onMouseLeave: onCtaLeave } = useMagnetico(0.3)
+  const fotos = useFotosPortada()
 
   const sincronizado = useSyncedRotation(fotos.length, INTERVALO_FOTOS)
   const [manual, setManual] = useState(null)

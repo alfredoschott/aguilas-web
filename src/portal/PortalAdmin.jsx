@@ -129,7 +129,7 @@ function PanelAnuncios() {
   const [cargando, setCargando] = useState(true)
   const [editando, setEditando] = useState(null)
   const [subiendo, setSubiendo] = useState(false)
-  const [form, setForm] = useState({ titulo: '', texto: '', link: '', fechaPublicacion: '', fechaExpiracion: '', imagenFile: null, imagenUrlActual: '' })
+  const [form, setForm] = useState({ titulo: '', texto: '', link: '', mensajeConsolidacion: '', fechaPublicacion: '', fechaExpiracion: '', imagenFile: null, imagenUrlActual: '' })
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'anuncios'), (snapshot) => {
@@ -142,7 +142,7 @@ function PanelAnuncios() {
   const anunciosOrdenados = [...anuncios].sort((a, b) => ordenValor(b) - ordenValor(a))
 
   const resetForm = () => {
-    setForm({ titulo: '', texto: '', link: '', fechaPublicacion: '', fechaExpiracion: '', imagenFile: null, imagenUrlActual: '' })
+    setForm({ titulo: '', texto: '', link: '', mensajeConsolidacion: '', fechaPublicacion: '', fechaExpiracion: '', imagenFile: null, imagenUrlActual: '' })
     setEditando(null)
   }
 
@@ -155,7 +155,15 @@ function PanelAnuncios() {
       if (form.imagenFile) {
         imagenUrl = await subirImagenComprimida(form.imagenFile, 'anuncios')
       }
-      const datos = { titulo: form.titulo, texto: form.texto, link: form.link || null, fechaPublicacion: form.fechaPublicacion || null, fechaExpiracion: form.fechaExpiracion || null, imagenUrl }
+      const datos = {
+        titulo: form.titulo,
+        texto: form.texto,
+        link: form.link || null,
+        mensajeConsolidacion: form.link ? null : (form.mensajeConsolidacion || null),
+        fechaPublicacion: form.fechaPublicacion || null,
+        fechaExpiracion: form.fechaExpiracion || null,
+        imagenUrl,
+      }
       if (editando) {
         await updateDoc(doc(db, 'anuncios', editando), datos)
       } else {
@@ -171,7 +179,7 @@ function PanelAnuncios() {
   }
 
   const editar = (a) => {
-    setForm({ titulo: a.titulo || '', texto: a.texto || '', link: a.link || '', fechaPublicacion: a.fechaPublicacion || '', fechaExpiracion: a.fechaExpiracion || '', imagenFile: null, imagenUrlActual: a.imagenUrl || '' })
+    setForm({ titulo: a.titulo || '', texto: a.texto || '', link: a.link || '', mensajeConsolidacion: a.mensajeConsolidacion || '', fechaPublicacion: a.fechaPublicacion || '', fechaExpiracion: a.fechaExpiracion || '', imagenFile: null, imagenUrlActual: a.imagenUrl || '' })
     setEditando(a.id)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -216,9 +224,30 @@ function PanelAnuncios() {
         )}
         <label style={labelStyle}>
           Link (opcional)
-          <input type="url" value={form.link} onChange={e => setForm({ ...form, link: e.target.value })} style={inputStyle} placeholder="https://..." />
+          <input
+            type="url"
+            value={form.link}
+            onChange={e => setForm({ ...form, link: e.target.value })}
+            disabled={!!form.mensajeConsolidacion}
+            style={{ ...inputStyle, opacity: form.mensajeConsolidacion ? 0.5 : 1 }}
+            placeholder="https://..."
+          />
           <span style={{ display: 'block', fontSize: '0.75rem', color: TEXTO_SUAVE, textTransform: 'none', letterSpacing: 'normal', marginTop: '0.35rem', fontWeight: '400' }}>
             Si lo agregas, la tarjeta del anuncio será clickeable y llevará a esta dirección
+          </span>
+        </label>
+        <label style={labelStyle}>
+          Mensaje para consolidación (opcional)
+          <input
+            type="text"
+            value={form.mensajeConsolidacion}
+            onChange={e => setForm({ ...form, mensajeConsolidacion: e.target.value })}
+            disabled={!!form.link}
+            style={{ ...inputStyle, opacity: form.link ? 0.5 : 1 }}
+            placeholder="Ej. Quisiera que oren por mí / saber más de este anuncio"
+          />
+          <span style={{ display: 'block', fontSize: '0.75rem', color: TEXTO_SUAVE, textTransform: 'none', letterSpacing: 'normal', marginTop: '0.35rem', fontWeight: '400' }}>
+            Solo se usa si no hay link. La tarjeta abrirá WhatsApp con este mensaje ya escrito.
           </span>
         </label>
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
@@ -258,6 +287,7 @@ function PanelAnuncios() {
               <strong style={{ color: TEXTO, fontFamily: 'Montserrat, sans-serif', fontSize: '0.95rem' }}>{a.titulo}</strong>
               <p style={{ margin: '0.3rem 0', fontSize: '0.85rem', color: TEXTO_SUAVE }}>{a.texto}</p>
               {a.link && <span style={{ display: 'block', fontSize: '0.75rem', color: '#8fb4ff', wordBreak: 'break-all' }}>🔗 {a.link}</span>}
+              {!a.link && a.mensajeConsolidacion && <span style={{ display: 'block', fontSize: '0.75rem', color: VERDE, wordBreak: 'break-all' }}>💬 {a.mensajeConsolidacion}</span>}
               <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                 {a.fechaPublicacion && new Date(a.fechaPublicacion + 'T00:00:00') > new Date() && (
                   <span style={{ fontSize: '0.75rem', color: '#8fb4ff' }}>Programado: {a.fechaPublicacion}</span>
@@ -694,6 +724,11 @@ function PanelServicios() {
   )
 }
 
+const FOTOS_POR_DEFECTO = {
+  principal: ['/galeria-1.webp', '/galeria-2.webp', '/galeria-3.webp', '/galeria-4.webp', '/galeria-5.webp', '/galeria-6.webp'],
+  hero: ['/foto-worship.webp', '/foto-servicio1.webp', '/foto-servicio2.webp'],
+}
+
 function PanelGaleria() {
   const [fotos, setFotos] = useState([])
   const [cargando, setCargando] = useState(true)
@@ -747,18 +782,27 @@ function PanelGaleria() {
     await updateDoc(doc(db, 'galeria', b.id), { orden: ordenA })
   }
 
+  const borrarPredeterminada = async (url) => {
+    if (!confirm('¿Quitar esta foto por defecto? Ya no aparecerá en el sitio.')) return
+    const restantes = FOTOS_POR_DEFECTO[seccion].filter((u) => u !== url)
+    for (let i = 0; i < restantes.length; i++) {
+      await addDoc(collection(db, 'galeria'), { imagenUrl: restantes[i], seccion, orden: i, creado: serverTimestamp() })
+    }
+  }
+
   return (
     <>
       <h2 style={{ fontFamily: 'Montserrat, sans-serif', color: TEXTO, fontSize: '1.1rem', marginBottom: '1rem' }}>Galería</h2>
       <p style={{ color: TEXTO_SUAVE, fontSize: '0.85rem', marginTop: '-0.5rem', marginBottom: '1.5rem' }}>
-        {seccion === 'principal'
-          ? 'Mientras no subas fotos aquí, el sitio muestra las fotos por defecto.'
-          : 'Estas fotos aparecen en la sección de galería de la página de RadGen.'}
+        {seccion === 'principal' && 'Mientras no subas fotos aquí, el sitio muestra las fotos por defecto.'}
+        {seccion === 'radgen' && 'Estas fotos aparecen en la sección de galería de la página de RadGen.'}
+        {seccion === 'hero' && 'Estas fotos son las que rotan de fondo en la portada ("Hay un lugar para ti"), al inicio del sitio.'}
       </p>
 
       <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '1.5rem' }}>
         <button style={tabStyle(seccion === 'principal')} onClick={() => setSeccion('principal')}>Principal</button>
         <button style={tabStyle(seccion === 'radgen')} onClick={() => setSeccion('radgen')}>RadGen</button>
+        <button style={tabStyle(seccion === 'hero')} onClick={() => setSeccion('hero')}>Portada</button>
       </div>
 
       <form onSubmit={subir} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', backgroundColor: CARD, border: `1px solid ${BORDE}`, borderRadius: '16px', padding: '1.75rem', marginBottom: '2.5rem' }}>
@@ -786,11 +830,23 @@ function PanelGaleria() {
             <button onClick={() => borrar(f)} style={{ cursor: 'pointer', background: 'none', border: '1px solid #4A1B0C', color: '#F0997B', padding: '0.45rem 0.9rem', borderRadius: '999px', fontSize: '0.8rem', flexShrink: 0 }}>Borrar</button>
           </div>
         ))}
-        {!cargando && fotosSeccion.length === 0 && (
+        {!cargando && fotosSeccion.length === 0 && FOTOS_POR_DEFECTO[seccion] && (
+          <>
+            <p style={{ color: TEXTO_SUAVE, fontSize: '0.9rem' }}>
+              Aún no has subido fotos aquí — el sitio está mostrando estas fotos por defecto:
+            </p>
+            {FOTOS_POR_DEFECTO[seccion].map((url) => (
+              <div key={url} style={{ border: `1px solid ${BORDE}`, backgroundColor: CARD, borderRadius: '14px', padding: '1rem 1.25rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <img src={url} alt="Foto por defecto" style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '8px', flexShrink: 0 }} />
+                <span style={{ color: TEXTO_SUAVE, fontSize: '0.8rem', flex: 1 }}>Por defecto</span>
+                <button onClick={() => borrarPredeterminada(url)} style={{ cursor: 'pointer', background: 'none', border: '1px solid #4A1B0C', color: '#F0997B', padding: '0.45rem 0.9rem', borderRadius: '999px', fontSize: '0.8rem', flexShrink: 0 }}>Borrar</button>
+              </div>
+            ))}
+          </>
+        )}
+        {!cargando && fotosSeccion.length === 0 && !FOTOS_POR_DEFECTO[seccion] && (
           <p style={{ color: TEXTO_SUAVE, fontSize: '0.9rem' }}>
-            {seccion === 'principal'
-              ? 'Aún no hay fotos aquí — el sitio está mostrando la galería por defecto.'
-              : 'Aún no hay fotos aquí — la sección de galería de RadGen se ve vacía.'}
+            Aún no hay fotos aquí — la sección de galería de RadGen se ve vacía.
           </p>
         )}
       </div>

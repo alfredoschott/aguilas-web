@@ -4,9 +4,13 @@ import { db } from '../firebase'
 import useReveal from '../hooks/useReveal'
 
 function TarjetaAnuncio({ anuncio }) {
-  const Tarjeta = anuncio.link ? 'a' : 'div'
-  const propsLink = anuncio.link
-    ? { href: anuncio.link, target: '_blank', rel: 'noopener noreferrer' }
+  const linkWhatsapp = !anuncio.link && anuncio.mensajeConsolidacion
+    ? 'https://wa.me/527711107903?text=' + encodeURIComponent(anuncio.mensajeConsolidacion)
+    : null
+  const href = anuncio.link || linkWhatsapp
+  const Tarjeta = href ? 'a' : 'div'
+  const propsLink = href
+    ? { href, target: '_blank', rel: 'noopener noreferrer' }
     : {}
 
   return (
@@ -19,7 +23,7 @@ function TarjetaAnuncio({ anuncio }) {
       zIndex: 1,
       display: 'block',
       textDecoration: 'none',
-      cursor: anuncio.link ? 'pointer' : 'default',
+      cursor: href ? 'pointer' : 'default',
     }}>
       {anuncio.imagenUrl && (
         <img
