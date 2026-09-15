@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "browser-image-compression": "^2.0.2",
-    "firebase": "^12.16.0",
+    "firebase": "^12.19.0",
     "firebase-admin": "^11.11.1",
     "googleapis": "^174.0.1",
     "jspdf": "^4.2.1",
@@ -19,7 +19,7 @@
     "lucide-react": "^1.30.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-router-dom": "^7.18.1",
+    "react-router-dom": "^7.18.4",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

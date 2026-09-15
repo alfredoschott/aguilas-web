@@ -1,8 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
+import RadgenEducationApp from './radgen/RadgenEducationApp.jsx'
 import DevNav from './components/DevNav.jsx'
 
 // Evita que el navegador restaure/salte a un scroll previo (o al hash de la
@@ -20,7 +21,10 @@ window.scrollTo(0, 0)
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <App />
+      <Routes>
+        <Route path="/radgen/education/*" element={<RadgenEducationApp />} />
+        <Route path="/*" element={<App />} />
+      </Routes>
       {import.meta.env.DEV && <DevNav />}
     </BrowserRouter>
   </StrictMode>,

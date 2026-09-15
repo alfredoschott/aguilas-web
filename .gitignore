@@ -22,7 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-serviceAccountKey.json
-googleOAuthCredentials.json
-googleOAuthCredentials.json
+
+# Credenciales — nunca deben subirse al repo
 googleCalendarToken.json
+googleOAuthCredentials.json
+serviceAccountKey.json

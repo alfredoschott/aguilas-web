@@ -10,7 +10,7 @@ const firebaseConfig = {
   storageBucket: "aguilas-cfc-tizayuca.firebasestorage.app",
   messagingSenderId: "204649179835",
   appId: "1:204649179835:web:32d27592ff64d85057579e",
-  measurementId: "G-PX06ZT05PQ"
+  measurementId: "G-PX06ZT05PQ",
 }
 
 const app = initializeApp(firebaseConfig)

@@ -1,13 +1,13 @@
 import { useState } from 'react'
 
-// Solo en desarrollo: acceso rápido a todo lo que existe en el proyecto,
-// aunque viva en otro servidor local (RadGen Education corre aparte, en
-// su propia carpeta/rama, puerto 5173). Nunca se muestra en producción.
+// Solo en desarrollo: acceso rápido a todo lo que existe en el proyecto.
+// Todo vive en el mismo servidor ahora que RadGen Education está integrado
+// aquí. Nunca se muestra en producción.
 const PAGINAS = [
-  { emoji: '🏠', nombre: 'Inicio', url: 'http://localhost:5180/' },
-  { emoji: '🦅', nombre: 'RadGen', url: 'http://localhost:5180/radgen' },
-  { emoji: '🎓', nombre: 'RadGen Education', url: 'http://localhost:5173/radgen/education' },
-  { emoji: '🔐', nombre: 'Portal líderes', url: 'http://localhost:5180/lideres' },
+  { emoji: '🏠', nombre: 'Inicio', url: '/' },
+  { emoji: '🦅', nombre: 'RadGen', url: '/radgen' },
+  { emoji: '🎓', nombre: 'RadGen Education', url: '/radgen/education' },
+  { emoji: '🔐', nombre: 'Portal líderes', url: '/lideres' },
 ]
 
 export default function DevNav() {
@@ -44,9 +44,7 @@ export default function DevNav() {
                 textDecoration: 'none',
                 fontSize: 13,
                 fontWeight: 600,
-                background: p.url.startsWith(window.location.origin + window.location.pathname)
-                  ? '#2a2a2a'
-                  : 'transparent',
+                background: p.url === window.location.pathname ? '#2a2a2a' : 'transparent',
               }}
               onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a' }}
               onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
