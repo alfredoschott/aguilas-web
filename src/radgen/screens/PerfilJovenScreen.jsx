@@ -13,7 +13,7 @@ import {
   eliminarAsignacion,
   revertirCompletado,
 } from '../store'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Sky from '../components/Sky'
 import Avatar from '../components/Avatar'
 import TareaPersonal from '../components/TareaPersonal'
@@ -24,12 +24,32 @@ import useEliminarConDeshacer from '../hooks/useEliminarConDeshacer'
 export default function PerfilJovenScreen({ usuario }) {
   const { uid } = useParams()
   const navigate = useNavigate()
-  const joven = getJovenPorUid(uid)
 
+  const [joven, setJoven] = useState(undefined) // undefined = cargando
+  const [insignias, setInsignias] = useState(null)
+  const [racha, setRacha] = useState(0)
   const [textoNota, setTextoNota, limpiarBorradorNota] = useBorrador(`nota-perfil:${uid}`)
-  const [notas, setNotas] = useState(() => getNotasDe(uid))
-  const [tareas, setTareas] = useState(() => getTareasDe(uid))
-  const [asignaciones, setAsignaciones] = useState(() => getAsignacionesDe(uid))
+  const [notas, setNotas] = useState([])
+  const [tareas, setTareas] = useState([])
+  const [asignaciones, setAsignaciones] = useState([])
+
+  useEffect(() => {
+    Promise.all([
+      getJovenPorUid(uid),
+      getInsigniasDe(uid),
+      getRachaSemanas(uid),
+      getNotasDe(uid),
+      getTareasDe(uid),
+      getAsignacionesDe(uid),
+    ]).then(([j, i, r, n, t, a]) => {
+      setJoven(j)
+      setInsignias(i)
+      setRacha(r)
+      setNotas(n)
+      setTareas(t)
+      setAsignaciones(a)
+    })
+  }, [uid])
 
   const { pendiente: notaPendiente, solicitar: solicitarEliminarNota, deshacer: deshacerEliminarNota } =
     useEliminarConDeshacer({
@@ -52,6 +72,14 @@ export default function PerfilJovenScreen({ usuario }) {
       eliminar: (asignacionId) => eliminarAsignacion(asignacionId),
     })
 
+  if (joven === undefined) {
+    return (
+      <div className="re-shell" style={{ textAlign: 'center' }}>
+        <Sky size={72} pose="estudiando" animado />
+      </div>
+    )
+  }
+
   if (!joven) {
     return (
       <div className="re-shell">
@@ -63,8 +91,6 @@ export default function PerfilJovenScreen({ usuario }) {
     )
   }
 
-  const insignias = getInsigniasDe(uid)
-  const racha = getRachaSemanas(uid)
   const mensajePendiente = notaPendiente?.mensaje || tareaPendiente?.mensaje || asignacionPendiente?.mensaje
   const deshacerPendiente = notaPendiente
     ? deshacerEliminarNota
@@ -72,19 +98,20 @@ export default function PerfilJovenScreen({ usuario }) {
       ? deshacerEliminarTarea
       : deshacerQuitarAsignacion
 
-  function guardarNota() {
+  async function guardarNota() {
     if (!textoNota.trim()) return
-    setNotas(agregarNota({ jovenUid: uid, texto: textoNota.trim(), liderUid: usuario.uid }))
+    setNotas(await agregarNota({ jovenUid: uid, texto: textoNota.trim(), liderUid: usuario.uid }))
     limpiarBorradorNota()
   }
 
-  function toggleTarea(tareaId) {
-    setTareas(alternarTareaPersonal({ jovenUid: uid, tareaId }))
+  async function toggleTarea(tareaId) {
+    setTareas(await alternarTareaPersonal({ jovenUid: uid, tareaId }))
   }
 
-  function revertir(asignacionId) {
-    revertirCompletado(asignacionId)
-    setAsignaciones(getAsignacionesDe(uid))
+  async function revertir(asignacionId) {
+    await revertirCompletado(asignacionId)
+    setAsignaciones(await getAsignacionesDe(uid))
+    setInsignias(await getInsigniasDe(uid))
   }
 
   return (
@@ -94,7 +121,7 @@ export default function PerfilJovenScreen({ usuario }) {
       </button>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <Avatar nombre={joven.nombre} uid={joven.uid} size={56} />
+        <Avatar nombre={joven.nombre} foto={joven.fotoPerfil} uid={joven.uid} size={56} />
         <h1 className="re-titulo-pagina" style={{ margin: 0, flex: '1 1 200px' }}>{joven.nombre}</h1>
         <Sky size={56} pose={insignias.nivelActual ? 'logrado' : 'relajado'} animado={false} />
       </div>

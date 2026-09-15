@@ -1,15 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getComentariosDe, agregarComentario } from '../store'
 import { useBorrador } from '../hooks/useBorrador'
 
 export default function ComentariosLeccion({ asignacionId, jovenUid }) {
-  const [comentarios, setComentarios] = useState(() => getComentariosDe(asignacionId))
+  const [comentarios, setComentarios] = useState([])
   const [texto, setTexto, limpiarBorrador] = useBorrador(`pregunta:${asignacionId}`)
   const [enviado, setEnviado] = useState(false)
 
-  function enviar() {
+  useEffect(() => {
+    getComentariosDe(asignacionId).then(setComentarios)
+  }, [asignacionId])
+
+  async function enviar() {
     if (!texto.trim()) return
-    const nuevos = agregarComentario({ asignacionId, jovenUid, texto: texto.trim() })
+    const nuevos = await agregarComentario({ asignacionId, jovenUid, texto: texto.trim() })
     setComentarios(nuevos)
     limpiarBorrador()
     setEnviado(true)

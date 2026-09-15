@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getAsignacionesDe, getTareasDe, alternarTareaPersonal } from '../store'
 import Sky from '../components/Sky'
@@ -7,13 +7,22 @@ import TareaPersonal from '../components/TareaPersonal'
 export default function LessonListScreen({ usuario }) {
   const [filtro, setFiltro] = useState('todas') // todas | pendientes | completadas
   const [busqueda, setBusqueda] = useState('')
-  const [tareas, setTareas] = useState(() => getTareasDe(usuario.uid))
+  const [tareas, setTareas] = useState([])
+  const [asignaciones, setAsignaciones] = useState([])
+  const [cargando, setCargando] = useState(true)
 
-  function toggleTarea(tareaId) {
-    setTareas(alternarTareaPersonal({ jovenUid: usuario.uid, tareaId }))
+  useEffect(() => {
+    Promise.all([getTareasDe(usuario.uid), getAsignacionesDe(usuario.uid)]).then(([t, a]) => {
+      setTareas(t)
+      setAsignaciones(a)
+      setCargando(false)
+    })
+  }, [usuario.uid])
+
+  async function toggleTarea(tareaId) {
+    setTareas(await alternarTareaPersonal({ jovenUid: usuario.uid, tareaId }))
   }
 
-  const asignaciones = getAsignacionesDe(usuario.uid)
   const pendientes = asignaciones.filter((a) => a.estado !== 'completado').length
   const completadas = asignaciones.length - pendientes
 
@@ -33,6 +42,14 @@ export default function LessonListScreen({ usuario }) {
         : `Te faltan ${pendientes} cápsula${pendientes === 1 ? '' : 's'} por ver. ¡Tú puedes!`
 
   const poseSky = asignaciones.length === 0 ? 'saludando' : pendientes === 0 ? 'logrado' : 'caminando'
+
+  if (cargando) {
+    return (
+      <div className="re-shell" style={{ textAlign: 'center' }}>
+        <Sky size={72} pose="estudiando" animado />
+      </div>
+    )
+  }
 
   return (
     <div className="re-shell">

@@ -1,7 +1,6 @@
-// Avatar con iniciales — no hay fotos reales de los jóvenes, así que generamos
-// un círculo con sus iniciales y un color estable (mismo joven, mismo color
-// siempre) tomado de la paleta de marca. Funciona igual de bien con 3 jóvenes
-// que con 30, sin depender de imágenes externas.
+// Avatar del joven: si ya personalizó su foto de perfil, se muestra esa;
+// si no, se generan iniciales con un color estable (mismo joven, mismo
+// color siempre) tomado de la paleta de marca.
 const PALETA = ['var(--rg-blue)', 'var(--rg-red)', 'var(--rg-ink)']
 
 function inicialesDe(nombre) {
@@ -18,7 +17,18 @@ function colorDe(semilla) {
   return PALETA[hash % PALETA.length]
 }
 
-export default function Avatar({ nombre, uid, size = 44 }) {
+export default function Avatar({ nombre, uid, foto, size = 44 }) {
+  if (foto) {
+    return (
+      <img
+        src={foto}
+        alt={nombre || 'Avatar'}
+        className="re-avatar re-avatar--foto"
+        style={{ width: size, height: size }}
+      />
+    )
+  }
+
   return (
     <div
       className="re-avatar"

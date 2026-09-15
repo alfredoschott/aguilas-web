@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { getInsigniasDe, getMostrarElegibilidadAJovenes, getRachaSemanas } from '../store'
 import Sky from '../components/Sky'
 
@@ -35,9 +36,29 @@ function TarjetaElegibilidad({ titulo, resultado }) {
 }
 
 export default function BadgesScreen({ usuario }) {
-  const insignias = getInsigniasDe(usuario.uid)
-  const mostrarElegibilidad = getMostrarElegibilidadAJovenes()
-  const racha = getRachaSemanas(usuario.uid)
+  const [insignias, setInsignias] = useState(null)
+  const [mostrarElegibilidad, setMostrarElegibilidad] = useState(false)
+  const [racha, setRacha] = useState(0)
+
+  useEffect(() => {
+    Promise.all([
+      getInsigniasDe(usuario.uid),
+      getMostrarElegibilidadAJovenes(),
+      getRachaSemanas(usuario.uid),
+    ]).then(([i, m, r]) => {
+      setInsignias(i)
+      setMostrarElegibilidad(m)
+      setRacha(r)
+    })
+  }, [usuario.uid])
+
+  if (!insignias) {
+    return (
+      <div className="re-shell re-shell--ancho" style={{ textAlign: 'center' }}>
+        <Sky size={72} pose="estudiando" animado />
+      </div>
+    )
+  }
 
   const porcentajeNivel = insignias.progresoNivel
     ? Math.min(100, Math.round((insignias.progresoNivel.actual / insignias.progresoNivel.meta) * 100))

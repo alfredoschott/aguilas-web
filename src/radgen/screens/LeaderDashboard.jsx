@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   getJovenes,
@@ -20,9 +20,9 @@ import {
   eliminarNota,
   getComentariosPendientes,
   responderComentario,
-  getAsignacionesDe,
-  getRachaSemanas,
   asignarTareaPersonal,
+  observarModoPreRegistro,
+  setModoPreRegistro,
 } from '../store'
 import Sky from '../components/Sky'
 import Avatar from '../components/Avatar'
@@ -40,17 +40,14 @@ const TABS = [
   ['ranking', 'Ranking'],
 ]
 
-function PanelCursos({ refrescarLecciones }) {
-  const series = getSeries()
-  const lecciones = getLecciones()
-
-  function archivar(leccionId) {
-    alternarArchivoLeccion(leccionId)
+function PanelCursos({ series, lecciones, refrescarLecciones }) {
+  async function archivar(leccionId) {
+    await alternarArchivoLeccion(leccionId)
     refrescarLecciones()
   }
 
-  function mover(leccionId, direccion) {
-    moverLeccion(leccionId, direccion)
+  async function mover(leccionId, direccion) {
+    await moverLeccion(leccionId, direccion)
     refrescarLecciones()
   }
 
@@ -132,18 +129,24 @@ function PanelAsignar({ usuario, jovenes, lecciones, refrescar }) {
   const [leccionId, setLeccionId] = useState(lecciones[0]?.id || '')
   const [seleccionados, setSeleccionados] = useState([])
   const [mensaje, setMensaje] = useState('')
+  const [asignando, setAsignando] = useState(false)
 
   function toggleJoven(uid) {
     setSeleccionados((prev) => (prev.includes(uid) ? prev.filter((u) => u !== uid) : [...prev, uid]))
   }
 
-  function asignar() {
+  async function asignar() {
     if (!leccionId || seleccionados.length === 0) return
-    asignarLeccion({ leccionId, jovenUids: seleccionados, liderUid: usuario.uid })
-    refrescar()
-    setSeleccionados([])
-    setMensaje('Lección asignada.')
-    setTimeout(() => setMensaje(''), 2500)
+    setAsignando(true)
+    try {
+      await asignarLeccion({ leccionId, jovenUids: seleccionados, liderUid: usuario.uid })
+      await refrescar()
+      setSeleccionados([])
+      setMensaje('Lección asignada.')
+      setTimeout(() => setMensaje(''), 2500)
+    } finally {
+      setAsignando(false)
+    }
   }
 
   return (
@@ -171,8 +174,8 @@ function PanelAsignar({ usuario, jovenes, lecciones, refrescar }) {
         ))}
       </div>
 
-      <button className="re-btn re-btn--lleno" onClick={asignar} disabled={!leccionId || seleccionados.length === 0}>
-        Asignar
+      <button className="re-btn re-btn--lleno" onClick={asignar} disabled={!leccionId || seleccionados.length === 0 || asignando}>
+        {asignando ? 'Asignando…' : 'Asignar'}
       </button>
       {mensaje && <span style={{ marginLeft: 12, fontWeight: 700, color: 'var(--rg-ink)' }}>{mensaje}</span>}
     </div>
@@ -184,14 +187,20 @@ function PanelAsignacionPersonal({ usuario, jovenes }) {
   const [titulo, setTitulo] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [mensaje, setMensaje] = useState('')
+  const [asignando, setAsignando] = useState(false)
 
-  function asignar() {
+  async function asignar() {
     if (!titulo.trim() || !jovenUid) return
-    asignarTareaPersonal({ jovenUid, titulo: titulo.trim(), descripcion: descripcion.trim(), liderUid: usuario.uid })
-    setTitulo('')
-    setDescripcion('')
-    setMensaje('Tarea asignada.')
-    setTimeout(() => setMensaje(''), 2500)
+    setAsignando(true)
+    try {
+      await asignarTareaPersonal({ jovenUid, titulo: titulo.trim(), descripcion: descripcion.trim(), liderUid: usuario.uid })
+      setTitulo('')
+      setDescripcion('')
+      setMensaje('Tarea asignada.')
+      setTimeout(() => setMensaje(''), 2500)
+    } finally {
+      setAsignando(false)
+    }
   }
 
   return (
@@ -203,7 +212,12 @@ function PanelAsignacionPersonal({ usuario, jovenes }) {
 
       <label className="re-label">Joven</label>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem' }}>
-        <Avatar nombre={jovenes.find((j) => j.uid === jovenUid)?.nombre} uid={jovenUid} size={40} />
+        <Avatar
+          nombre={jovenes.find((j) => j.uid === jovenUid)?.nombre}
+          foto={jovenes.find((j) => j.uid === jovenUid)?.fotoPerfil}
+          uid={jovenUid}
+          size={40}
+        />
         <select className="re-input" style={{ marginBottom: 0 }} value={jovenUid} onChange={(e) => setJovenUid(e.target.value)}>
           {jovenes.map((j) => (
             <option key={j.uid} value={j.uid}>{j.nombre}</option>
@@ -229,37 +243,34 @@ function PanelAsignacionPersonal({ usuario, jovenes }) {
         style={{ resize: 'vertical', fontFamily: 'inherit' }}
       />
 
-      <button className="re-btn re-btn--lleno" onClick={asignar} disabled={!titulo.trim() || !jovenUid}>
-        Asignar
+      <button className="re-btn re-btn--lleno" onClick={asignar} disabled={!titulo.trim() || !jovenUid || asignando}>
+        {asignando ? 'Asignando…' : 'Asignar'}
       </button>
       {mensaje && <span style={{ marginLeft: 12, fontWeight: 700, color: 'var(--rg-ink)' }}>{mensaje}</span>}
     </div>
   )
 }
 
-function TarjetaPersona({ joven }) {
-  const asignaciones = getAsignacionesDe(joven.uid)
-  const insignias = getInsigniasDe(joven.uid)
-  const racha = getRachaSemanas(joven.uid)
-  const pendientes = asignaciones.filter((a) => a.estado !== 'completado').length
-
+// Puramente presentacional — recibe ya calculados los datos del joven
+// (vienen de `ranking` y `tabla`, que el panel padre ya cargó una sola vez).
+function TarjetaPersona({ joven, totalCompletadas, totalAsignaciones, nivelActual, racha, pendientes }) {
   return (
     <Link to={`/radgen/education/lider/joven/${joven.uid}`} className="re-persona-card">
       <div className="re-persona-card__cabecera">
         <div className="re-persona-card__identidad">
-          <Avatar nombre={joven.nombre} uid={joven.uid} size={40} />
+          <Avatar nombre={joven.nombre} foto={joven.fotoPerfil} uid={joven.uid} size={40} />
           <p className="re-persona-card__nombre">{joven.nombre}</p>
         </div>
         <span className="re-leccion-item__flecha" aria-hidden="true">→</span>
       </div>
 
       <p className="re-persona-card__resumen">
-        {insignias.totalCompletadas} de {asignaciones.length} cápsula{asignaciones.length === 1 ? '' : 's'} completada{insignias.totalCompletadas === 1 ? '' : 's'}
+        {totalCompletadas} de {totalAsignaciones} cápsula{totalAsignaciones === 1 ? '' : 's'} completada{totalCompletadas === 1 ? '' : 's'}
       </p>
 
       <div className="re-persona-card__chips">
-        {insignias.nivelActual ? (
-          <span className="re-badge re-badge--completado">{insignias.nivelActual.icono} {insignias.nivelActual.nombre}</span>
+        {nivelActual ? (
+          <span className="re-badge re-badge--completado">{nivelActual.icono} {nivelActual.nombre}</span>
         ) : (
           <span className="re-badge re-badge--pendiente">Sin rango aún</span>
         )}
@@ -270,7 +281,7 @@ function TarjetaPersona({ joven }) {
   )
 }
 
-function PanelSeguimiento({ jovenes, tabla }) {
+function PanelSeguimiento({ jovenes, tabla, ranking }) {
   return (
     <div className="re-card re-card--rojo">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
@@ -281,9 +292,22 @@ function PanelSeguimiento({ jovenes, tabla }) {
       </div>
 
       <div className="re-personas-grid">
-        {jovenes.map((j) => (
-          <TarjetaPersona key={j.uid} joven={j} />
-        ))}
+        {jovenes.map((j) => {
+          const deEsteJoven = tabla.filter((f) => f.asignadoA === j.uid)
+          const filaRanking = ranking.find((r) => r.joven.uid === j.uid)
+          const pendientes = deEsteJoven.filter((f) => f.estado !== 'completado').length
+          return (
+            <TarjetaPersona
+              key={j.uid}
+              joven={j}
+              totalCompletadas={filaRanking?.totalCompletadas || 0}
+              totalAsignaciones={deEsteJoven.length}
+              nivelActual={filaRanking?.nivelActual || null}
+              racha={filaRanking?.racha || 0}
+              pendientes={pendientes}
+            />
+          )
+        })}
       </div>
 
       {jovenes.length === 0 && <p style={{ opacity: 0.6 }}>Todavía no hay jóvenes registrados.</p>}
@@ -291,9 +315,7 @@ function PanelSeguimiento({ jovenes, tabla }) {
   )
 }
 
-function PanelElegibilidad({ jovenes, lecciones, requisitos, cambiarRequisito, mostrarElegibilidad, cambiarVisibilidadElegibilidad }) {
-  const elegibilidadPorJoven = jovenes.map((j) => ({ joven: j, insignias: getInsigniasDe(j.uid) }))
-
+function PanelElegibilidad({ elegibilidadPorJoven, lecciones, requisitos, cambiarRequisito, mostrarElegibilidad, cambiarVisibilidadElegibilidad }) {
   return (
     <>
       <div className="re-card">
@@ -395,8 +417,13 @@ function PanelElegibilidad({ jovenes, lecciones, requisitos, cambiarRequisito, m
 function PanelNotasYPreguntas({ usuario, jovenes, pendientes, refrescarPendientes }) {
   const [jovenNotaId, setJovenNotaId] = useState(jovenes[0]?.uid || '')
   const [textoNota, setTextoNota, limpiarBorradorNota] = useBorrador(`nota:${jovenNotaId}`)
-  const [notas, setNotas] = useState(() => getNotasDe(jovenes[0]?.uid || ''))
+  const [notas, setNotas] = useState([])
   const [respuestas, setRespuestas] = useState({})
+
+  useEffect(() => {
+    if (!jovenNotaId) return
+    getNotasDe(jovenNotaId).then(setNotas)
+  }, [jovenNotaId])
 
   const { pendiente: notaPendiente, solicitar: solicitarEliminarNota, deshacer: deshacerEliminarNota } =
     useEliminarConDeshacer({
@@ -405,21 +432,16 @@ function PanelNotasYPreguntas({ usuario, jovenes, pendientes, refrescarPendiente
       eliminar: (notaId) => eliminarNota({ jovenUid: jovenNotaId, notaId }),
     })
 
-  function cambiarJovenNota(uid) {
-    setJovenNotaId(uid)
-    setNotas(getNotasDe(uid))
-  }
-
-  function guardarNota() {
+  async function guardarNota() {
     if (!textoNota.trim() || !jovenNotaId) return
-    setNotas(agregarNota({ jovenUid: jovenNotaId, texto: textoNota.trim(), liderUid: usuario.uid }))
+    setNotas(await agregarNota({ jovenUid: jovenNotaId, texto: textoNota.trim(), liderUid: usuario.uid }))
     limpiarBorradorNota()
   }
 
-  function responder(asignacionId, comentarioId) {
+  async function responder(asignacionId, comentarioId) {
     const respuesta = (respuestas[comentarioId] || '').trim()
     if (!respuesta) return
-    responderComentario({ asignacionId, comentarioId, respuesta })
+    await responderComentario({ asignacionId, comentarioId, respuesta })
     refrescarPendientes()
     setRespuestas((prev) => ({ ...prev, [comentarioId]: '' }))
   }
@@ -465,12 +487,17 @@ function PanelNotasYPreguntas({ usuario, jovenes, pendientes, refrescarPendiente
 
         <label className="re-label">Joven</label>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem' }}>
-          <Avatar nombre={jovenes.find((j) => j.uid === jovenNotaId)?.nombre} uid={jovenNotaId} size={40} />
+          <Avatar
+            nombre={jovenes.find((j) => j.uid === jovenNotaId)?.nombre}
+            foto={jovenes.find((j) => j.uid === jovenNotaId)?.fotoPerfil}
+            uid={jovenNotaId}
+            size={40}
+          />
           <select
             className="re-input"
             style={{ marginBottom: 0 }}
             value={jovenNotaId}
-            onChange={(e) => cambiarJovenNota(e.target.value)}
+            onChange={(e) => setJovenNotaId(e.target.value)}
           >
             {jovenes.map((j) => (
               <option key={j.uid} value={j.uid}>{j.nombre}</option>
@@ -544,7 +571,7 @@ function PanelRanking({ ranking }) {
                     className="re-vinculo"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
                   >
-                    <Avatar nombre={fila.joven.nombre} uid={fila.joven.uid} size={26} />
+                    <Avatar nombre={fila.joven.nombre} foto={fila.joven.fotoPerfil} uid={fila.joven.uid} size={26} />
                     {fila.joven.nombre}
                   </Link>
                 </td>
@@ -563,34 +590,87 @@ function PanelRanking({ ranking }) {
 
 export default function LeaderDashboard({ usuario }) {
   const location = useLocation()
-  const jovenes = getJovenes()
   const [tab, setTab] = useState(location.state?.tab || 'asignar')
-  const [leccionesActivas, setLeccionesActivas] = useState(() => getLeccionesActivas())
-  const [tabla, setTabla] = useState(getTablaEstado())
-  const [ranking, setRanking] = useState(getRankingCampamento())
-  const [requisitos, setRequisitos] = useState(getRequisitos())
-  const [mostrarElegibilidad, setMostrarElegibilidad] = useState(getMostrarElegibilidadAJovenes())
-  const [pendientes, setPendientes] = useState(() => getComentariosPendientes())
+  const [cargando, setCargando] = useState(true)
+  const [jovenes, setJovenes] = useState([])
+  const [lecciones, setLecciones] = useState([])
+  const [leccionesActivas, setLeccionesActivas] = useState([])
+  const [series, setSeries] = useState([])
+  const [tabla, setTabla] = useState([])
+  const [ranking, setRanking] = useState([])
+  const [requisitos, setRequisitos] = useState({ voluntariado: [], misiones: [] })
+  const [mostrarElegibilidad, setMostrarElegibilidad] = useState(false)
+  const [pendientes, setPendientes] = useState([])
+  const [elegibilidadPorJoven, setElegibilidadPorJoven] = useState([])
+  const [preRegistro, setPreRegistro] = useState(true)
 
-  function refrescar() {
-    setTabla(getTablaEstado())
-    setRanking(getRankingCampamento())
+  useEffect(() => {
+    const unsub = observarModoPreRegistro(setPreRegistro)
+    return unsub
+  }, [])
+
+  useEffect(() => {
+    Promise.all([
+      getJovenes(),
+      getLecciones(),
+      getLeccionesActivas(),
+      getSeries(),
+      getTablaEstado(),
+      getRankingCampamento(),
+      getRequisitos(),
+      getMostrarElegibilidadAJovenes(),
+      getComentariosPendientes(),
+    ]).then(async ([js, ls, la, se, tb, rk, rq, me, pd]) => {
+      setJovenes(js)
+      setLecciones(ls)
+      setLeccionesActivas(la)
+      setSeries(se)
+      setTabla(tb)
+      setRanking(rk)
+      setRequisitos(rq)
+      setMostrarElegibilidad(me)
+      setPendientes(pd)
+      const elegibilidad = await Promise.all(js.map(async (j) => ({ joven: j, insignias: await getInsigniasDe(j.uid) })))
+      setElegibilidadPorJoven(elegibilidad)
+      setCargando(false)
+    })
+  }, [])
+
+  async function refrescar() {
+    const [tb, rk] = await Promise.all([getTablaEstado(), getRankingCampamento()])
+    setTabla(tb)
+    setRanking(rk)
   }
 
-  function refrescarLecciones() {
-    setLeccionesActivas(getLeccionesActivas())
+  async function refrescarLecciones() {
+    const [ls, la, se] = await Promise.all([getLecciones(), getLeccionesActivas(), getSeries()])
+    setLecciones(ls)
+    setLeccionesActivas(la)
+    setSeries(se)
   }
 
-  function cambiarRequisito(track, id) {
-    setRequisitos({ ...toggleRequisito({ track, leccionId: id }) })
+  async function cambiarRequisito(track, id) {
+    setRequisitos(await toggleRequisito({ track, leccionId: id }))
   }
 
-  function cambiarVisibilidadElegibilidad() {
-    setMostrarElegibilidad(setMostrarElegibilidadAJovenes(!mostrarElegibilidad))
+  async function cambiarVisibilidadElegibilidad() {
+    setMostrarElegibilidad(await setMostrarElegibilidadAJovenes(!mostrarElegibilidad))
   }
 
-  function refrescarPendientes() {
-    setPendientes(getComentariosPendientes())
+  async function refrescarPendientes() {
+    setPendientes(await getComentariosPendientes())
+  }
+
+  async function cambiarPreRegistro() {
+    await setModoPreRegistro(!preRegistro)
+  }
+
+  if (cargando) {
+    return (
+      <div className="re-shell re-shell--ancho" style={{ textAlign: 'center' }}>
+        <Sky size={72} pose="estudiando" animado />
+      </div>
+    )
   }
 
   return (
@@ -598,6 +678,22 @@ export default function LeaderDashboard({ usuario }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: '1.5rem' }}>
         <h1 className="re-titulo-pagina" style={{ margin: 0 }}>Panel de líder</h1>
         <Sky size={56} pose="relajado" animado={false} />
+      </div>
+
+      <div className={`re-card re-preregistro-banner ${preRegistro ? 're-card--rojo' : ''}`}>
+        <div>
+          <p className="re-preregistro-banner__titulo">
+            {preRegistro ? '🔒 Modo pre-registro activado' : '✅ Currículo visible para todos'}
+          </p>
+          <p className="re-preregistro-banner__texto">
+            {preRegistro
+              ? 'Los jóvenes pueden registrarse y personalizar su perfil, pero todavía no ven lecciones ni asignaciones.'
+              : 'Los jóvenes ya ven sus lecciones y asignaciones con normalidad.'}
+          </p>
+        </div>
+        <button className="re-btn re-btn--sm" onClick={cambiarPreRegistro}>
+          {preRegistro ? 'Activar lecciones para todos' : 'Volver a modo pre-registro'}
+        </button>
       </div>
 
       <div className="re-tabs re-tabs--lider">
@@ -626,7 +722,7 @@ export default function LeaderDashboard({ usuario }) {
         ))}
       </select>
 
-      {tab === 'cursos' && <PanelCursos refrescarLecciones={refrescarLecciones} />}
+      {tab === 'cursos' && <PanelCursos series={series} lecciones={lecciones} refrescarLecciones={refrescarLecciones} />}
 
       {tab === 'asignar' && (
         <>
@@ -635,11 +731,11 @@ export default function LeaderDashboard({ usuario }) {
         </>
       )}
 
-      {tab === 'seguimiento' && <PanelSeguimiento jovenes={jovenes} tabla={tabla} />}
+      {tab === 'seguimiento' && <PanelSeguimiento jovenes={jovenes} tabla={tabla} ranking={ranking} />}
 
       {tab === 'elegibilidad' && (
         <PanelElegibilidad
-          jovenes={jovenes}
+          elegibilidadPorJoven={elegibilidadPorJoven}
           lecciones={leccionesActivas}
           requisitos={requisitos}
           cambiarRequisito={cambiarRequisito}

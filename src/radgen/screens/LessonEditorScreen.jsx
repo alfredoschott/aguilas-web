@@ -1,29 +1,51 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getSeries, getLeccionPorId, crearLeccion, actualizarLeccion } from '../store'
 import { extraerYoutubeId } from '../utils/youtube'
+import Sky from '../components/Sky'
 
 const PREGUNTA_VACIA = () => ({ pregunta: '', opciones: ['', '', '', ''], correcta: 0 })
 
 export default function LessonEditorScreen() {
   const { leccionId } = useParams()
   const navigate = useNavigate()
-  const existente = leccionId ? getLeccionPorId(leccionId) : null
-  const series = getSeries()
+  const [cargando, setCargando] = useState(true)
+  const [existente, setExistente] = useState(null)
+  const [series, setSeries] = useState([])
 
-  const [modoSerie, setModoSerie] = useState(series.length === 0 ? 'nueva' : 'existente')
-  const [serieId, setSerieId] = useState(existente?.serieId || series[0]?.serieId || '')
+  const [modoSerie, setModoSerie] = useState('existente')
+  const [serieId, setSerieId] = useState('')
   const [serieNueva, setSerieNueva] = useState('')
-  const [titulo, setTitulo] = useState(existente?.titulo || '')
-  const [icono, setIcono] = useState(existente?.icono || '📖')
-  const [youtubeInput, setYoutubeInput] = useState(existente?.youtubeId || '')
-  const [versiculoReferencia, setVersiculoReferencia] = useState(existente?.versiculo?.referencia || '')
-  const [versiculoTexto, setVersiculoTexto] = useState(existente?.versiculo?.texto || '')
-  const [notas, setNotas] = useState(existente?.notas || '')
-  const [puntos, setPuntos] = useState(existente?.puntos?.length ? existente.puntos : [''])
-  const [imagen, setImagen] = useState(existente?.imagen || '')
-  const [quiz, setQuiz] = useState(existente?.quiz?.length ? existente.quiz : [])
+  const [titulo, setTitulo] = useState('')
+  const [icono, setIcono] = useState('📖')
+  const [youtubeInput, setYoutubeInput] = useState('')
+  const [versiculoReferencia, setVersiculoReferencia] = useState('')
+  const [versiculoTexto, setVersiculoTexto] = useState('')
+  const [notas, setNotas] = useState('')
+  const [puntos, setPuntos] = useState([''])
+  const [imagen, setImagen] = useState('')
+  const [quiz, setQuiz] = useState([])
   const [mensaje, setMensaje] = useState('')
+  const [guardando, setGuardando] = useState(false)
+
+  useEffect(() => {
+    Promise.all([leccionId ? getLeccionPorId(leccionId) : Promise.resolve(null), getSeries()]).then(([d, s]) => {
+      setExistente(d)
+      setSeries(s)
+      setModoSerie(s.length === 0 ? 'nueva' : 'existente')
+      setSerieId(d?.serieId || s[0]?.serieId || '')
+      setTitulo(d?.titulo || '')
+      setIcono(d?.icono || '📖')
+      setYoutubeInput(d?.youtubeId || '')
+      setVersiculoReferencia(d?.versiculo?.referencia || '')
+      setVersiculoTexto(d?.versiculo?.texto || '')
+      setNotas(d?.notas || '')
+      setPuntos(d?.puntos?.length ? d.puntos : [''])
+      setImagen(d?.imagen || '')
+      setQuiz(d?.quiz?.length ? d.quiz : [])
+      setCargando(false)
+    })
+  }, [leccionId])
 
   const usaSerieNueva = modoSerie === 'nueva' || series.length === 0
 
@@ -55,7 +77,7 @@ export default function LessonEditorScreen() {
     setQuiz((prev) => prev.map((p, idx) => (idx === i ? { ...p, correcta: j } : p)))
   }
 
-  function guardar() {
+  async function guardar() {
     if (!titulo.trim()) return
     if (usaSerieNueva && !serieNueva.trim()) return
     if (!usaSerieNueva && !serieId) return
@@ -79,14 +101,26 @@ export default function LessonEditorScreen() {
         .map((p) => ({ ...p, pregunta: p.pregunta.trim(), opciones: p.opciones.map((o) => o.trim()) })),
     }
 
-    if (existente) {
-      actualizarLeccion(existente.id, payload)
-    } else {
-      crearLeccion(payload)
+    setGuardando(true)
+    try {
+      if (existente) {
+        await actualizarLeccion(existente.id, payload)
+      } else {
+        await crearLeccion(payload)
+      }
+      setMensaje('Guardado.')
+      setTimeout(() => navigate('/radgen/education/lider', { state: { tab: 'cursos' } }), 600)
+    } finally {
+      setGuardando(false)
     }
+  }
 
-    setMensaje('Guardado.')
-    setTimeout(() => navigate('/radgen/education/lider', { state: { tab: 'cursos' } }), 600)
+  if (cargando) {
+    return (
+      <div className="re-shell re-shell--ancho" style={{ textAlign: 'center' }}>
+        <Sky size={72} pose="estudiando" animado />
+      </div>
+    )
   }
 
   return (
@@ -283,9 +317,9 @@ export default function LessonEditorScreen() {
       <button
         className="re-btn re-btn--lleno re-btn--bloque"
         onClick={guardar}
-        disabled={!titulo.trim() || (usaSerieNueva ? !serieNueva.trim() : !serieId)}
+        disabled={!titulo.trim() || (usaSerieNueva ? !serieNueva.trim() : !serieId) || guardando}
       >
-        {existente ? 'Guardar cambios' : 'Crear lección'}
+        {guardando ? 'Guardando…' : existente ? 'Guardar cambios' : 'Crear lección'}
       </button>
       {mensaje && <p style={{ textAlign: 'center', marginTop: 10, fontWeight: 700 }}>{mensaje}</p>}
     </div>

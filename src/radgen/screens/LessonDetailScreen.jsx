@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getAsignacionesDe, marcarCompletado, getInsigniasDe } from '../store'
 import Celebracion from '../components/Celebracion'
@@ -23,9 +23,23 @@ function calcularNuevasInsignias(antes, despues) {
 export default function LessonDetailScreen({ usuario }) {
   const { asignacionId } = useParams()
   const navigate = useNavigate()
-  const asignacion = getAsignacionesDe(usuario.uid).find((a) => a.id === asignacionId)
+  const [asignacion, setAsignacion] = useState(undefined) // undefined = cargando
   const [paso, setPaso] = useState('video') // video | quiz
   const [celebracion, setCelebracion] = useState(null)
+
+  useEffect(() => {
+    getAsignacionesDe(usuario.uid).then((lista) => {
+      setAsignacion(lista.find((a) => a.id === asignacionId) || null)
+    })
+  }, [usuario.uid, asignacionId])
+
+  if (asignacion === undefined) {
+    return (
+      <div className="re-shell" style={{ textAlign: 'center' }}>
+        <Sky size={72} pose="estudiando" animado />
+      </div>
+    )
+  }
 
   if (!asignacion) {
     return (
@@ -41,10 +55,10 @@ export default function LessonDetailScreen({ usuario }) {
   const completado = asignacion.estado === 'completado'
   const tieneQuiz = asignacion.leccion?.quiz?.length > 0
 
-  function completarLeccion(quizScore) {
-    const antes = getInsigniasDe(usuario.uid)
-    marcarCompletado(asignacion.id, quizScore)
-    const despues = getInsigniasDe(usuario.uid)
+  async function completarLeccion(quizScore) {
+    const antes = await getInsigniasDe(usuario.uid)
+    await marcarCompletado(asignacion.id, quizScore)
+    const despues = await getInsigniasDe(usuario.uid)
     const nuevas = calcularNuevasInsignias(antes, despues)
 
     const detalleQuiz = quizScore ? `Acertaste ${quizScore.correctas} de ${quizScore.total} preguntas. ` : ''

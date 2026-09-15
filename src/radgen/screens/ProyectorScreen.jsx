@@ -5,12 +5,15 @@ import logo from '../../assets/radgen-education-logo.png'
 const MEDALLAS = ['🥇', '🥈', '🥉']
 
 export default function ProyectorScreen() {
-  const [ranking, setRanking] = useState(getRankingCampamento())
+  const [ranking, setRanking] = useState([])
 
   // Modo proyector: se refresca solo, pensado para dejarse abierto en una
   // pantalla durante todo el evento sin que nadie tenga que tocar nada.
   useEffect(() => {
-    const intervalo = setInterval(() => setRanking(getRankingCampamento()), 5000)
+    getRankingCampamento().then(setRanking)
+    const intervalo = setInterval(() => {
+      getRankingCampamento().then(setRanking)
+    }, 5000)
     return () => clearInterval(intervalo)
   }, [])
 

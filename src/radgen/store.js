@@ -1,102 +1,21 @@
-// Estado de RadGen Education.
-// Simula lo que después será Firebase Auth + Firestore (ver plan MVP, sección 3).
-// Todo vive en localStorage mientras se conecta el backend real.
-
-const STORAGE_KEY = 'radgen_edu_demo_v1'
-const CODIGO_INVITACION = 'RADGEN2026'
-
-const LECCIONES_SEED = [
-  {
-    id: 'daniel-1',
-    titulo: 'Daniel — Cápsula 1: El propósito en el exilio',
-    youtubeId: null, // pendiente: Sandra sube el video no listado al canal RadGen Education
-    orden: 1,
-    serieId: 'daniel',
-    serieTitulo: 'Serie: Daniel',
-    icono: '🦁',
-    estado: 'activa',
-    versiculo: { referencia: 'Daniel 1:8', texto: 'Daniel se propuso en su corazón no contaminarse.' },
-    notas: 'Daniel fue llevado a una tierra extraña, lejos de todo lo conocido, y aun así decidió mantenerse fiel. Esta cápsula habla de encontrar propósito incluso cuando el lugar donde estamos no lo elegimos nosotros.',
-    puntos: [
-      'Dios tiene un propósito para ti sin importar dónde estés.',
-      'Las decisiones pequeñas y diarias construyen el carácter.',
-      'La fidelidad no depende de las circunstancias.',
-    ],
-    imagen: null,
-    quiz: [
-      {
-        pregunta: '¿Qué decidió Daniel a pesar de estar en una tierra extraña?',
-        opciones: ['Olvidar sus convicciones', 'Mantenerse fiel a Dios', 'Rendirse ante la cultura', 'Esconder su fe'],
-        correcta: 1,
-      },
-      {
-        pregunta: '¿Qué nos enseña esta cápsula sobre nuestro propósito?',
-        opciones: ['Que cambia según el lugar', 'Que Dios tiene un propósito para ti donde sea que estés', 'Que solo aplica en Israel', 'Que hay que esperar a ser adulto'],
-        correcta: 1,
-      },
-    ],
-  },
-  {
-    id: 'daniel-2',
-    titulo: 'Daniel — Cápsula 2: Integridad bajo presión',
-    youtubeId: null,
-    orden: 2,
-    serieId: 'daniel',
-    serieTitulo: 'Serie: Daniel',
-    icono: '🔥',
-    estado: 'activa',
-    versiculo: { referencia: 'Daniel 3:17-18', texto: 'Aun si Dios no nos libra, no vamos a doblegarnos.' },
-    notas: 'Bajo amenaza directa, Daniel, Sadrac, Mesac y Abed-nego eligieron la integridad sobre la comodidad. Esta cápsula explora qué significa mantenerse firme cuando ceder sería mucho más fácil.',
-    puntos: [
-      'Integridad es ser el mismo en público y en privado.',
-      'La presión revela lo que de verdad valoramos.',
-      'Decir "no" con convicción también es un acto de fe.',
-    ],
-    imagen: null,
-    quiz: [
-      {
-        pregunta: '¿Qué significa tener integridad?',
-        opciones: ['Aparentar ser bueno', 'Ser el mismo en público y en privado', 'Ceder cuando nadie ve', 'Buscar aprobación'],
-        correcta: 1,
-      },
-      {
-        pregunta: '¿Cómo respondió Daniel a la presión de su entorno?',
-        opciones: ['Se rindió', 'Se mantuvo firme en sus valores', 'Cambió de opinión', 'Ignoró el problema'],
-        correcta: 1,
-      },
-    ],
-  },
-  {
-    id: 'daniel-3',
-    titulo: 'Daniel — Cápsula 3: Fidelidad en lo secreto',
-    youtubeId: null,
-    orden: 3,
-    serieId: 'daniel',
-    serieTitulo: 'Serie: Daniel',
-    icono: '🕯️',
-    estado: 'activa',
-    versiculo: { referencia: 'Daniel 6:10', texto: 'Seguía orando tres veces al día, como lo hacía siempre.' },
-    notas: 'Daniel no cambió sus hábitos de oración ni siquiera cuando un decreto real lo ponía en riesgo. Esta cápsula habla de la fidelidad silenciosa, la que nadie aplaude pero que define quiénes somos de verdad.',
-    puntos: [
-      'Lo que haces cuando nadie te ve es quien realmente eres.',
-      'Los hábitos constantes sostienen la fe en momentos difíciles.',
-      'La fidelidad en lo secreto tiene efecto público, tarde o temprano.',
-    ],
-    imagen: null,
-    quiz: [
-      {
-        pregunta: '¿Qué hacía Daniel incluso cuando nadie lo veía?',
-        opciones: ['Nada distinto', 'Oraba y honraba a Dios igual', 'Dejaba de esforzarse', 'Solo actuaba correcto en público'],
-        correcta: 1,
-      },
-      {
-        pregunta: '¿Por qué importa la fidelidad en lo secreto?',
-        opciones: ['No importa si nadie ve', 'Define quién eres realmente', 'Es solo para líderes', 'Es opcional'],
-        correcta: 1,
-      },
-    ],
-  },
-]
+// Estado de RadGen Education — Firestore real, mismo proyecto de Firebase
+// que ya usa el sitio de la iglesia (ver ../firebase.js), en sus propias
+// colecciones con prefijo `radgen` para no chocar con las del portal.
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  addDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  onSnapshot,
+} from 'firebase/firestore'
+import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
+import { db, auth, googleProvider } from '../firebase'
 
 // Insignias de rango por cantidad total de cápsulas completadas (ajustable
 // según crezca el currículo real).
@@ -106,239 +25,184 @@ const NIVELES = [
   { id: 'oro', nombre: 'Oro', minimo: 20, icono: '🥇' },
 ]
 
-// Requisitos por actividad: qué lecciones debe tener completadas un joven
-// para que el líder lo pueda considerar apto. Editable desde el panel de líder.
-const REQUISITOS_SEED = {
-  voluntariado: ['daniel-1', 'daniel-2'],
-  misiones: ['daniel-1', 'daniel-2', 'daniel-3'],
+export const NIVELES_INSIGNIA = NIVELES
+
+const CONFIG_ID = 'config'
+const CONFIG_POR_DEFECTO = {
+  modoPreRegistro: true,
+  codigoInvitacion: 'RADGEN2026',
+  mostrarElegibilidadAJovenes: false,
+  requisitos: { voluntariado: [], misiones: [] },
 }
 
-const USUARIOS_SEED = [
-  {
-    uid: 'lider-sandra',
-    nombre: 'Sandra Lara',
-    email: 'sandra.lara@gmail.com',
-    rol: 'lider',
-    creadoEn: '2026-09-01T00:00:00.000Z',
-  },
-  {
-    uid: 'joven-demo-1',
-    nombre: 'Mariana Pérez',
-    email: 'mariana.perez@gmail.com',
-    rol: 'joven',
-    creadoEn: '2026-09-10T00:00:00.000Z',
-  },
-  {
-    uid: 'joven-demo-2',
-    nombre: 'Kevin Torres',
-    email: 'kevin.torres@gmail.com',
-    rol: 'joven',
-    creadoEn: '2026-09-10T00:00:00.000Z',
-  },
-]
+async function getConfig() {
+  const ref = doc(db, 'radgenEduConfig', CONFIG_ID)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) {
+    return { ...CONFIG_POR_DEFECTO }
+  }
+  return { ...CONFIG_POR_DEFECTO, ...snap.data() }
+}
 
-const ASIGNACIONES_SEED = [
-  {
-    id: 'a1',
-    leccionId: 'daniel-1',
-    asignadoA: 'joven-demo-1',
-    asignadoPor: 'lider-sandra',
-    estado: 'completado',
-    fechaAsignada: '2026-09-10T00:00:00.000Z',
-    fechaCompletado: '2026-09-11T00:00:00.000Z',
-  },
-  {
-    id: 'a2',
-    leccionId: 'daniel-2',
-    asignadoA: 'joven-demo-1',
-    asignadoPor: 'lider-sandra',
-    estado: 'pendiente',
-    fechaAsignada: '2026-09-12T00:00:00.000Z',
-    fechaCompletado: null,
-  },
-]
+// ===== Sesión =====
 
-function seed() {
+// Se suscribe al estado de sesión real de Firebase Auth. `callback` recibe
+// el perfil de RadGen Education del usuario (o null si no ha iniciado
+// sesión, o si inició sesión con Google pero todavía no tiene perfil aquí
+// — por ejemplo, a medio registro). Devuelve la función para desuscribirse.
+export function observarSesion(callback) {
+  return onAuthStateChanged(auth, async (fbUser) => {
+    if (!fbUser) {
+      callback(null)
+      return
+    }
+    try {
+      const snap = await getDoc(doc(db, 'radgenPerfiles', fbUser.uid))
+      callback(snap.exists() ? { uid: snap.id, ...snap.data() } : null)
+    } catch {
+      callback(null)
+    }
+  })
+}
+
+// Un solo botón de Google para joven y líder — `rolElegido` es la pestaña
+// que la persona escogió antes de tocar el botón.
+export async function iniciarSesionConGoogle(rolElegido) {
+  const credencial = await signInWithPopup(auth, googleProvider)
+  const fbUser = credencial.user
+  const email = (fbUser.email || '').toLowerCase()
+
+  const perfilRef = doc(db, 'radgenPerfiles', fbUser.uid)
+  const perfilSnap = await getDoc(perfilRef)
+  if (perfilSnap.exists()) {
+    return { ok: true, usuario: { uid: perfilSnap.id, ...perfilSnap.data() } }
+  }
+
+  if (rolElegido === 'lider') {
+    // Debe ya existir como líder de RadGen en el portal de líderes de la
+    // iglesia (colección `usuarios`, compartida con ese sitio).
+    const usuarioPortalSnap = await getDoc(doc(db, 'usuarios', email))
+    const datosPortal = usuarioPortalSnap.data()
+    const esLiderRadgen =
+      usuarioPortalSnap.exists() &&
+      datosPortal?.rol === 'lider' &&
+      (datosPortal?.ministerio || '').toLowerCase().includes('radgen')
+
+    if (!esLiderRadgen) {
+      await signOut(auth)
+      return { ok: false, error: 'Tu cuenta no está registrada como líder de RadGen. Pide acceso a Primera Mesa.' }
+    }
+
+    const nuevoPerfil = {
+      nombre: fbUser.displayName || datosPortal?.nombre || 'Líder',
+      email,
+      rol: 'lider',
+      fotoPerfil: null,
+      creadoEn: new Date().toISOString(),
+    }
+    await setDoc(perfilRef, nuevoPerfil)
+    return { ok: true, usuario: { uid: fbUser.uid, ...nuevoPerfil } }
+  }
+
+  // Joven nuevo: todavía le falta el código de invitación.
   return {
-    codigoInvitacion: CODIGO_INVITACION,
-    sesion: null, // uid del usuario logueado, o null
-    usuarios: USUARIOS_SEED,
-    lecciones: LECCIONES_SEED,
-    asignaciones: ASIGNACIONES_SEED,
-    requisitos: REQUISITOS_SEED,
-    // La líder decide cuándo los jóvenes pueden ver si son aptos o no.
-    mostrarElegibilidadAJovenes: false,
-    notasLider: {}, // { [jovenUid]: [{ texto, fecha }] }
-    comentarios: {}, // { [asignacionId]: [{ id, texto, autorUid, fecha, respuesta, respuestaFecha }] }
-    tareasPersonales: {}, // { [jovenUid]: [{ id, titulo, descripcion, asignadaPor, fechaCreada, estado, fechaCompletada }] }
+    ok: false,
+    requiereCodigo: true,
+    perfilGoogle: { uid: fbUser.uid, nombre: fbUser.displayName || 'Joven', email },
   }
 }
 
-function load() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return seed()
-    const parsed = JSON.parse(raw)
-    if (!parsed || !Array.isArray(parsed.usuarios)) return seed()
-    // Migraciones suaves para estado guardado antes de agregar series/insignias/requisitos.
-    if (!parsed.lecciones?.[0]?.serieId || !parsed.lecciones?.[0]?.quiz) {
-      parsed.lecciones = LECCIONES_SEED
-    }
-    // Lecciones guardadas antes de agregar estado/versículo/notas: se completan
-    // con valores por defecto sin perder lo que la líder ya creó.
-    parsed.lecciones = parsed.lecciones.map((l) => ({
-      estado: 'activa',
-      versiculo: null,
-      notas: '',
-      puntos: [],
-      imagen: null,
-      ...l,
-    }))
-    if (!parsed.requisitos) {
-      parsed.requisitos = REQUISITOS_SEED
-    }
-    if (typeof parsed.mostrarElegibilidadAJovenes !== 'boolean') {
-      parsed.mostrarElegibilidadAJovenes = false
-    }
-    if (!parsed.notasLider) {
-      parsed.notasLider = {}
-    }
-    if (!parsed.comentarios) {
-      parsed.comentarios = {}
-    }
-    if (!parsed.tareasPersonales) {
-      parsed.tareasPersonales = {}
-    }
-    return parsed
-  } catch {
-    return seed()
-  }
-}
-
-function save(state) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-}
-
-export function resetDemo() {
-  const fresh = seed()
-  save(fresh)
-  return fresh
-}
-
-export function getState() {
-  return load()
-}
-
-export function loginConGoogleFalso({ nombre, email }) {
-  const state = load()
-  const existente = state.usuarios.find((u) => u.email === email)
-  if (existente) {
-    state.sesion = existente.uid
-    save(state)
-    return { state, requiereCodigo: false, usuario: existente }
-  }
-  return { state, requiereCodigo: true, usuario: null, perfilGoogle: { nombre, email } }
-}
-
-export function registrarJovenConCodigo({ nombre, email, codigo }) {
-  const state = load()
-  if (codigo.trim().toUpperCase() !== state.codigoInvitacion) {
+export async function completarRegistroJoven({ uid, nombre, email, codigo }) {
+  const config = await getConfig()
+  if (codigo.trim().toUpperCase() !== config.codigoInvitacion.toUpperCase()) {
     return { ok: false, error: 'Código de invitación incorrecto.' }
   }
-  const uid = `joven-${Date.now()}`
-  const nuevoUsuario = {
-    uid,
+  const nuevoPerfil = {
     nombre,
     email,
     rol: 'joven',
+    fotoPerfil: null,
     creadoEn: new Date().toISOString(),
   }
-  state.usuarios.push(nuevoUsuario)
-  state.sesion = uid
-  save(state)
-  return { ok: true, usuario: nuevoUsuario, state }
+  await setDoc(doc(db, 'radgenPerfiles', uid), nuevoPerfil)
+  return { ok: true, usuario: { uid, ...nuevoPerfil } }
 }
 
-export function loginComoLider() {
-  const state = load()
-  const lider = state.usuarios.find((u) => u.rol === 'lider')
-  state.sesion = lider.uid
-  save(state)
-  return { state, usuario: lider }
+export async function cerrarSesion() {
+  await signOut(auth)
 }
 
-export function cerrarSesion() {
-  const state = load()
-  state.sesion = null
-  save(state)
-  return state
+// ===== Configuración global (líder) =====
+
+export async function getModoPreRegistro() {
+  const config = await getConfig()
+  return config.modoPreRegistro
 }
 
-export function getUsuarioActual() {
-  const state = load()
-  if (!state.sesion) return null
-  return state.usuarios.find((u) => u.uid === state.sesion) || null
+// Tiempo real: si la líder prende/apaga el currículo, cualquier joven con
+// la app abierta lo nota al instante, sin recargar. Devuelve la función
+// para desuscribirse.
+export function observarModoPreRegistro(callback) {
+  return onSnapshot(doc(db, 'radgenEduConfig', CONFIG_ID), (snap) => {
+    callback(snap.exists() ? snap.data().modoPreRegistro !== false : true)
+  })
 }
 
-export function getAsignacionesDe(uid) {
-  const state = load()
-  return state.asignaciones
-    .filter((a) => a.asignadoA === uid)
-    .map((a) => ({ ...a, leccion: state.lecciones.find((l) => l.id === a.leccionId) }))
-    .sort((a, b) => (a.leccion?.orden ?? 0) - (b.leccion?.orden ?? 0))
+export async function setModoPreRegistro(valor) {
+  await setDoc(doc(db, 'radgenEduConfig', CONFIG_ID), { modoPreRegistro: valor }, { merge: true })
+  return valor
 }
 
-export function marcarCompletado(asignacionId, quizScore = null) {
-  const state = load()
-  const asignacion = state.asignaciones.find((a) => a.id === asignacionId)
-  if (asignacion) {
-    asignacion.estado = 'completado'
-    asignacion.fechaCompletado = new Date().toISOString()
-    asignacion.quizScore = quizScore // { correctas, total } o null si la lección no tiene quiz
-  }
-  save(state)
-  return state
+export async function getMostrarElegibilidadAJovenes() {
+  const config = await getConfig()
+  return config.mostrarElegibilidadAJovenes
 }
 
-// Corrige una lección marcada como completada por error, sin borrar la
-// asignación — el joven la vuelve a ver como pendiente y puede rehacerla.
-export function revertirCompletado(asignacionId) {
-  const state = load()
-  const asignacion = state.asignaciones.find((a) => a.id === asignacionId)
-  if (asignacion) {
-    asignacion.estado = 'pendiente'
-    asignacion.fechaCompletado = null
-    asignacion.quizScore = null
-  }
-  save(state)
-  return state.asignaciones
+export async function setMostrarElegibilidadAJovenes(valor) {
+  await setDoc(doc(db, 'radgenEduConfig', CONFIG_ID), { mostrarElegibilidadAJovenes: valor }, { merge: true })
+  return valor
 }
 
-// Quita una asignación por completo (lección asignada a la persona o el
-// momento equivocado). Distinto de revertirCompletado: esta desaparece.
-export function eliminarAsignacion(asignacionId) {
-  const state = load()
-  state.asignaciones = state.asignaciones.filter((a) => a.id !== asignacionId)
-  save(state)
-  return state.asignaciones
+export async function getRequisitos() {
+  const config = await getConfig()
+  return config.requisitos
 }
 
-export function getJovenes() {
-  const state = load()
-  return state.usuarios.filter((u) => u.rol === 'joven')
+export async function toggleRequisito({ track, leccionId }) {
+  const config = await getConfig()
+  const lista = config.requisitos[track] || []
+  const nuevaLista = lista.includes(leccionId)
+    ? lista.filter((id) => id !== leccionId)
+    : [...lista, leccionId]
+  const nuevosRequisitos = { ...config.requisitos, [track]: nuevaLista }
+  await setDoc(doc(db, 'radgenEduConfig', CONFIG_ID), { requisitos: nuevosRequisitos }, { merge: true })
+  return nuevosRequisitos
 }
 
-export function getLecciones() {
-  const state = load()
-  return [...state.lecciones].sort((a, b) => a.orden - b.orden)
+// ===== Perfiles =====
+
+// Nombre y foto que el propio usuario personaliza — no toca correo, rol ni
+// nada relacionado con el currículo.
+export async function actualizarPerfil({ uid, nombre, fotoPerfil }) {
+  const cambios = {}
+  if (nombre?.trim()) cambios.nombre = nombre.trim()
+  if (fotoPerfil !== undefined) cambios.fotoPerfil = fotoPerfil
+  await updateDoc(doc(db, 'radgenPerfiles', uid), cambios)
+  const snap = await getDoc(doc(db, 'radgenPerfiles', uid))
+  return { uid, ...snap.data() }
 }
 
-// Solo las lecciones vigentes — para elegir qué asignar o exigir como
-// requisito. Las archivadas siguen contando para insignias de quien ya las
-// completó (getLecciones), pero no se ofrecen para asignaciones nuevas.
-export function getLeccionesActivas() {
-  return getLecciones().filter((l) => l.estado !== 'archivada')
+export async function getJovenPorUid(uid) {
+  const snap = await getDoc(doc(db, 'radgenPerfiles', uid))
+  return snap.exists() ? { uid: snap.id, ...snap.data() } : null
 }
+
+export async function getJovenes() {
+  const snap = await getDocs(query(collection(db, 'radgenPerfiles'), where('rol', '==', 'joven')))
+  return snap.docs.map((d) => ({ uid: d.id, ...d.data() }))
+}
+
+// ===== Lecciones =====
 
 function slugificar(texto) {
   return (texto || '')
@@ -351,14 +215,31 @@ function slugificar(texto) {
     .replace(/(^-|-$)/g, '')
 }
 
+export async function getLecciones() {
+  const snap = await getDocs(collection(db, 'radgenLecciones'))
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.orden - b.orden)
+}
+
+// Solo las lecciones vigentes — para elegir qué asignar o exigir como
+// requisito. Las archivadas siguen contando para insignias de quien ya las
+// completó, pero no se ofrecen para asignaciones nuevas.
+export async function getLeccionesActivas() {
+  const todas = await getLecciones()
+  return todas.filter((l) => l.estado !== 'archivada')
+}
+
+export async function getLeccionPorId(leccionId) {
+  const snap = await getDoc(doc(db, 'radgenLecciones', leccionId))
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null
+}
+
 // Crea una lección nueva desde el panel de líder — sin tocar código. Si
 // `serieId` coincide con una serie existente, se agrega a ella; si no,
 // `serieTitulo` define una serie nueva.
-export function crearLeccion({ titulo, serieId, serieTitulo, icono, youtubeId, versiculo, notas, puntos, imagen, quiz }) {
-  const state = load()
-  const ordenMax = state.lecciones.reduce((max, l) => Math.max(max, l.orden || 0), 0)
+export async function crearLeccion({ titulo, serieId, serieTitulo, icono, youtubeId, versiculo, notas, puntos, imagen, quiz }) {
+  const todas = await getLecciones()
+  const ordenMax = todas.reduce((max, l) => Math.max(max, l.orden || 0), 0)
   const nueva = {
-    id: `leccion-${Date.now()}`,
     titulo,
     youtubeId: youtubeId || null,
     orden: ordenMax + 1,
@@ -372,123 +253,49 @@ export function crearLeccion({ titulo, serieId, serieTitulo, icono, youtubeId, v
     imagen: imagen || null,
     quiz: (quiz || []).filter((p) => p.pregunta.trim()),
   }
-  state.lecciones.push(nueva)
-  save(state)
-  return nueva
+  const ref = await addDoc(collection(db, 'radgenLecciones'), nueva)
+  return { id: ref.id, ...nueva }
 }
 
-export function actualizarLeccion(leccionId, cambios) {
-  const state = load()
-  const leccion = state.lecciones.find((l) => l.id === leccionId)
-  if (leccion) {
-    Object.assign(leccion, cambios, {
-      puntos: (cambios.puntos || leccion.puntos || []).filter((p) => p.trim()),
-      quiz: (cambios.quiz || leccion.quiz || []).filter((p) => p.pregunta.trim()),
-    })
-  }
-  save(state)
-  return leccion
+export async function actualizarLeccion(leccionId, cambios) {
+  const actual = await getLeccionPorId(leccionId)
+  const limpio = { ...cambios }
+  if (cambios.puntos) limpio.puntos = cambios.puntos.filter((p) => p.trim())
+  if (cambios.quiz) limpio.quiz = cambios.quiz.filter((p) => p.pregunta.trim())
+  await updateDoc(doc(db, 'radgenLecciones', leccionId), limpio)
+  return { ...actual, ...limpio }
 }
 
-export function alternarArchivoLeccion(leccionId) {
-  const state = load()
-  const leccion = state.lecciones.find((l) => l.id === leccionId)
+export async function alternarArchivoLeccion(leccionId) {
+  const leccion = await getLeccionPorId(leccionId)
   if (leccion) {
-    leccion.estado = leccion.estado === 'archivada' ? 'activa' : 'archivada'
+    const nuevoEstado = leccion.estado === 'archivada' ? 'activa' : 'archivada'
+    await updateDoc(doc(db, 'radgenLecciones', leccionId), { estado: nuevoEstado })
   }
-  save(state)
-  return state.lecciones
+  return getLecciones()
 }
 
 // Reordena una lección dentro de su propia serie (direccion: -1 sube, +1 baja).
-export function moverLeccion(leccionId, direccion) {
-  const state = load()
-  const leccion = state.lecciones.find((l) => l.id === leccionId)
-  if (!leccion) return state.lecciones
+export async function moverLeccion(leccionId, direccion) {
+  const todas = await getLecciones()
+  const leccion = todas.find((l) => l.id === leccionId)
+  if (!leccion) return todas
 
-  const delaSerie = state.lecciones
-    .filter((l) => l.serieId === leccion.serieId)
-    .sort((a, b) => a.orden - b.orden)
+  const delaSerie = todas.filter((l) => l.serieId === leccion.serieId).sort((a, b) => a.orden - b.orden)
   const indice = delaSerie.findIndex((l) => l.id === leccionId)
   const vecino = delaSerie[indice + direccion]
-  if (!vecino) return state.lecciones
+  if (!vecino) return todas
 
-  const ordenTemporal = leccion.orden
-  leccion.orden = vecino.orden
-  vecino.orden = ordenTemporal
-  save(state)
-  return state.lecciones
+  await Promise.all([
+    updateDoc(doc(db, 'radgenLecciones', leccion.id), { orden: vecino.orden }),
+    updateDoc(doc(db, 'radgenLecciones', vecino.id), { orden: leccion.orden }),
+  ])
+  return getLecciones()
 }
 
-export function getLeccionPorId(leccionId) {
-  const state = load()
-  return state.lecciones.find((l) => l.id === leccionId) || null
-}
-
-export function asignarLeccion({ leccionId, jovenUids, liderUid }) {
-  const state = load()
-  const ahora = new Date().toISOString()
-  jovenUids.forEach((jovenUid) => {
-    const yaExiste = state.asignaciones.some(
-      (a) => a.leccionId === leccionId && a.asignadoA === jovenUid,
-    )
-    if (yaExiste) return
-    state.asignaciones.push({
-      id: `a-${Date.now()}-${jovenUid}`,
-      leccionId,
-      asignadoA: jovenUid,
-      asignadoPor: liderUid,
-      estado: 'pendiente',
-      fechaAsignada: ahora,
-      fechaCompletado: null,
-    })
-  })
-  save(state)
-  return state
-}
-
-export function getTablaEstado() {
-  const state = load()
-  return state.asignaciones
-    .map((a) => ({
-      ...a,
-      joven: state.usuarios.find((u) => u.uid === a.asignadoA),
-      leccion: state.lecciones.find((l) => l.id === a.leccionId),
-    }))
-    .sort((a, b) => (a.joven?.nombre || '').localeCompare(b.joven?.nombre || ''))
-}
-
-export const NIVELES_INSIGNIA = NIVELES
-
-export function getMostrarElegibilidadAJovenes() {
-  const state = load()
-  return state.mostrarElegibilidadAJovenes
-}
-
-export function setMostrarElegibilidadAJovenes(valor) {
-  const state = load()
-  state.mostrarElegibilidadAJovenes = valor
-  save(state)
-  return state.mostrarElegibilidadAJovenes
-}
-
-export function getRequisitos() {
-  const state = load()
-  return state.requisitos
-}
-
-export function toggleRequisito({ track, leccionId }) {
-  const state = load()
-  const lista = state.requisitos[track] || []
-  state.requisitos[track] = lista.includes(leccionId)
-    ? lista.filter((id) => id !== leccionId)
-    : [...lista, leccionId]
-  save(state)
-  return state.requisitos
-}
-
-export function getSeries() {
-  return getSeriesUnicas(getLecciones())
+export async function getSeries() {
+  const lecciones = await getLecciones()
+  return getSeriesUnicas(lecciones)
 }
 
 function getSeriesUnicas(lecciones) {
@@ -499,12 +306,92 @@ function getSeriesUnicas(lecciones) {
   return [...vistas.values()]
 }
 
+// ===== Asignaciones =====
+
+export async function getAsignacionesDe(uid) {
+  const [snap, lecciones] = await Promise.all([
+    getDocs(query(collection(db, 'radgenAsignaciones'), where('asignadoA', '==', uid))),
+    getLecciones(),
+  ])
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .map((a) => ({ ...a, leccion: lecciones.find((l) => l.id === a.leccionId) }))
+    .sort((a, b) => (a.leccion?.orden ?? 0) - (b.leccion?.orden ?? 0))
+}
+
+export async function asignarLeccion({ leccionId, jovenUids, liderUid }) {
+  const ahora = new Date().toISOString()
+  for (const jovenUid of jovenUids) {
+    const existentes = await getDocs(
+      query(
+        collection(db, 'radgenAsignaciones'),
+        where('leccionId', '==', leccionId),
+        where('asignadoA', '==', jovenUid),
+      ),
+    )
+    if (!existentes.empty) continue
+    await addDoc(collection(db, 'radgenAsignaciones'), {
+      leccionId,
+      asignadoA: jovenUid,
+      asignadoPor: liderUid,
+      estado: 'pendiente',
+      fechaAsignada: ahora,
+      fechaCompletado: null,
+      quizScore: null,
+    })
+  }
+}
+
+export async function marcarCompletado(asignacionId, quizScore = null) {
+  await updateDoc(doc(db, 'radgenAsignaciones', asignacionId), {
+    estado: 'completado',
+    fechaCompletado: new Date().toISOString(),
+    quizScore, // { correctas, total } o null si la lección no tiene quiz
+  })
+}
+
+// Corrige una lección marcada como completada por error, sin borrar la
+// asignación — el joven la vuelve a ver como pendiente y puede rehacerla.
+export async function revertirCompletado(asignacionId) {
+  await updateDoc(doc(db, 'radgenAsignaciones', asignacionId), {
+    estado: 'pendiente',
+    fechaCompletado: null,
+    quizScore: null,
+  })
+}
+
+// Quita una asignación por completo (lección asignada a la persona o el
+// momento equivocado). Distinto de revertirCompletado: esta desaparece.
+export async function eliminarAsignacion(asignacionId) {
+  await deleteDoc(doc(db, 'radgenAsignaciones', asignacionId))
+}
+
+export async function getTablaEstado() {
+  const [snap, lecciones, jovenes] = await Promise.all([
+    getDocs(collection(db, 'radgenAsignaciones')),
+    getLecciones(),
+    getJovenes(),
+  ])
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .map((a) => ({
+      ...a,
+      joven: jovenes.find((j) => j.uid === a.asignadoA),
+      leccion: lecciones.find((l) => l.id === a.leccionId),
+    }))
+    .sort((a, b) => (a.joven?.nombre || '').localeCompare(b.joven?.nombre || ''))
+}
+
+// ===== Insignias, racha y ranking =====
+
 // Calcula todas las insignias (por cápsula, por serie, por rango) y la
 // elegibilidad de voluntariado/misiones de un joven específico.
-export function getInsigniasDe(uid) {
-  const state = load()
-  const lecciones = getLecciones()
-  const asignaciones = getAsignacionesDe(uid)
+export async function getInsigniasDe(uid) {
+  const [lecciones, asignaciones, requisitos] = await Promise.all([
+    getLecciones(),
+    getAsignacionesDe(uid),
+    getRequisitos(),
+  ])
   const completadasIds = new Set(
     asignaciones.filter((a) => a.estado === 'completado').map((a) => a.leccionId),
   )
@@ -533,7 +420,6 @@ export function getInsigniasDe(uid) {
   const nivelActual = [...NIVELES].reverse().find((n) => totalCompletadas >= n.minimo) || null
   const siguienteNivel = NIVELES.find((n) => totalCompletadas < n.minimo) || null
 
-  const requisitos = state.requisitos
   function evaluarElegibilidad(track) {
     const requeridas = requisitos[track] || []
     const faltantes = requeridas.filter((id) => !completadasIds.has(id))
@@ -568,8 +454,9 @@ function getInicioSemana(fecha) {
 
 // Semanas consecutivas (hasta la semana actual) con al menos una cápsula
 // completada — como una racha de Duolingo, pero de constancia espiritual.
-export function getRachaSemanas(uid) {
-  const asignaciones = getAsignacionesDe(uid).filter((a) => a.estado === 'completado' && a.fechaCompletado)
+export async function getRachaSemanas(uid) {
+  const todas = await getAsignacionesDe(uid)
+  const asignaciones = todas.filter((a) => a.estado === 'completado' && a.fechaCompletado)
   if (asignaciones.length === 0) return 0
 
   const semanas = new Set(asignaciones.map((a) => getInicioSemana(a.fechaCompletado)))
@@ -584,100 +471,116 @@ export function getRachaSemanas(uid) {
   return racha
 }
 
-export function getNotasDe(jovenUid) {
-  const state = load()
-  return state.notasLider[jovenUid] || []
+export async function getRankingCampamento() {
+  const jovenes = await getJovenes()
+  const filas = await Promise.all(
+    jovenes.map(async (j) => {
+      const [insignias, racha] = await Promise.all([getInsigniasDe(j.uid), getRachaSemanas(j.uid)])
+      return {
+        joven: j,
+        totalCompletadas: insignias.totalCompletadas,
+        nivelActual: insignias.nivelActual,
+        racha,
+        insigniasTotal:
+          insignias.porLeccion.filter((b) => b.desbloqueada).length +
+          insignias.porSerie.filter((b) => b.desbloqueada).length +
+          (insignias.nivelActual ? 1 : 0),
+      }
+    }),
+  )
+  return filas.sort((a, b) => b.totalCompletadas - a.totalCompletadas)
 }
 
-export function agregarNota({ jovenUid, texto, liderUid }) {
-  const state = load()
-  if (!state.notasLider[jovenUid]) state.notasLider[jovenUid] = []
-  state.notasLider[jovenUid].unshift({
-    id: `nota-${Date.now()}`,
+// ===== Notas del líder =====
+
+export async function getNotasDe(jovenUid) {
+  const snap = await getDocs(query(collection(db, 'radgenNotasLider'), where('jovenUid', '==', jovenUid)))
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+}
+
+export async function agregarNota({ jovenUid, texto, liderUid }) {
+  await addDoc(collection(db, 'radgenNotasLider'), {
+    jovenUid,
     texto,
     autorUid: liderUid,
     fecha: new Date().toISOString(),
   })
-  save(state)
-  return state.notasLider[jovenUid]
+  return getNotasDe(jovenUid)
 }
 
-export function eliminarNota({ jovenUid, notaId }) {
-  const state = load()
-  state.notasLider[jovenUid] = (state.notasLider[jovenUid] || []).filter((n) => n.id !== notaId)
-  save(state)
-  return state.notasLider[jovenUid]
+export async function eliminarNota({ jovenUid, notaId }) {
+  await deleteDoc(doc(db, 'radgenNotasLider', notaId))
+  return getNotasDe(jovenUid)
 }
 
-export function getJovenPorUid(uid) {
-  const state = load()
-  return state.usuarios.find((u) => u.uid === uid) || null
+// ===== Preguntas/comentarios de lección =====
+
+// Lo que un joven deja al terminar una lección — la líder las ve todas
+// juntas y puede responder desde su panel.
+export async function getComentariosDe(asignacionId) {
+  const snap = await getDocs(query(collection(db, 'radgenComentarios'), where('asignacionId', '==', asignacionId)))
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
 }
 
-// Preguntas/comentarios que un joven deja al terminar una lección — la
-// líder los ve todos juntos y puede responder desde su panel.
-export function getComentariosDe(asignacionId) {
-  const state = load()
-  return state.comentarios[asignacionId] || []
-}
-
-export function agregarComentario({ asignacionId, jovenUid, texto }) {
-  const state = load()
-  if (!state.comentarios[asignacionId]) state.comentarios[asignacionId] = []
-  state.comentarios[asignacionId].push({
-    id: `com-${Date.now()}`,
+export async function agregarComentario({ asignacionId, jovenUid, texto }) {
+  await addDoc(collection(db, 'radgenComentarios'), {
+    asignacionId,
     texto,
     autorUid: jovenUid,
     fecha: new Date().toISOString(),
     respuesta: null,
     respuestaFecha: null,
   })
-  save(state)
-  return state.comentarios[asignacionId]
+  return getComentariosDe(asignacionId)
 }
 
-export function responderComentario({ asignacionId, comentarioId, respuesta }) {
-  const state = load()
-  const lista = state.comentarios[asignacionId] || []
-  const comentario = lista.find((c) => c.id === comentarioId)
-  if (comentario) {
-    comentario.respuesta = respuesta
-    comentario.respuestaFecha = new Date().toISOString()
-  }
-  save(state)
-  return lista
+export async function responderComentario({ asignacionId, comentarioId, respuesta }) {
+  await updateDoc(doc(db, 'radgenComentarios', comentarioId), {
+    respuesta,
+    respuestaFecha: new Date().toISOString(),
+  })
+  return getComentariosDe(asignacionId)
 }
 
-export function getComentariosPendientes() {
-  const state = load()
-  const pendientes = []
-  Object.entries(state.comentarios).forEach(([asignacionId, lista]) => {
-    lista.forEach((c) => {
-      if (c.respuesta) return
-      const asignacion = state.asignaciones.find((a) => a.id === asignacionId)
-      const leccion = state.lecciones.find((l) => l.id === asignacion?.leccionId)
-      const joven = state.usuarios.find((u) => u.uid === c.autorUid)
-      pendientes.push({ asignacionId, comentario: c, leccion, joven })
-    })
+export async function getComentariosPendientes() {
+  const snap = await getDocs(collection(db, 'radgenComentarios'))
+  const sinResponder = snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((c) => !c.respuesta)
+
+  const [asignaciones, lecciones, jovenes] = await Promise.all([
+    getDocs(collection(db, 'radgenAsignaciones')),
+    getLecciones(),
+    getJovenes(),
+  ])
+  const listaAsignaciones = asignaciones.docs.map((d) => ({ id: d.id, ...d.data() }))
+
+  const pendientes = sinResponder.map((c) => {
+    const asignacion = listaAsignaciones.find((a) => a.id === c.asignacionId)
+    const leccion = lecciones.find((l) => l.id === asignacion?.leccionId)
+    const joven = jovenes.find((j) => j.uid === c.autorUid)
+    return { asignacionId: c.asignacionId, comentario: c, leccion, joven }
   })
   return pendientes.sort((a, b) => new Date(b.comentario.fecha) - new Date(a.comentario.fecha))
 }
 
-// Tareas personales — lo que la líder deja a un joven en particular después
-// de una plática 1:1, sin que forme parte del currículo compartido (no suma
-// a insignias ni elegibilidad, es puro seguimiento personal).
-export function getTareasDe(jovenUid) {
-  const state = load()
-  return (state.tareasPersonales[jovenUid] || [])
-    .slice()
+// ===== Tareas personales (1:1) =====
+
+// Lo que la líder deja a un joven en particular después de una plática,
+// sin que forme parte del currículo compartido (no suma a insignias ni
+// elegibilidad, es puro seguimiento personal).
+export async function getTareasDe(jovenUid) {
+  const snap = await getDocs(query(collection(db, 'radgenTareasPersonales'), where('jovenUid', '==', jovenUid)))
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
     .sort((a, b) => new Date(b.fechaCreada) - new Date(a.fechaCreada))
 }
 
-export function asignarTareaPersonal({ jovenUid, titulo, descripcion, liderUid }) {
-  const state = load()
-  if (!state.tareasPersonales[jovenUid]) state.tareasPersonales[jovenUid] = []
-  state.tareasPersonales[jovenUid].push({
-    id: `tarea-${Date.now()}`,
+export async function asignarTareaPersonal({ jovenUid, titulo, descripcion, liderUid }) {
+  await addDoc(collection(db, 'radgenTareasPersonales'), {
+    jovenUid,
     titulo,
     descripcion: descripcion || '',
     asignadaPor: liderUid,
@@ -685,47 +588,28 @@ export function asignarTareaPersonal({ jovenUid, titulo, descripcion, liderUid }
     estado: 'pendiente',
     fechaCompletada: null,
   })
-  save(state)
   return getTareasDe(jovenUid)
 }
 
-export function alternarTareaPersonal({ jovenUid, tareaId }) {
-  const state = load()
-  const tarea = (state.tareasPersonales[jovenUid] || []).find((t) => t.id === tareaId)
+export async function alternarTareaPersonal({ jovenUid, tareaId }) {
+  const tareas = await getTareasDe(jovenUid)
+  const tarea = tareas.find((t) => t.id === tareaId)
   if (tarea) {
-    tarea.estado = tarea.estado === 'completado' ? 'pendiente' : 'completado'
-    tarea.fechaCompletada = tarea.estado === 'completado' ? new Date().toISOString() : null
-  }
-  save(state)
-  return getTareasDe(jovenUid)
-}
-
-export function eliminarTareaPersonal({ jovenUid, tareaId }) {
-  const state = load()
-  state.tareasPersonales[jovenUid] = (state.tareasPersonales[jovenUid] || []).filter((t) => t.id !== tareaId)
-  save(state)
-  return getTareasDe(jovenUid)
-}
-
-export function getTareasPendientesTotal(jovenUid) {
-  return getTareasDe(jovenUid).filter((t) => t.estado !== 'completado').length
-}
-
-export function getRankingCampamento() {
-  const jovenes = getJovenes()
-  return jovenes
-    .map((j) => {
-      const insignias = getInsigniasDe(j.uid)
-      return {
-        joven: j,
-        totalCompletadas: insignias.totalCompletadas,
-        nivelActual: insignias.nivelActual,
-        racha: getRachaSemanas(j.uid),
-        insigniasTotal:
-          insignias.porLeccion.filter((b) => b.desbloqueada).length +
-          insignias.porSerie.filter((b) => b.desbloqueada).length +
-          (insignias.nivelActual ? 1 : 0),
-      }
+    const nuevoEstado = tarea.estado === 'completado' ? 'pendiente' : 'completado'
+    await updateDoc(doc(db, 'radgenTareasPersonales', tareaId), {
+      estado: nuevoEstado,
+      fechaCompletada: nuevoEstado === 'completado' ? new Date().toISOString() : null,
     })
-    .sort((a, b) => b.totalCompletadas - a.totalCompletadas)
+  }
+  return getTareasDe(jovenUid)
+}
+
+export async function eliminarTareaPersonal({ jovenUid, tareaId }) {
+  await deleteDoc(doc(db, 'radgenTareasPersonales', tareaId))
+  return getTareasDe(jovenUid)
+}
+
+export async function getTareasPendientesTotal(jovenUid) {
+  const tareas = await getTareasDe(jovenUid)
+  return tareas.filter((t) => t.estado !== 'completado').length
 }

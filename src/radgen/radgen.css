@@ -174,6 +174,36 @@
   box-shadow: 6px 6px 0 var(--rg-red);
 }
 
+.re-preregistro-tarjeta {
+  max-width: 440px;
+  margin: 3rem auto 0;
+  padding: 2.5rem 2rem;
+}
+
+.re-preregistro-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 1.3rem 1.6rem;
+}
+
+.re-preregistro-banner__titulo {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  margin: 0 0 4px;
+}
+
+.re-preregistro-banner__texto {
+  margin: 0;
+  font-size: 0.82rem;
+  opacity: 0.75;
+  max-width: 460px;
+}
+
 .re-subtitulo {
   font-family: 'Montserrat', sans-serif;
   font-weight: 900;
@@ -235,6 +265,24 @@
 .re-btn--bloque { display: block; width: 100%; text-align: center; }
 .re-btn--sm { padding: 0.55rem 1.2rem; font-size: 0.68rem; box-shadow: 3px 3px 0 var(--rg-blue); }
 .re-btn--sm:hover { transform: translate(1px, 1px); box-shadow: 2px 2px 0 var(--rg-blue); }
+.re-btn--sm.re-btn--lleno { box-shadow: 3px 3px 0 var(--rg-paper); }
+.re-btn--sm.re-btn--lleno:hover { box-shadow: 2px 2px 0 var(--rg-paper); }
+
+.re-btn--fantasma {
+  background: transparent;
+  border-color: var(--rg-paper);
+  color: var(--rg-paper);
+  box-shadow: none;
+}
+.re-btn--fantasma:hover {
+  background: rgba(245, 243, 238, 0.12);
+  transform: none;
+  box-shadow: none;
+}
+.re-btn--fantasma:active {
+  background: rgba(245, 243, 238, 0.2);
+  transform: none;
+}
 
 .re-btn:focus-visible {
   outline: 3px solid var(--rg-red);
@@ -443,6 +491,11 @@
   font-family: 'Montserrat', sans-serif;
   font-weight: 900;
   letter-spacing: 0.02em;
+}
+
+.re-avatar--foto {
+  object-fit: cover;
+  background: var(--rg-paper);
 }
 
 .re-persona-card__nombre {

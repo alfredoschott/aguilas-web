@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { loginConGoogleFalso, registrarJovenConCodigo, loginComoLider } from '../store'
+import { iniciarSesionConGoogle, completarRegistroJoven } from '../store'
 import Sky from '../components/Sky'
 import logo from '../../assets/radgen-education-logo.png'
 
@@ -11,40 +11,53 @@ export default function LoginScreen({ onSesion }) {
   const [perfilGoogle, setPerfilGoogle] = useState(null)
   const [codigo, setCodigo] = useState('')
   const [error, setError] = useState('')
+  const [cargando, setCargando] = useState(false)
 
-  function continuarConGoogle() {
-    if (rol === 'lider') {
-      const { usuario } = loginComoLider()
-      onSesion(usuario)
-      navigate('/radgen/education/lider')
-      return
+  async function continuarConGoogle() {
+    setError('')
+    setCargando(true)
+    try {
+      const resultado = await iniciarSesionConGoogle(rol)
+      if (resultado.ok) {
+        onSesion(resultado.usuario)
+        navigate(resultado.usuario.rol === 'lider' ? '/radgen/education/lider' : '/radgen/education/lecciones')
+        return
+      }
+      if (resultado.requiereCodigo) {
+        setPerfilGoogle(resultado.perfilGoogle)
+        setPaso('codigo')
+        return
+      }
+      setError(resultado.error || 'No se pudo iniciar sesión. Intenta de nuevo.')
+    } catch (err) {
+      if (err.code !== 'auth/popup-closed-by-user') {
+        setError('No se pudo iniciar sesión con Google. Intenta de nuevo.')
+      }
+    } finally {
+      setCargando(false)
     }
-
-    const perfil = { nombre: 'Diego Ramírez', email: 'diego.ramirez@gmail.com' }
-    const { requiereCodigo, usuario } = loginConGoogleFalso(perfil)
-    if (requiereCodigo) {
-      setPerfilGoogle(perfil)
-      setPaso('codigo')
-      return
-    }
-    onSesion(usuario)
-    navigate('/radgen/education/lecciones')
   }
 
-  function enviarCodigo(e) {
+  async function enviarCodigo(e) {
     e.preventDefault()
     setError('')
-    const resultado = registrarJovenConCodigo({
-      nombre: perfilGoogle.nombre,
-      email: perfilGoogle.email,
-      codigo,
-    })
-    if (!resultado.ok) {
-      setError(resultado.error)
-      return
+    setCargando(true)
+    try {
+      const resultado = await completarRegistroJoven({
+        uid: perfilGoogle.uid,
+        nombre: perfilGoogle.nombre,
+        email: perfilGoogle.email,
+        codigo,
+      })
+      if (!resultado.ok) {
+        setError(resultado.error)
+        return
+      }
+      onSesion(resultado.usuario)
+      navigate('/radgen/education/lecciones')
+    } finally {
+      setCargando(false)
     }
-    onSesion(resultado.usuario)
-    navigate('/radgen/education/lecciones')
   }
 
   function cambiarRol(nuevoRol) {
@@ -100,10 +113,16 @@ export default function LoginScreen({ onSesion }) {
               {rol === 'lider' ? 'Acceso de líder' : 'Entra a tus lecciones'}
             </h2>
 
-            <button className="re-btn re-btn--lleno re-btn--bloque re-btn--google" onClick={continuarConGoogle}>
+            <button
+              className="re-btn re-btn--lleno re-btn--bloque re-btn--google"
+              onClick={continuarConGoogle}
+              disabled={cargando}
+            >
               <span className="re-btn__google-g">G</span>
-              Continuar con Google
+              {cargando ? 'Conectando…' : 'Continuar con Google'}
             </button>
+
+            {error && <div className="re-error" style={{ marginTop: '1rem' }}>{error}</div>}
 
             {rol === 'joven' && (
               <p style={{ fontSize: '0.8rem', color: 'var(--rg-ink)', opacity: 0.65, marginTop: '1.2rem' }}>
@@ -129,8 +148,8 @@ export default function LoginScreen({ onSesion }) {
               autoFocus
             />
             {error && <div className="re-error">{error}</div>}
-            <button type="submit" className="re-btn re-btn--lleno re-btn--bloque">
-              Crear mi cuenta
+            <button type="submit" className="re-btn re-btn--lleno re-btn--bloque" disabled={cargando}>
+              {cargando ? 'Creando cuenta…' : 'Crear mi cuenta'}
             </button>
           </form>
         )}
