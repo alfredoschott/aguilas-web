@@ -13,7 +13,6 @@ import {
   Users,
   HandHeart,
   Megaphone,
-  GraduationCap,
   ChevronDown,
   ChevronRight,
   ImageOff,
@@ -355,30 +354,35 @@ function RadGen() {
         .radgen-nb .pilar-row span{ font-size:11.5px; font-weight:600; color:#4c4c4c; line-height:1.3; }
 
         .radgen-nb .edu-card{
-          max-width: 900px; margin: 0 auto; position: relative;
+          max-width: 980px; margin: 0 auto; position: relative;
           background: var(--blue); border: var(--bw) solid var(--paper); border-radius: 28px;
           box-shadow: 12px 12px 0 var(--red);
-          padding: 48px 5% 40px; text-align:center; overflow: hidden;
+          padding: 40px 6%; overflow: hidden;
+          display:flex; align-items:center; justify-content:center; gap:44px;
         }
         .radgen-nb .edu-card::before{
           content:''; position:absolute; inset:0;
           background-image: radial-gradient(rgba(245,243,238,0.14) 1.5px, transparent 1.5px);
           background-size: 18px 18px; pointer-events:none;
         }
+        .radgen-nb .edu-texto{ position:relative; text-align:left; }
         .radgen-nb .edu-badge{
           position: relative; display:inline-flex; align-items:center; gap:8px;
           background: var(--red); color:var(--paper); border: 2.5px solid var(--paper);
           border-radius:999px; padding:7px 16px; font-weight:800; font-size:12px;
           text-transform:uppercase; letter-spacing:0.04em; font-family:'Montserrat',sans-serif;
-          margin-bottom:20px; transform: rotate(-2deg);
+          margin-bottom:18px; transform: rotate(-2deg);
         }
-        .radgen-nb .edu-icon{
-          position: relative; width:60px; height:60px; border-radius:16px; margin:0 auto 20px;
-          background: var(--paper); border: var(--bw) solid var(--ink); color: var(--ink);
-          display:flex; align-items:center; justify-content:center;
+        .radgen-nb .edu-logo{
+          position:relative; display:block; height:64px; width:auto; margin-bottom:16px;
+          filter: drop-shadow(3px 4px 0 rgba(0,0,0,0.25));
         }
         .radgen-nb .edu-card h2{ position: relative; font-size: clamp(26px,3.4vw,38px); margin-bottom:14px; }
-        .radgen-nb .edu-card p{ position: relative; color:#EAF0FF; max-width:480px; margin:0 auto 26px; font-size:15px; font-weight:600; }
+        .radgen-nb .edu-card p{ position: relative; color:#EAF0FF; max-width:420px; margin:0 0 6px; font-size:15px; font-weight:600; }
+        .radgen-nb .edu-sky{
+          position: relative; height:220px; width:auto; flex-shrink:0;
+          filter: drop-shadow(6px 8px 0 rgba(0,0,0,0.28));
+        }
 
         .radgen-nb .galeria-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
         .radgen-nb .galeria-frame{
@@ -567,6 +571,11 @@ function RadGen() {
           .radgen-nb .nav-links{ display:none; }
           .radgen-nb .galeria-grid{ grid-template-columns:1fr 1fr; }
           .radgen-nb .vision-grid{ grid-template-columns:1fr; gap:32px; }
+          .radgen-nb .edu-card{ flex-direction:column-reverse; text-align:center; padding:36px 7% 32px; gap:24px; }
+          .radgen-nb .edu-texto{ text-align:center; }
+          .radgen-nb .edu-logo{ margin:0 auto 16px; }
+          .radgen-nb .edu-card p{ max-width:360px; margin:0 auto 6px; }
+          .radgen-nb .edu-sky{ height:170px; }
         }
         @media (max-width:480px){
           .radgen-nb .nav-back span{ display:none; }
@@ -617,6 +626,18 @@ function RadGen() {
       <div className="cuenta-wrap">
         <ProximaReunion />
       </div>
+
+      <section id="educacion">
+        <div className="edu-card">
+          <div className="edu-texto">
+            <span className="edu-badge">⏳ Ya casi</span>
+            <img src="/radgen-education-logo.png" alt="RadGen Education" className="edu-logo" />
+            <h2>RadGen Education</h2>
+            <p>Una plataforma para crecer en tu fe a tu ritmo. Se viene pronto.</p>
+          </div>
+          <img src="/sky-estudiando.png" alt="Sky estudiando" className="edu-sky" />
+        </div>
+      </section>
 
       <section id="proposito">
         <div className="section-head">
@@ -717,15 +738,6 @@ function RadGen() {
           <h2>Lo que más nos preguntan</h2>
         </div>
         <FaqAcordeon />
-      </section>
-
-      <section id="educacion">
-        <div className="edu-card">
-          <span className="edu-badge">⏳ Ya casi</span>
-          <div className="edu-icon"><GraduationCap size={28} strokeWidth={2.25} /></div>
-          <h2>RadGen Education</h2>
-          <p>Una plataforma para crecer en tu fe a tu ritmo. Se viene pronto.</p>
-        </div>
       </section>
 
       <section className="footer-cta">
