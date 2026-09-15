@@ -374,8 +374,8 @@ function RadGen() {
           margin-bottom:18px; transform: rotate(-2deg);
         }
         .radgen-nb .edu-logo{
-          position:relative; display:block; height:64px; width:auto; margin-bottom:16px;
-          filter: drop-shadow(3px 4px 0 rgba(0,0,0,0.25));
+          position:relative; display:block; height:130px; width:auto; margin-bottom:20px;
+          filter: drop-shadow(4px 5px 0 rgba(0,0,0,0.25));
         }
         .radgen-nb .edu-card h2{ position: relative; font-size: clamp(26px,3.4vw,38px); margin-bottom:14px; }
         .radgen-nb .edu-card p{ position: relative; color:#EAF0FF; max-width:420px; margin:0 0 6px; font-size:15px; font-weight:600; }
@@ -573,7 +573,7 @@ function RadGen() {
           .radgen-nb .vision-grid{ grid-template-columns:1fr; gap:32px; }
           .radgen-nb .edu-card{ flex-direction:column-reverse; text-align:center; padding:36px 7% 32px; gap:24px; }
           .radgen-nb .edu-texto{ text-align:center; }
-          .radgen-nb .edu-logo{ margin:0 auto 16px; }
+          .radgen-nb .edu-logo{ height:100px; margin:0 auto 16px; }
           .radgen-nb .edu-card p{ max-width:360px; margin:0 auto 6px; }
           .radgen-nb .edu-sky{ height:170px; }
         }

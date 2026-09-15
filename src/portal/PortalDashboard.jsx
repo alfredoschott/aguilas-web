@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { collection, query, orderBy, getDocs } from 'firebase/firestore'
-import { CalendarX2, Menu as MenuIcon, Package, CalendarClock, UserPlus, ShieldCheck, LogOut } from 'lucide-react'
+import { CalendarX2, Menu as MenuIcon, Package, CalendarClock, UserPlus, ShieldCheck, LogOut, GraduationCap } from 'lucide-react'
 import { db } from '../firebase'
 import { usePortalAuth } from './PortalAuthContext'
 import PortalCalendario from './PortalCalendario'
@@ -84,6 +84,16 @@ export default function PortalDashboard() {
   const puedeVerAgendaPastoral = userData?.rol === 'pastor' || userData?.rol === 'administrativo' || ADMINS_TEMPORALES.includes(user?.email)
   const puedeVerVisitas = userData?.rol === 'pastor' || userData?.rol === 'administrativo' || (userData?.rol === 'lider' && ['consolidacion', 'radgen'].includes(userData?.ministerio))
   const puedeVerAdmin = user?.email?.toLowerCase() === 'schottalfredo@gmail.com'
+  // Acceso a RadGen Education: solo la líder de jóvenes y tú, mientras está
+  // en construcción y todavía no se lanza al público. El campo `ministerio`
+  // de los líderes de este ministerio no siempre es el id "radgen" — a
+  // veces es el nombre completo ("RadGen MX") — así que se compara de forma
+  // flexible en vez de exigir un valor exacto.
+  const puedeVerRadgenEducation =
+    puedeVerAdmin || (userData?.rol === 'lider' && userData?.ministerio?.toLowerCase().includes('radgen'))
+  const URL_RADGEN_EDUCATION = import.meta.env.DEV
+    ? 'http://localhost:5173/radgen/education'
+    : '/radgen/education'
 
   const colorMinisterioPropio = userData?.rol === 'lider' && userData?.ministerio ? ministerios[userData.ministerio]?.color : null
   const esRolDirectivo = userData?.rol === 'pastor' || userData?.rol === 'administrativo' || userData?.rol === 'primera_mesa'
@@ -256,6 +266,11 @@ export default function PortalDashboard() {
                   <Link to="/lideres/admin" style={styles.menuItem} onClick={() => setMenuAbierto(false)}>
                     <ShieldCheck size={16} strokeWidth={2} /> Administración
                   </Link>
+                )}
+                {puedeVerRadgenEducation && (
+                  <a href={URL_RADGEN_EDUCATION} style={styles.menuItem} onClick={() => setMenuAbierto(false)}>
+                    <GraduationCap size={16} strokeWidth={2} /> RadGen Education
+                  </a>
                 )}
                 <button onClick={logout} style={{ ...styles.menuItem, ...styles.menuItemBoton }}>
                   <LogOut size={16} strokeWidth={2} /> Cerrar sesión
