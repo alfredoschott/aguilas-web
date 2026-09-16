@@ -3,9 +3,12 @@ import Confetti from './Confetti'
 import Sky from './Sky'
 import { generarTarjetaInsignia, compartirImagen } from '../utils/shareCard'
 
-// Overlay de celebración al completar una lección o desbloquear una insignia.
-export default function Celebracion({ titulo, detalle, onCerrar, textoBoton = 'Continuar', insignia, nombreJoven }) {
+// Overlay de celebración al completar una lección, desbloquear una
+// insignia, o (el momento más grande) subir de rango — `tipo="rango"` le
+// da su propia puesta en escena: más confeti, dorado, Sky más grande.
+export default function Celebracion({ tipo, titulo, detalle, onCerrar, textoBoton = 'Continuar', insignia, nombreJoven }) {
   const [compartiendo, setCompartiendo] = useState(false)
+  const esRango = tipo === 'rango'
 
   async function compartir() {
     setCompartiendo(true)
@@ -27,10 +30,11 @@ export default function Celebracion({ titulo, detalle, onCerrar, textoBoton = 'C
   }
 
   return (
-    <div className="re-overlay" role="dialog" aria-modal="true">
-      <Confetti />
-      <div className="re-overlay__tarjeta">
-        <Sky size={110} pose="logrado" />
+    <div className={`re-overlay ${esRango ? 're-overlay--rango' : ''}`} role="dialog" aria-modal="true">
+      <Confetti piezas={esRango ? 60 : 26} dorado={esRango} />
+      <div className={`re-overlay__tarjeta ${esRango ? 're-overlay__tarjeta--rango' : ''}`}>
+        {esRango && <div className="re-overlay__resplandor" aria-hidden="true" />}
+        <Sky size={esRango ? 150 : 110} pose="logrado" />
         <h2 className="re-overlay__titulo">{titulo}</h2>
         {detalle && <p className="re-overlay__detalle">{detalle}</p>}
 

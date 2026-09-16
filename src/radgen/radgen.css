@@ -204,6 +204,68 @@
   max-width: 460px;
 }
 
+/* ===== Actividad reciente — el pulso del panel de líder ===== */
+
+.re-actividad {
+  border-radius: 12px;
+  border: var(--rg-bw) solid var(--rg-ink);
+  background: var(--rg-paper);
+  color: var(--rg-ink);
+  padding: 1.2rem 1.4rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 5px 5px 0 var(--rg-red);
+}
+
+.re-actividad__titulo {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  margin: 0 0 10px;
+  opacity: 0.7;
+}
+
+.re-actividad__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.re-actividad__fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--rg-ink);
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: background-color 0.12s ease;
+}
+
+.re-actividad__fila:hover {
+  background: rgba(15, 15, 18, 0.06);
+}
+
+.re-actividad__texto {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.re-actividad__tiempo {
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  opacity: 0.55;
+  white-space: nowrap;
+}
+
 .re-subtitulo {
   font-family: 'Montserrat', sans-serif;
   font-weight: 900;
@@ -586,16 +648,98 @@
   display: block;
 }
 
+/* Antes eran textos subrayados sueltos — ahora son píldoras con el mismo
+   lenguaje visual del resto de la app (borde grueso + sombra dura), para
+   que una acción secundaria como "Quitar" se vea a propósito y no como un
+   link de blog perdido dentro de una tabla. */
 .re-vinculo {
-  color: var(--rg-blue-light);
-  font-weight: 700;
-  font-size: 0.85rem;
-  text-decoration: underline;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--rg-ink);
+  background: var(--rg-paper);
+  border: 2px solid var(--rg-ink);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 2px 2px 0 var(--rg-blue);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease, color 0.12s ease;
+}
+
+.re-vinculo:hover {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--rg-blue);
+}
+
+.re-vinculo:disabled {
+  opacity: 0.3;
+  cursor: default;
+  box-shadow: none;
+  transform: none;
+}
+
+/* Acciones que borran o desasignan algo — mismo look, en rojo. */
+.re-vinculo--peligro {
+  border-color: var(--rg-red);
+  color: var(--rg-red);
+  box-shadow: 2px 2px 0 var(--rg-red);
+}
+
+.re-vinculo--peligro:hover {
+  background: var(--rg-red);
+  color: var(--rg-paper);
+  box-shadow: 1px 1px 0 var(--rg-red);
+}
+
+/* Links de "volver" que viven directo sobre el fondo oscuro de la página,
+   no dentro de una tarjeta clara — fantasma, con borde claro. */
+.re-vinculo--volver {
+  background: transparent;
+  color: var(--rg-paper);
+  border-color: var(--rg-paper);
+  box-shadow: none;
+}
+
+.re-vinculo--volver:hover {
+  background: var(--rg-paper);
+  color: var(--rg-ink);
+  transform: none;
+}
+
+/* Flechitas de reordenar (↑ ↓) — mismo trato, más compactas. */
+.re-vinculo--icono {
+  padding: 3px 9px;
+  font-size: 0.8rem;
+}
+
+/* El nombre de un joven usado como link (en tablas de ranking/seguimiento)
+   no debe verse como un botón de acción — solo texto normal que invita a
+   dar clic. */
+.re-vinculo--nombre {
   background: none;
   border: none;
-  cursor: pointer;
-  font-family: 'Inter', sans-serif;
+  box-shadow: none;
   padding: 0;
+  border-radius: 0;
+  color: var(--rg-blue);
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.re-vinculo--nombre:hover {
+  text-decoration: underline;
+  transform: none;
+  box-shadow: none;
 }
 
 .re-tabla-wrap {
@@ -614,11 +758,14 @@
 .re-tabla th,
 .re-tabla td {
   border-bottom: 2px solid rgba(15, 15, 18, 0.15);
-  padding: 0.85rem 1rem;
+  padding: 0.75rem 0.85rem;
   text-align: left;
   font-size: 0.85rem;
-  white-space: nowrap;
   color: var(--rg-ink);
+}
+
+.re-tabla th {
+  white-space: nowrap;
 }
 
 .re-tabla th {
@@ -753,6 +900,43 @@
   margin-top: 4px;
 }
 
+.re-medalla__certificado {
+  display: block;
+  margin: 8px auto 0;
+  border: 2px solid var(--rg-ink);
+  border-radius: 999px;
+  background: var(--rg-paper);
+  color: var(--rg-ink);
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: 0.62rem;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.re-medalla__certificado:hover {
+  background: var(--rg-ink);
+  color: var(--rg-paper);
+}
+
+.re-hero-rango__certificado {
+  border: 2px solid var(--rg-paper);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--rg-paper);
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: 0.75rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.re-hero-rango__certificado:hover {
+  background: var(--rg-paper);
+  color: var(--rg-ink);
+}
+
 /* ===== Sky, la mascota — 5 artes reales, uno por pose ===== */
 
 @keyframes re-flotar {
@@ -873,6 +1057,11 @@
   z-index: 60;
 }
 
+.re-confeti--contenida {
+  position: absolute;
+  z-index: 5;
+}
+
 .re-confeti__pieza {
   position: absolute;
   top: -20px;
@@ -933,6 +1122,46 @@
   font-size: 0.9rem;
 }
 
+/* ===== Momento especial: subir de rango ===== */
+
+.re-overlay--rango {
+  background: rgba(9, 9, 12, 0.88);
+}
+
+.re-overlay__tarjeta--rango {
+  position: relative;
+  max-width: 420px;
+  border-color: #cf9a2e;
+  box-shadow: 10px 10px 0 #f0c14b;
+  background: linear-gradient(180deg, #fffaf0, var(--rg-paper) 55%);
+  overflow: hidden;
+}
+
+.re-overlay__tarjeta--rango .re-overlay__titulo {
+  font-size: 1.8rem;
+  background: linear-gradient(90deg, #cf9a2e, #f0c14b, #cf9a2e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.re-overlay__resplandor {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 500px;
+  height: 500px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(240, 193, 75, 0.55) 0%, rgba(240, 193, 75, 0) 65%);
+  animation: re-resplandor-pulso 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes re-resplandor-pulso {
+  0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.9); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+}
+
 /* ===== Progreso de rango ===== */
 
 @keyframes re-barra-in {
@@ -946,6 +1175,182 @@
   background: rgba(15, 15, 18, 0.08);
   overflow: hidden;
   margin: 10px 0;
+}
+
+.re-barra--fina {
+  height: 10px;
+  border-width: 2px;
+  margin: 0 0 1rem;
+}
+
+/* ===== Lecciones agrupadas por serie ===== */
+
+.re-serie-grupo {
+  margin-bottom: 2rem;
+}
+
+.re-serie-grupo__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.re-serie-grupo__titulo {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--rg-paper);
+  margin: 0;
+}
+
+.re-serie-grupo__contador {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: 0.75rem;
+  color: var(--rg-paper);
+  border: 2px solid var(--rg-paper);
+  border-radius: 999px;
+  padding: 2px 10px;
+  white-space: nowrap;
+  opacity: 0.9;
+}
+
+.re-serie-grupo .re-barra--fina {
+  border-color: var(--rg-paper);
+  background: rgba(245, 243, 238, 0.12);
+}
+
+/* ===== Camino de lecciones — sendero estilo Duolingo ===== */
+
+.re-camino {
+  position: relative;
+  padding: 12px 0 8px;
+  --paso-offset: clamp(26px, 9vw, 72px);
+}
+
+.re-camino::before {
+  content: '';
+  position: absolute;
+  top: 38px;
+  bottom: 38px;
+  left: 50%;
+  width: 4px;
+  margin-left: -2px;
+  background-image: linear-gradient(var(--rg-paper) 55%, transparent 45%);
+  background-size: 4px 18px;
+  background-repeat: repeat-y;
+  opacity: 0.22;
+  z-index: 0;
+}
+
+.re-camino__parada {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 140px;
+  margin: 0 auto 30px;
+  text-decoration: none;
+  transform: translateX(calc(var(--offset-dir) * var(--paso-offset)));
+  animation: re-medalla-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  transition: opacity 0.25s ease;
+}
+
+.re-camino__parada--opacada {
+  opacity: 0.28;
+}
+
+.re-nodo {
+  width: 76px;
+  height: 76px;
+  flex: none;
+  border-radius: 50%;
+  border: var(--rg-bw) solid var(--rg-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.1rem;
+  position: relative;
+  background: var(--rg-blue);
+  box-shadow: 4px 4px 0 var(--rg-ink);
+  transition: transform 0.15s ease;
+}
+
+.re-camino__parada:hover .re-nodo {
+  transform: scale(1.06);
+}
+
+.re-nodo--bloqueada {
+  background: rgba(245, 243, 238, 0.06);
+  border-color: rgba(245, 243, 238, 0.3);
+  color: rgba(245, 243, 238, 0.35);
+  box-shadow: none;
+  font-size: 1.7rem;
+  cursor: default;
+}
+
+.re-nodo--disponible {
+  background: var(--rg-red);
+}
+
+.re-nodo--siguiente {
+  animation: re-nodo-pulso 1.7s ease-in-out infinite;
+}
+
+@keyframes re-nodo-pulso {
+  0%, 100% { box-shadow: 4px 4px 0 var(--rg-ink), 0 0 0 0 rgba(255, 59, 59, 0.5); }
+  50% { box-shadow: 4px 4px 0 var(--rg-ink), 0 0 0 12px rgba(255, 59, 59, 0); }
+}
+
+.re-nodo__check {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #2ecc71;
+  border: 2.5px solid var(--rg-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  color: #fff;
+  font-weight: 900;
+}
+
+.re-camino__titulo {
+  margin: 0;
+  text-align: center;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  line-height: 1.3;
+  color: var(--rg-paper);
+}
+
+.re-camino__parada--bloqueada .re-camino__titulo {
+  opacity: 0.45;
+}
+
+.re-camino__etiqueta {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  color: var(--rg-ink);
+  background: var(--rg-paper);
+  border: 2px solid var(--rg-ink);
+  border-radius: 999px;
+  padding: 2px 10px;
 }
 
 .re-barra__relleno {
@@ -1042,7 +1447,6 @@
 
 @media (max-width: 480px) {
   .re-page { padding: 1.5rem 1rem 3rem; }
-  .re-leccion-item { flex-direction: column; align-items: flex-start; }
 }
 
 /* ===== Quiz al final de la lección ===== */
@@ -1096,9 +1500,31 @@
 .re-quiz__opcion.incorrecta {
   background: var(--rg-red);
   color: var(--rg-paper);
+  animation: re-quiz-shake 0.4s ease;
+}
+
+.re-quiz__opcion.correcta {
+  animation: re-quiz-acierto 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes re-quiz-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+@keyframes re-quiz-acierto {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.03); }
+  100% { transform: scale(1); }
 }
 
 .re-quiz__feedback {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-weight: 700;
   margin-bottom: 1rem;
 }
@@ -1117,6 +1543,226 @@
   font-family: 'Montserrat', sans-serif;
   font-weight: 900;
   font-size: 0.9rem;
+}
+
+/* La racha escala visualmente entre más semanas seguidas lleva el joven —
+   un 2 se ve como el logro chico que es, un 8+ se siente como uno de
+   verdad, con más brillo y una llama que respira. */
+.re-racha__llama {
+  display: inline-block;
+}
+
+.re-racha--t2 {
+  padding: 0.55rem 1.2rem;
+  font-size: 0.95rem;
+  box-shadow: 0 0 0 3px rgba(255, 59, 59, 0.25);
+}
+
+.re-racha--t3 {
+  padding: 0.6rem 1.3rem;
+  font-size: 1.05rem;
+  box-shadow: 0 0 14px 2px rgba(255, 59, 59, 0.45);
+}
+
+.re-racha--t3 .re-racha__llama {
+  font-size: 1.2em;
+}
+
+.re-racha--t4 {
+  padding: 0.65rem 1.4rem;
+  font-size: 1.15rem;
+  background: linear-gradient(135deg, var(--rg-red), #ff7a3a);
+  box-shadow: 0 0 22px 4px rgba(255, 122, 58, 0.6);
+  animation: re-racha-pulso 1.6s ease-in-out infinite;
+}
+
+.re-racha--t4 .re-racha__llama {
+  font-size: 1.4em;
+  animation: re-llama-flicker 1.1s ease-in-out infinite;
+}
+
+@keyframes re-racha-pulso {
+  0%, 100% { box-shadow: 0 0 22px 4px rgba(255, 122, 58, 0.6); }
+  50% { box-shadow: 0 0 30px 8px rgba(255, 122, 58, 0.85); }
+}
+
+@keyframes re-llama-flicker {
+  0%, 100% { transform: scale(1) rotate(-2deg); }
+  50% { transform: scale(1.15) rotate(2deg); }
+}
+
+.re-racha-calendario {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.re-racha-semana {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 2px solid var(--rg-ink);
+  background: transparent;
+  opacity: 0.35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+}
+
+.re-racha-semana--activa {
+  background: var(--rg-red);
+  opacity: 1;
+}
+
+.re-racha-semana--actual {
+  border-width: 3px;
+  opacity: 1;
+}
+
+/* ===== Hero de rango — tarjeta protagonista de "Mis insignias" ===== */
+
+.re-hero-rango {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  border-radius: 16px;
+  border: var(--rg-bw) solid var(--rg-ink);
+  background: var(--rg-ink);
+  color: var(--rg-paper);
+  padding: 1.8rem 2rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 7px 7px 0 var(--rg-blue);
+}
+
+.re-hero-rango__icono-wrap {
+  position: relative;
+  flex: none;
+  width: 120px;
+  height: 120px;
+}
+
+.re-anillo {
+  position: absolute;
+  inset: 0;
+  width: 120px;
+  height: 120px;
+  transform: rotate(-90deg);
+}
+
+.re-anillo__fondo {
+  fill: none;
+  stroke: rgba(245, 243, 238, 0.15);
+  stroke-width: 8;
+}
+
+.re-anillo__relleno {
+  fill: none;
+  stroke: var(--rg-blue);
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1.1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.re-anillo--completo .re-anillo__relleno {
+  stroke: #f0c14b;
+  filter: drop-shadow(0 0 6px rgba(240, 193, 75, 0.75));
+}
+
+.re-hero-rango__icono {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  border: var(--rg-bw) solid var(--rg-paper);
+  background: rgba(245, 243, 238, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.6rem;
+}
+
+.re-hero-rango__icono--bronce { background: #8a5a34; }
+.re-hero-rango__icono--plata { background: #9099a3; }
+.re-hero-rango__icono--oro { background: #cf9a2e; }
+
+.re-hero-rango__cuerpo {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.re-hero-rango__etiqueta {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+  margin: 0 0 2px;
+}
+
+.re-hero-rango__nombre {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  font-size: 1.6rem;
+  margin: 0 0 10px;
+}
+
+.re-hero-rango__meta {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.re-hero-rango .re-barra {
+  border-color: var(--rg-paper);
+  background: rgba(245, 243, 238, 0.15);
+}
+
+@media (max-width: 560px) {
+  .re-hero-rango {
+    flex-direction: column;
+    text-align: center;
+    gap: 14px;
+  }
+}
+
+/* ===== Cabecera de sección con contador ===== */
+
+.re-seccion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 1rem;
+}
+
+.re-seccion-header__contador {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: 0.75rem;
+  border: 2px solid var(--rg-ink);
+  border-radius: 999px;
+  padding: 3px 12px;
+  white-space: nowrap;
+}
+
+.re-medalla--serie:not(.re-medalla--bloqueada) {
+  background: #f0c14b;
+}
+
+/* ===== Ranking — fila propia y medallas de posición ===== */
+
+.re-fila-actual {
+  background: rgba(58, 123, 255, 0.12);
+  font-weight: 800;
+}
+
+.re-tabla__posicion {
+  font-size: 1.05rem;
 }
 
 /* ===== Toast "Deshacer" ===== */

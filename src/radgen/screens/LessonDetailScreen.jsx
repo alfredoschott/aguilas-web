@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getAsignacionesDe, marcarCompletado, getInsigniasDe } from '../store'
+import { getAsignacionesDe, marcarCompletado, getInsigniasDe, marcarRetoCumplido } from '../store'
 import Celebracion from '../components/Celebracion'
 import QuizLeccion from '../components/QuizLeccion'
 import ComentariosLeccion from '../components/ComentariosLeccion'
 import Sky from '../components/Sky'
 
+// Subir de rango es un logro distinto a desbloquear la insignia de una
+// cápsula cualquiera — se devuelve aparte para que la celebración le dé
+// el momento más grande que se merece, en vez de tratarlo igual que el
+// resto de las insignias.
 function calcularNuevasInsignias(antes, despues) {
   const nuevas = []
   despues.porLeccion.forEach((b, i) => {
@@ -14,10 +18,9 @@ function calcularNuevasInsignias(antes, despues) {
   despues.porSerie.forEach((b, i) => {
     if (b.desbloqueada && !antes.porSerie[i].desbloqueada) nuevas.push(b)
   })
-  if (despues.nivelActual && despues.nivelActual.id !== antes.nivelActual?.id) {
-    nuevas.push({ nombre: `Rango ${despues.nivelActual.nombre}`, icono: despues.nivelActual.icono })
-  }
-  return nuevas
+  const subioDeRango =
+    despues.nivelActual && despues.nivelActual.id !== antes.nivelActual?.id ? despues.nivelActual : null
+  return { nuevas, subioDeRango }
 }
 
 export default function LessonDetailScreen({ usuario }) {
@@ -59,11 +62,20 @@ export default function LessonDetailScreen({ usuario }) {
     const antes = await getInsigniasDe(usuario.uid)
     await marcarCompletado(asignacion.id, quizScore)
     const despues = await getInsigniasDe(usuario.uid)
-    const nuevas = calcularNuevasInsignias(antes, despues)
+    const { nuevas, subioDeRango } = calcularNuevasInsignias(antes, despues)
 
     const detalleQuiz = quizScore ? `Acertaste ${quizScore.correctas} de ${quizScore.total} preguntas. ` : ''
 
-    if (nuevas.length > 0) {
+    if (subioDeRango) {
+      setCelebracion({
+        tipo: 'rango',
+        titulo: '¡Subiste de rango!',
+        detalle: detalleQuiz + `Ya eres ${subioDeRango.nombre} — sigue así.`,
+        textoBoton: 'Ver mis insignias',
+        destino: '/radgen/education/insignias',
+        insignia: { nombre: subioDeRango.nombre, icono: subioDeRango.icono },
+      })
+    } else if (nuevas.length > 0) {
       setCelebracion({
         titulo: '¡Insignia desbloqueada!',
         detalle: detalleQuiz + nuevas.map((n) => `${n.icono} ${n.nombre}`).join(' · '),
@@ -89,9 +101,15 @@ export default function LessonDetailScreen({ usuario }) {
     completarLeccion(null)
   }
 
+  async function toggleReto() {
+    const nuevoValor = !asignacion.retoCumplido
+    await marcarRetoCumplido(asignacion.id, nuevoValor)
+    setAsignacion((prev) => ({ ...prev, retoCumplido: nuevoValor }))
+  }
+
   return (
     <div className="re-shell">
-      <button className="re-vinculo" style={{ marginBottom: 16 }} onClick={() => navigate('/radgen/education/lecciones')}>
+      <button className="re-vinculo re-vinculo--volver" style={{ marginBottom: 16 }} onClick={() => navigate('/radgen/education/lecciones')}>
         ← Volver a mis lecciones
       </button>
 
@@ -152,6 +170,17 @@ export default function LessonDetailScreen({ usuario }) {
             </div>
           )}
 
+          {asignacion.leccion?.reto && (
+            <div className="re-card re-card--rojo">
+              <h2 className="re-subtitulo">🎯 Reto de la semana</h2>
+              <p style={{ marginTop: 0, marginBottom: 14 }}>{asignacion.leccion.reto}</p>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, cursor: 'pointer' }}>
+                <input type="checkbox" checked={!!asignacion.retoCumplido} onChange={toggleReto} />
+                {asignacion.retoCumplido ? 'Reto cumplido' : 'Marcar como cumplido'}
+              </label>
+            </div>
+          )}
+
           {completado ? (
             <div className="re-card" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <Sky size={56} pose="relajado" />
@@ -182,6 +211,7 @@ export default function LessonDetailScreen({ usuario }) {
 
       {celebracion && (
         <Celebracion
+          tipo={celebracion.tipo}
           titulo={celebracion.titulo}
           detalle={celebracion.detalle}
           textoBoton={celebracion.textoBoton}

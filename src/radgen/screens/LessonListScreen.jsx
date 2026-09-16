@@ -1,22 +1,98 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getAsignacionesDe, getTareasDe, alternarTareaPersonal } from '../store'
+import { getAsignacionesDe, getTareasDe, alternarTareaPersonal, getLeccionesActivas } from '../store'
 import Sky from '../components/Sky'
 import TareaPersonal from '../components/TareaPersonal'
 
+// Desplazamiento horizontal de cada parada del camino — un zigzag suave
+// (centro, derecha, centro, izquierda…) como el sendero de lecciones de
+// Duolingo. El valor real en píxeles lo decide el CSS con clamp(), así
+// que aquí solo se define la dirección.
+const PATRON_ZIGZAG = [0, 1, 0, -1]
+
+// Arma, por serie, el camino completo: las cápsulas ya asignadas (hechas o
+// pendientes) más las que todavía no se han asignado dentro de esa misma
+// serie — esas últimas aparecen bloqueadas, como el resto del mapa que
+// todavía no se desbloquea. Solo se muestran series donde el joven ya
+// tiene al menos una cápsula asignada; una serie que su líder no le ha
+// presentado sigue completamente oculta, igual que antes.
+function useCaminoPorSerie(asignaciones, leccionesActivas) {
+  return useMemo(() => {
+    const seriesIniciadas = new Set(asignaciones.map((a) => a.leccion?.serieId).filter(Boolean))
+
+    const leccionesPorId = new Map()
+    leccionesActivas.forEach((l) => leccionesPorId.set(l.id, l))
+    asignaciones.forEach((a) => {
+      if (a.leccion) leccionesPorId.set(a.leccion.id, a.leccion)
+    })
+
+    const asignacionPorLeccionId = new Map(asignaciones.map((a) => [a.leccionId, a]))
+
+    const mapa = new Map()
+    leccionesPorId.forEach((leccion) => {
+      if (!seriesIniciadas.has(leccion.serieId)) return
+      if (!mapa.has(leccion.serieId)) {
+        mapa.set(leccion.serieId, { serieId: leccion.serieId, serieTitulo: leccion.serieTitulo, nodos: [] })
+      }
+      const asignacion = asignacionPorLeccionId.get(leccion.id)
+      const estado = !asignacion ? 'bloqueada' : asignacion.estado === 'completado' ? 'completada' : 'disponible'
+      mapa.get(leccion.serieId).nodos.push({ leccion, asignacion, estado })
+    })
+
+    mapa.forEach((serie) => serie.nodos.sort((a, b) => a.leccion.orden - b.leccion.orden))
+    return [...mapa.values()].sort((a, b) => a.nodos[0].leccion.orden - b.nodos[0].leccion.orden)
+  }, [asignaciones, leccionesActivas])
+}
+
+function NodoCamino({ nodo, offsetDir, esSiguiente, opacado, delay }) {
+  const { leccion, asignacion, estado } = nodo
+  const claseEstado = `re-nodo--${estado}${esSiguiente ? ' re-nodo--siguiente' : ''}`
+
+  const contenido = (
+    <>
+      <div className={`re-nodo ${claseEstado}`}>
+        {estado === 'bloqueada' ? '🔒' : leccion.icono}
+        {estado === 'completada' && <span className="re-nodo__check" aria-hidden="true">✓</span>}
+      </div>
+      <p className="re-camino__titulo">{leccion.titulo}</p>
+      {esSiguiente && <span className="re-camino__etiqueta">EMPEZAR</span>}
+    </>
+  )
+
+  const estilo = { '--offset-dir': offsetDir, animationDelay: `${delay}s` }
+  const clasePara = `re-camino__parada ${estado === 'bloqueada' ? 're-camino__parada--bloqueada' : ''} ${opacado ? 're-camino__parada--opacada' : ''}`
+
+  if (estado === 'bloqueada') {
+    return (
+      <div className={clasePara} style={estilo} title="Se desbloquea cuando tu líder te la asigne">
+        {contenido}
+      </div>
+    )
+  }
+
+  return (
+    <Link to={`/radgen/education/leccion/${asignacion.id}`} className={clasePara} style={estilo}>
+      {contenido}
+    </Link>
+  )
+}
+
 export default function LessonListScreen({ usuario }) {
-  const [filtro, setFiltro] = useState('todas') // todas | pendientes | completadas
   const [busqueda, setBusqueda] = useState('')
   const [tareas, setTareas] = useState([])
   const [asignaciones, setAsignaciones] = useState([])
+  const [leccionesActivas, setLeccionesActivas] = useState([])
   const [cargando, setCargando] = useState(true)
 
   useEffect(() => {
-    Promise.all([getTareasDe(usuario.uid), getAsignacionesDe(usuario.uid)]).then(([t, a]) => {
-      setTareas(t)
-      setAsignaciones(a)
-      setCargando(false)
-    })
+    Promise.all([getTareasDe(usuario.uid), getAsignacionesDe(usuario.uid), getLeccionesActivas()]).then(
+      ([t, a, l]) => {
+        setTareas(t)
+        setAsignaciones(a)
+        setLeccionesActivas(l)
+        setCargando(false)
+      },
+    )
   }, [usuario.uid])
 
   async function toggleTarea(tareaId) {
@@ -26,13 +102,24 @@ export default function LessonListScreen({ usuario }) {
   const pendientes = asignaciones.filter((a) => a.estado !== 'completado').length
   const completadas = asignaciones.length - pendientes
 
-  const visibles = asignaciones
-    .filter((a) => {
-      if (filtro === 'pendientes') return a.estado !== 'completado'
-      if (filtro === 'completadas') return a.estado === 'completado'
-      return true
+  const camino = useCaminoPorSerie(asignaciones, leccionesActivas)
+
+  // Solo la parada disponible más antigua (across todas las series) se
+  // marca como "la siguiente" — si hubiera varias pendientes a la vez, no
+  // queremos que todas pulsen y le resten fuerza a la que sí importa ahora.
+  const siguienteLeccionId = useMemo(() => {
+    let candidato = null
+    camino.forEach((serie) => {
+      serie.nodos.forEach((n) => {
+        if (n.estado === 'disponible' && (!candidato || n.leccion.orden < candidato.orden)) {
+          candidato = n.leccion
+        }
+      })
     })
-    .filter((a) => (a.leccion?.titulo || '').toLowerCase().includes(busqueda.trim().toLowerCase()))
+    return candidato?.id
+  }, [camino])
+
+  const terminoBusqueda = busqueda.trim().toLowerCase()
 
   const mensajeSky =
     asignaciones.length === 0
@@ -83,55 +170,45 @@ export default function LessonListScreen({ usuario }) {
       )}
 
       {asignaciones.length > 0 && (
-        <>
-          <input
-            className="re-input"
-            placeholder="Buscar lección…"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-          />
-          <div className="re-tabs" style={{ display: 'flex', width: '100%' }}>
-            {[
-              ['todas', 'Todas'],
-              ['pendientes', 'Pendientes'],
-              ['completadas', 'Completadas'],
-            ].map(([valor, etiqueta]) => (
-              <button
-                key={valor}
-                type="button"
-                className={`re-tab ${filtro === valor ? 'activo' : ''}`}
-                style={{ flex: 1 }}
-                onClick={() => setFiltro(valor)}
-              >
-                {etiqueta}
-              </button>
-            ))}
-          </div>
-        </>
+        <input
+          className="re-input"
+          placeholder="Buscar lección…"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+        />
       )}
 
-      {asignaciones.length > 0 && visibles.length === 0 && (
-        <div className="re-card" style={{ textAlign: 'center' }}>
-          No hay lecciones que coincidan con tu búsqueda.
-        </div>
-      )}
+      {camino.map((serie) => {
+        let indiceZigzag = 0
+        return (
+          <div key={serie.serieId} className="re-serie-grupo">
+            <div className="re-serie-grupo__header">
+              <h2 className="re-serie-grupo__titulo">{serie.serieTitulo}</h2>
+              <span className="re-serie-grupo__contador">
+                {serie.nodos.filter((n) => n.estado === 'completada').length}/{serie.nodos.length}
+              </span>
+            </div>
 
-      {visibles.map((a, i) => (
-        <Link
-          key={a.id}
-          to={`/radgen/education/leccion/${a.id}`}
-          className="re-leccion-item"
-          style={{ animationDelay: `${i * 0.05}s` }}
-        >
-          <div>
-            <p className="re-leccion-item__titulo">{a.leccion?.titulo}</p>
-            <span className={`re-badge ${a.estado === 'completado' ? 're-badge--completado' : 're-badge--pendiente'}`}>
-              {a.estado === 'completado' ? 'Completado' : 'Pendiente'}
-            </span>
+            <div className="re-camino">
+              {serie.nodos.map((nodo, i) => {
+                const offsetDir = PATRON_ZIGZAG[indiceZigzag % PATRON_ZIGZAG.length]
+                indiceZigzag += 1
+                const opacado = terminoBusqueda.length > 0 && !nodo.leccion.titulo.toLowerCase().includes(terminoBusqueda)
+                return (
+                  <NodoCamino
+                    key={nodo.leccion.id}
+                    nodo={nodo}
+                    offsetDir={offsetDir}
+                    esSiguiente={nodo.leccion.id === siguienteLeccionId}
+                    opacado={opacado}
+                    delay={i * 0.05}
+                  />
+                )
+              })}
+            </div>
           </div>
-          <span className="re-leccion-item__flecha" aria-hidden="true">→</span>
-        </Link>
-      ))}
+        )
+      })}
     </div>
   )
 }

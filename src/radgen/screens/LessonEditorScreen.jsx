@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getSeries, getLeccionPorId, crearLeccion, actualizarLeccion } from '../store'
+import { getSeries, getLeccionPorId, crearLeccion, actualizarLeccion, slugificar } from '../store'
 import { extraerYoutubeId } from '../utils/youtube'
+import { subirImagenLeccion, borrarImagenLeccion } from '../utils/imagenLeccion'
 import Sky from '../components/Sky'
 
 const PREGUNTA_VACIA = () => ({ pregunta: '', opciones: ['', '', '', ''], correcta: 0 })
@@ -24,7 +25,9 @@ export default function LessonEditorScreen() {
   const [notas, setNotas] = useState('')
   const [puntos, setPuntos] = useState([''])
   const [imagen, setImagen] = useState('')
+  const [subiendoImagen, setSubiendoImagen] = useState(false)
   const [quiz, setQuiz] = useState([])
+  const [reto, setReto] = useState('')
   const [mensaje, setMensaje] = useState('')
   const [guardando, setGuardando] = useState(false)
 
@@ -43,6 +46,7 @@ export default function LessonEditorScreen() {
       setPuntos(d?.puntos?.length ? d.puntos : [''])
       setImagen(d?.imagen || '')
       setQuiz(d?.quiz?.length ? d.quiz : [])
+      setReto(d?.reto || '')
       setCargando(false)
     })
   }, [leccionId])
@@ -77,6 +81,28 @@ export default function LessonEditorScreen() {
     setQuiz((prev) => prev.map((p, idx) => (idx === i ? { ...p, correcta: j } : p)))
   }
 
+  async function subirImagen(e) {
+    const archivo = e.target.files?.[0]
+    if (!archivo) return
+    setSubiendoImagen(true)
+    try {
+      const urlAnterior = imagen.trim()
+      const url = await subirImagenLeccion(archivo)
+      if (urlAnterior) borrarImagenLeccion(urlAnterior)
+      setImagen(url)
+    } catch {
+      setMensaje('No se pudo subir la imagen. Intenta de nuevo.')
+    } finally {
+      setSubiendoImagen(false)
+      e.target.value = ''
+    }
+  }
+
+  function quitarImagen() {
+    borrarImagenLeccion(imagen.trim())
+    setImagen('')
+  }
+
   async function guardar() {
     if (!titulo.trim()) return
     if (usaSerieNueva && !serieNueva.trim()) return
@@ -84,7 +110,7 @@ export default function LessonEditorScreen() {
 
     const payload = {
       titulo: titulo.trim(),
-      serieId: usaSerieNueva ? undefined : serieId,
+      serieId: usaSerieNueva ? slugificar(serieNueva.trim()) : serieId,
       serieTitulo: usaSerieNueva
         ? `Serie: ${serieNueva.trim()}`
         : series.find((s) => s.serieId === serieId)?.serieTitulo,
@@ -99,6 +125,7 @@ export default function LessonEditorScreen() {
       quiz: quiz
         .filter((p) => p.pregunta.trim() && p.opciones.every((o) => o.trim()))
         .map((p) => ({ ...p, pregunta: p.pregunta.trim(), opciones: p.opciones.map((o) => o.trim()) })),
+      reto: reto.trim() || null,
     }
 
     setGuardando(true)
@@ -126,7 +153,7 @@ export default function LessonEditorScreen() {
   return (
     <div className="re-shell re-shell--ancho">
       <button
-        className="re-vinculo"
+        className="re-vinculo re-vinculo--volver"
         style={{ marginBottom: 16 }}
         onClick={() => navigate('/radgen/education/lider', { state: { tab: 'cursos' } })}
       >
@@ -205,20 +232,27 @@ export default function LessonEditorScreen() {
           onChange={(e) => setYoutubeInput(e.target.value)}
         />
 
-        <label className="re-label">Imagen destacada (URL, opcional)</label>
+        <label className="re-label">Imagen destacada (opcional)</label>
         <input
+          type="file"
+          accept="image/*"
           className="re-input"
-          placeholder="https://…"
-          value={imagen}
-          onChange={(e) => setImagen(e.target.value)}
+          onChange={subirImagen}
+          disabled={subiendoImagen}
         />
-        {imagen.trim() && (
-          <img
-            src={imagen.trim()}
-            alt="Vista previa"
-            style={{ maxWidth: '100%', maxHeight: 180, borderRadius: 10, marginBottom: '1rem', display: 'block' }}
-            onError={(e) => { e.currentTarget.style.display = 'none' }}
-          />
+        {subiendoImagen && <p style={{ fontWeight: 700, opacity: 0.75 }}>Subiendo imagen…</p>}
+        {imagen.trim() && !subiendoImagen && (
+          <div style={{ marginBottom: '1rem' }}>
+            <img
+              src={imagen.trim()}
+              alt="Vista previa"
+              style={{ maxWidth: '100%', maxHeight: 180, borderRadius: 10, display: 'block', marginBottom: 8 }}
+              onError={(e) => { e.currentTarget.style.display = 'none' }}
+            />
+            <button type="button" className="re-vinculo re-vinculo--peligro" onClick={quitarImagen}>
+              Quitar imagen
+            </button>
+          </div>
         )}
       </div>
 
@@ -272,6 +306,21 @@ export default function LessonEditorScreen() {
       </div>
 
       <div className="re-card">
+        <h2 className="re-subtitulo">Reto de la semana</h2>
+        <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
+          Una acción práctica y corta para llevar la lección a la vida diaria, más allá de ver el video.
+        </p>
+        <textarea
+          className="re-input"
+          rows={2}
+          placeholder="Ej. Esta semana, cuéntale a alguien lo que aprendiste hoy."
+          value={reto}
+          onChange={(e) => setReto(e.target.value)}
+          style={{ resize: 'vertical', fontFamily: 'inherit' }}
+        />
+      </div>
+
+      <div className="re-card">
         <h2 className="re-subtitulo">Quiz (opcional)</h2>
         <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
           Si no agregas preguntas, la lección no tendrá quiz al final.
@@ -317,7 +366,7 @@ export default function LessonEditorScreen() {
       <button
         className="re-btn re-btn--lleno re-btn--bloque"
         onClick={guardar}
-        disabled={!titulo.trim() || (usaSerieNueva ? !serieNueva.trim() : !serieId) || guardando}
+        disabled={!titulo.trim() || (usaSerieNueva ? !serieNueva.trim() : !serieId) || guardando || subiendoImagen}
       >
         {guardando ? 'Guardando…' : existente ? 'Guardar cambios' : 'Crear lección'}
       </button>

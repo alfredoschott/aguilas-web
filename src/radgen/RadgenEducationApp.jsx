@@ -53,7 +53,7 @@ export default function RadgenEducationApp() {
     return elemento
   }
 
-  if (usuario === undefined && !esProyector) {
+  if (usuario === undefined) {
     return (
       <div className="radgen-edu" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
         <Sky size={80} pose="estudiando" animado />

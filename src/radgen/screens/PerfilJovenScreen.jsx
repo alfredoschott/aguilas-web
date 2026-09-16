@@ -16,6 +16,7 @@ import {
 import { useEffect, useState } from 'react'
 import Sky from '../components/Sky'
 import Avatar from '../components/Avatar'
+import RachaBadge from '../components/RachaBadge'
 import TareaPersonal from '../components/TareaPersonal'
 import Toast from '../components/Toast'
 import { useBorrador } from '../hooks/useBorrador'
@@ -116,7 +117,7 @@ export default function PerfilJovenScreen({ usuario }) {
 
   return (
     <div className="re-shell re-shell--ancho">
-      <button className="re-vinculo" style={{ marginBottom: 16 }} onClick={() => navigate('/radgen/education/lider')}>
+      <button className="re-vinculo re-vinculo--volver" style={{ marginBottom: 16 }} onClick={() => navigate('/radgen/education/lider')}>
         ← Volver al panel
       </button>
 
@@ -130,9 +131,7 @@ export default function PerfilJovenScreen({ usuario }) {
         <div className="re-racha">
           {insignias.nivelActual ? `${insignias.nivelActual.icono} ${insignias.nivelActual.nombre}` : 'Sin rango aún'}
         </div>
-        {racha > 0 && (
-          <div className="re-racha">🔥 {racha} semana{racha === 1 ? '' : 's'} seguida{racha === 1 ? '' : 's'}</div>
-        )}
+        <RachaBadge semanas={racha} />
         <div className="re-racha">{insignias.totalCompletadas} cápsula{insignias.totalCompletadas === 1 ? '' : 's'} completada{insignias.totalCompletadas === 1 ? '' : 's'}</div>
       </div>
 
@@ -164,6 +163,7 @@ export default function PerfilJovenScreen({ usuario }) {
                 <th>Estado</th>
                 <th>Completada</th>
                 <th>Quiz</th>
+                <th>Reto</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -179,15 +179,21 @@ export default function PerfilJovenScreen({ usuario }) {
                   <td>{a.fechaCompletado ? new Date(a.fechaCompletado).toLocaleDateString('es-MX') : '—'}</td>
                   <td>{a.quizScore ? `${a.quizScore.correctas}/${a.quizScore.total}` : '—'}</td>
                   <td>
-                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    {a.leccion?.reto ? (
+                      <span className={`re-badge ${a.retoCumplido ? 're-badge--completado' : 're-badge--pendiente'}`}>
+                        {a.retoCumplido ? '🎯 Cumplido' : 'Sin cumplir'}
+                      </span>
+                    ) : '—'}
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
                       {a.estado === 'completado' && (
-                        <button className="re-vinculo" style={{ fontSize: '0.75rem' }} onClick={() => revertir(a.id)}>
-                          ↺ Marcar pendiente
+                        <button className="re-vinculo" onClick={() => revertir(a.id)}>
+                          ↺ Pendiente
                         </button>
                       )}
                       <button
-                        className="re-vinculo"
-                        style={{ fontSize: '0.75rem' }}
+                        className="re-vinculo re-vinculo--peligro"
                         onClick={() => solicitarQuitarAsignacion(a, 'Asignación quitada.')}
                       >
                         Quitar
@@ -198,7 +204,7 @@ export default function PerfilJovenScreen({ usuario }) {
               ))}
               {asignaciones.length === 0 && (
                 <tr>
-                  <td colSpan={5}>Todavía no tiene lecciones asignadas.</td>
+                  <td colSpan={6}>Todavía no tiene lecciones asignadas.</td>
                 </tr>
               )}
             </tbody>
@@ -243,8 +249,8 @@ export default function PerfilJovenScreen({ usuario }) {
               <div className="re-nota__fecha">{new Date(n.fecha).toLocaleDateString('es-MX')}</div>
               <p style={{ margin: 0 }}>{n.texto}</p>
               <button
-                className="re-vinculo"
-                style={{ marginTop: 6, fontSize: '0.75rem' }}
+                className="re-vinculo re-vinculo--peligro"
+                style={{ marginTop: 6 }}
                 onClick={() => solicitarEliminarNota(n, 'Nota eliminada.')}
               >
                 Eliminar

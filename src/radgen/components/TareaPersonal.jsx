@@ -20,7 +20,7 @@ export default function TareaPersonal({ tarea, onToggle, onEliminar }) {
         </p>
         {tarea.descripcion && <p className="re-tarea__descripcion">{tarea.descripcion}</p>}
         {onEliminar && (
-          <button className="re-vinculo" style={{ marginTop: 6, fontSize: '0.75rem' }} onClick={() => onEliminar(tarea.id)}>
+          <button className="re-vinculo re-vinculo--peligro" style={{ marginTop: 6 }} onClick={() => onEliminar(tarea.id)}>
             Eliminar
           </button>
         )}

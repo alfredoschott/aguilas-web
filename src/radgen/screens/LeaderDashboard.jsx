@@ -23,6 +23,9 @@ import {
   asignarTareaPersonal,
   observarModoPreRegistro,
   setModoPreRegistro,
+  getMostrarRankingAJovenes,
+  setMostrarRankingAJovenes,
+  getActividadReciente,
 } from '../store'
 import Sky from '../components/Sky'
 import Avatar from '../components/Avatar'
@@ -79,8 +82,7 @@ function PanelCursos({ series, lecciones, refrescarLecciones }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <button
                     type="button"
-                    className="re-vinculo"
-                    style={{ fontSize: '0.7rem', opacity: i === 0 ? 0.3 : 1 }}
+                    className="re-vinculo re-vinculo--icono"
                     disabled={i === 0}
                     onClick={() => mover(l.id, -1)}
                   >
@@ -88,8 +90,7 @@ function PanelCursos({ series, lecciones, refrescarLecciones }) {
                   </button>
                   <button
                     type="button"
-                    className="re-vinculo"
-                    style={{ fontSize: '0.7rem', opacity: i === deSerie.length - 1 ? 0.3 : 1 }}
+                    className="re-vinculo re-vinculo--icono"
                     disabled={i === deSerie.length - 1}
                     onClick={() => mover(l.id, 1)}
                   >
@@ -108,10 +109,10 @@ function PanelCursos({ series, lecciones, refrescarLecciones }) {
                     {l.youtubeId ? ' · Con video' : ' · Sin video'}
                   </p>
                   <div style={{ display: 'flex', gap: 14, marginTop: 6 }}>
-                    <Link to={`/radgen/education/lider/leccion/${l.id}/editar`} className="re-vinculo" style={{ fontSize: '0.75rem' }}>
+                    <Link to={`/radgen/education/lider/leccion/${l.id}/editar`} className="re-vinculo">
                       Editar
                     </Link>
-                    <button className="re-vinculo" style={{ fontSize: '0.75rem' }} onClick={() => archivar(l.id)}>
+                    <button className="re-vinculo" onClick={() => archivar(l.id)}>
                       {l.estado === 'archivada' ? 'Reactivar' : 'Archivar'}
                     </button>
                   </div>
@@ -349,7 +350,7 @@ function PanelElegibilidad({ elegibilidadPorJoven, lecciones, requisitos, cambia
               {elegibilidadPorJoven.map(({ joven, insignias }) => (
                 <tr key={joven.uid}>
                   <td>
-                    <Link to={`/radgen/education/lider/joven/${joven.uid}`} className="re-vinculo">
+                    <Link to={`/radgen/education/lider/joven/${joven.uid}`} className="re-vinculo re-vinculo--nombre">
                       {joven.nombre}
                     </Link>
                   </td>
@@ -524,8 +525,8 @@ function PanelNotasYPreguntas({ usuario, jovenes, pendientes, refrescarPendiente
               <div className="re-nota__fecha">{new Date(n.fecha).toLocaleDateString('es-MX')}</div>
               <p style={{ margin: 0 }}>{n.texto}</p>
               <button
-                className="re-vinculo"
-                style={{ marginTop: 6, fontSize: '0.75rem' }}
+                className="re-vinculo re-vinculo--peligro"
+                style={{ marginTop: 6 }}
                 onClick={() => solicitarEliminarNota(n, 'Nota eliminada.')}
               >
                 Eliminar
@@ -540,7 +541,7 @@ function PanelNotasYPreguntas({ usuario, jovenes, pendientes, refrescarPendiente
   )
 }
 
-function PanelRanking({ ranking }) {
+function PanelRanking({ ranking, mostrarRanking, cambiarVisibilidadRanking }) {
   return (
     <div className="re-card re-card--rojo">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
@@ -549,6 +550,17 @@ function PanelRanking({ ranking }) {
           🖥️ Modo proyector
         </Link>
       </div>
+
+      <button
+        type="button"
+        className={`re-switch ${mostrarRanking ? 'activo' : ''}`}
+        onClick={cambiarVisibilidadRanking}
+        style={{ marginBottom: 20 }}
+      >
+        <span className="re-switch__perilla" />
+        <span>{mostrarRanking ? 'Los jóvenes SÍ ven este ranking' : 'Los jóvenes NO ven este ranking'}</span>
+      </button>
+
       <div className="re-tabla-wrap">
         <table className="re-tabla">
           <thead>
@@ -568,7 +580,7 @@ function PanelRanking({ ranking }) {
                 <td>
                   <Link
                     to={`/radgen/education/lider/joven/${fila.joven.uid}`}
-                    className="re-vinculo"
+                    className="re-vinculo re-vinculo--nombre"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
                   >
                     <Avatar nombre={fila.joven.nombre} foto={fila.joven.fotoPerfil} uid={fila.joven.uid} size={26} />
@@ -588,6 +600,44 @@ function PanelRanking({ ranking }) {
   )
 }
 
+function tiempoRelativo(fechaIso) {
+  const minutos = Math.floor((Date.now() - new Date(fechaIso).getTime()) / 60000)
+  if (minutos < 1) return 'justo ahora'
+  if (minutos < 60) return `hace ${minutos} min`
+  const horas = Math.floor(minutos / 60)
+  if (horas < 24) return `hace ${horas} h`
+  const dias = Math.floor(horas / 24)
+  return `hace ${dias} d`
+}
+
+// El "pulso" del panel — quién completó qué y hace cuánto, siempre visible
+// arriba de las pestañas y refrescándose sola, para que abrir el panel se
+// sienta vivo en vez de una tabla estática que hay que ir a buscar.
+function ActividadReciente({ actividad }) {
+  if (actividad.length === 0) return null
+
+  return (
+    <div className="re-actividad">
+      <p className="re-actividad__titulo">🟢 Actividad reciente</p>
+      <div className="re-actividad__lista">
+        {actividad.map((fila) => (
+          <Link
+            key={fila.id}
+            to={`/radgen/education/lider/joven/${fila.joven?.uid}`}
+            className="re-actividad__fila"
+          >
+            <Avatar nombre={fila.joven?.nombre} foto={fila.joven?.fotoPerfil} uid={fila.joven?.uid} size={30} />
+            <span className="re-actividad__texto">
+              <strong>{fila.joven?.nombre}</strong> completó <strong>{fila.leccion?.titulo}</strong>
+            </span>
+            <span className="re-actividad__tiempo">{tiempoRelativo(fila.fechaCompletado)}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function LeaderDashboard({ usuario }) {
   const location = useLocation()
   const [tab, setTab] = useState(location.state?.tab || 'asignar')
@@ -600,13 +650,25 @@ export default function LeaderDashboard({ usuario }) {
   const [ranking, setRanking] = useState([])
   const [requisitos, setRequisitos] = useState({ voluntariado: [], misiones: [] })
   const [mostrarElegibilidad, setMostrarElegibilidad] = useState(false)
+  const [mostrarRanking, setMostrarRanking] = useState(false)
   const [pendientes, setPendientes] = useState([])
   const [elegibilidadPorJoven, setElegibilidadPorJoven] = useState([])
   const [preRegistro, setPreRegistro] = useState(true)
+  const [actividad, setActividad] = useState([])
 
   useEffect(() => {
     const unsub = observarModoPreRegistro(setPreRegistro)
     return unsub
+  }, [])
+
+  // Se refresca sola cada 20s mientras la líder tiene el panel abierto —
+  // así el "recién completó" no se queda viejo si se deja abierto un rato.
+  useEffect(() => {
+    getActividadReciente().then(setActividad)
+    const intervalo = setInterval(() => {
+      getActividadReciente().then(setActividad)
+    }, 20000)
+    return () => clearInterval(intervalo)
   }, [])
 
   useEffect(() => {
@@ -619,8 +681,9 @@ export default function LeaderDashboard({ usuario }) {
       getRankingCampamento(),
       getRequisitos(),
       getMostrarElegibilidadAJovenes(),
+      getMostrarRankingAJovenes(),
       getComentariosPendientes(),
-    ]).then(async ([js, ls, la, se, tb, rk, rq, me, pd]) => {
+    ]).then(async ([js, ls, la, se, tb, rk, rq, me, mr, pd]) => {
       setJovenes(js)
       setLecciones(ls)
       setLeccionesActivas(la)
@@ -629,6 +692,7 @@ export default function LeaderDashboard({ usuario }) {
       setRanking(rk)
       setRequisitos(rq)
       setMostrarElegibilidad(me)
+      setMostrarRanking(mr)
       setPendientes(pd)
       const elegibilidad = await Promise.all(js.map(async (j) => ({ joven: j, insignias: await getInsigniasDe(j.uid) })))
       setElegibilidadPorJoven(elegibilidad)
@@ -637,9 +701,10 @@ export default function LeaderDashboard({ usuario }) {
   }, [])
 
   async function refrescar() {
-    const [tb, rk] = await Promise.all([getTablaEstado(), getRankingCampamento()])
+    const [tb, rk, ac] = await Promise.all([getTablaEstado(), getRankingCampamento(), getActividadReciente()])
     setTabla(tb)
     setRanking(rk)
+    setActividad(ac)
   }
 
   async function refrescarLecciones() {
@@ -655,6 +720,10 @@ export default function LeaderDashboard({ usuario }) {
 
   async function cambiarVisibilidadElegibilidad() {
     setMostrarElegibilidad(await setMostrarElegibilidadAJovenes(!mostrarElegibilidad))
+  }
+
+  async function cambiarVisibilidadRanking() {
+    setMostrarRanking(await setMostrarRankingAJovenes(!mostrarRanking))
   }
 
   async function refrescarPendientes() {
@@ -695,6 +764,8 @@ export default function LeaderDashboard({ usuario }) {
           {preRegistro ? 'Activar lecciones para todos' : 'Volver a modo pre-registro'}
         </button>
       </div>
+
+      <ActividadReciente actividad={actividad} />
 
       <div className="re-tabs re-tabs--lider">
         {TABS.map(([valor, etiqueta]) => (
@@ -753,7 +824,13 @@ export default function LeaderDashboard({ usuario }) {
         />
       )}
 
-      {tab === 'ranking' && <PanelRanking ranking={ranking} />}
+      {tab === 'ranking' && (
+        <PanelRanking
+          ranking={ranking}
+          mostrarRanking={mostrarRanking}
+          cambiarVisibilidadRanking={cambiarVisibilidadRanking}
+        />
+      )}
     </div>
   )
 }

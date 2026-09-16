@@ -1,9 +1,12 @@
 import { useState } from 'react'
+import Confetti from './Confetti'
+import Sky from './Sky'
 
 export default function QuizLeccion({ preguntas, onTerminar }) {
   const [indice, setIndice] = useState(0)
   const [seleccion, setSeleccion] = useState(null)
   const [correctas, setCorrectas] = useState(0)
+  const [acierto, setAcierto] = useState(false)
 
   const pregunta = preguntas[indice]
   const esUltima = indice === preguntas.length - 1
@@ -12,13 +15,13 @@ export default function QuizLeccion({ preguntas, onTerminar }) {
   function elegir(i) {
     if (yaRespondio) return
     setSeleccion(i)
+    setAcierto(i === pregunta.correcta)
     if (i === pregunta.correcta) setCorrectas((c) => c + 1)
   }
 
   function siguiente() {
     if (esUltima) {
-      const correctasFinal = seleccion === pregunta.correcta ? correctas : correctas
-      onTerminar({ correctas: correctasFinal, total: preguntas.length })
+      onTerminar({ correctas, total: preguntas.length })
       return
     }
     setIndice((i) => i + 1)
@@ -26,7 +29,9 @@ export default function QuizLeccion({ preguntas, onTerminar }) {
   }
 
   return (
-    <div className="re-card">
+    <div className="re-card" style={{ position: 'relative', overflow: 'hidden' }}>
+      {yaRespondio && acierto && <Confetti piezas={16} contenida />}
+
       <div className="re-quiz__progreso">
         Pregunta {indice + 1} de {preguntas.length}
       </div>
@@ -55,9 +60,10 @@ export default function QuizLeccion({ preguntas, onTerminar }) {
 
       {yaRespondio && (
         <>
-          <p className="re-quiz__feedback">
-            {seleccion === pregunta.correcta ? '✔ ¡Correcto!' : '✘ No era esa, pero sigue adelante.'}
-          </p>
+          <div className="re-quiz__feedback">
+            <Sky size={40} pose={acierto ? 'logrado' : 'estudiando'} animado={false} />
+            <span>{acierto ? '¡Correcto!' : 'No era esa, pero sigue adelante.'}</span>
+          </div>
           <button className="re-btn re-btn--lleno re-btn--bloque" onClick={siguiente}>
             {esUltima ? 'Terminar' : 'Siguiente pregunta'}
           </button>

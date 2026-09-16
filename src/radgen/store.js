@@ -32,6 +32,7 @@ const CONFIG_POR_DEFECTO = {
   modoPreRegistro: true,
   codigoInvitacion: 'RADGEN2026',
   mostrarElegibilidadAJovenes: false,
+  mostrarRankingAJovenes: false,
   requisitos: { voluntariado: [], misiones: [] },
 }
 
@@ -163,6 +164,16 @@ export async function setMostrarElegibilidadAJovenes(valor) {
   return valor
 }
 
+export async function getMostrarRankingAJovenes() {
+  const config = await getConfig()
+  return config.mostrarRankingAJovenes
+}
+
+export async function setMostrarRankingAJovenes(valor) {
+  await setDoc(doc(db, 'radgenEduConfig', CONFIG_ID), { mostrarRankingAJovenes: valor }, { merge: true })
+  return valor
+}
+
 export async function getRequisitos() {
   const config = await getConfig()
   return config.requisitos
@@ -204,7 +215,7 @@ export async function getJovenes() {
 
 // ===== Lecciones =====
 
-function slugificar(texto) {
+export function slugificar(texto) {
   return (texto || '')
     .toString()
     .normalize('NFD')
@@ -236,7 +247,7 @@ export async function getLeccionPorId(leccionId) {
 // Crea una lección nueva desde el panel de líder — sin tocar código. Si
 // `serieId` coincide con una serie existente, se agrega a ella; si no,
 // `serieTitulo` define una serie nueva.
-export async function crearLeccion({ titulo, serieId, serieTitulo, icono, youtubeId, versiculo, notas, puntos, imagen, quiz }) {
+export async function crearLeccion({ titulo, serieId, serieTitulo, icono, youtubeId, versiculo, notas, puntos, imagen, quiz, reto }) {
   const todas = await getLecciones()
   const ordenMax = todas.reduce((max, l) => Math.max(max, l.orden || 0), 0)
   const nueva = {
@@ -252,6 +263,7 @@ export async function crearLeccion({ titulo, serieId, serieTitulo, icono, youtub
     puntos: (puntos || []).filter((p) => p.trim()),
     imagen: imagen || null,
     quiz: (quiz || []).filter((p) => p.pregunta.trim()),
+    reto: reto?.trim() || null,
   }
   const ref = await addDoc(collection(db, 'radgenLecciones'), nueva)
   return { id: ref.id, ...nueva }
@@ -262,6 +274,11 @@ export async function actualizarLeccion(leccionId, cambios) {
   const limpio = { ...cambios }
   if (cambios.puntos) limpio.puntos = cambios.puntos.filter((p) => p.trim())
   if (cambios.quiz) limpio.quiz = cambios.quiz.filter((p) => p.pregunta.trim())
+  // Firestore rechaza `undefined` en updateDoc — cualquier campo que el
+  // llamador no haya resuelto simplemente se deja sin tocar.
+  Object.keys(limpio).forEach((clave) => {
+    if (limpio[clave] === undefined) delete limpio[clave]
+  })
   await updateDoc(doc(db, 'radgenLecciones', leccionId), limpio)
   return { ...actual, ...limpio }
 }
@@ -338,16 +355,45 @@ export async function asignarLeccion({ leccionId, jovenUids, liderUid }) {
       fechaAsignada: ahora,
       fechaCompletado: null,
       quizScore: null,
+      retoCumplido: false,
     })
   }
 }
 
+// Al completar una cápsula, asigna sola la siguiente de la misma serie (si
+// existe y sigue activa) — así el joven avanza como en un curso, sin que
+// la líder tenga que asignar cada lección a mano.
+async function asignarSiguienteLeccion({ leccionId, asignadoA }) {
+  const todas = await getLecciones()
+  const actual = todas.find((l) => l.id === leccionId)
+  if (!actual) return
+
+  const deSerie = todas.filter((l) => l.serieId === actual.serieId).sort((a, b) => a.orden - b.orden)
+  const indice = deSerie.findIndex((l) => l.id === leccionId)
+  const siguiente = deSerie.slice(indice + 1).find((l) => l.estado !== 'archivada')
+  if (!siguiente) return
+
+  await asignarLeccion({ leccionId: siguiente.id, jovenUids: [asignadoA], liderUid: 'auto' })
+}
+
 export async function marcarCompletado(asignacionId, quizScore = null) {
-  await updateDoc(doc(db, 'radgenAsignaciones', asignacionId), {
+  const asignacionRef = doc(db, 'radgenAsignaciones', asignacionId)
+  const snap = await getDoc(asignacionRef)
+  const asignacion = snap.exists() ? snap.data() : null
+
+  await updateDoc(asignacionRef, {
     estado: 'completado',
     fechaCompletado: new Date().toISOString(),
     quizScore, // { correctas, total } o null si la lección no tiene quiz
   })
+
+  if (asignacion) {
+    await asignarSiguienteLeccion(asignacion)
+  }
+}
+
+export async function marcarRetoCumplido(asignacionId, valor) {
+  await updateDoc(doc(db, 'radgenAsignaciones', asignacionId), { retoCumplido: valor })
 }
 
 // Corrige una lección marcada como completada por error, sin borrar la
@@ -380,6 +426,17 @@ export async function getTablaEstado() {
       leccion: lecciones.find((l) => l.id === a.leccionId),
     }))
     .sort((a, b) => (a.joven?.nombre || '').localeCompare(b.joven?.nombre || ''))
+}
+
+// Últimas cápsulas completadas por cualquier joven, de más reciente a más
+// antigua — el "pulso" del panel de líder, para que se sienta vivo cada
+// vez que lo abre en vez de ser solo tablas estáticas.
+export async function getActividadReciente(limite = 8) {
+  const tabla = await getTablaEstado()
+  return tabla
+    .filter((f) => f.estado === 'completado' && f.fechaCompletado)
+    .sort((a, b) => new Date(b.fechaCompletado) - new Date(a.fechaCompletado))
+    .slice(0, limite)
 }
 
 // ===== Insignias, racha y ranking =====
@@ -469,6 +526,29 @@ export async function getRachaSemanas(uid) {
     cursor -= unaSemanaMs
   }
   return racha
+}
+
+// Últimas `cantidadSemanas`, de la más antigua a la más reciente, con si
+// hubo o no una cápsula completada en cada una — para pintar un calendario
+// de racha estilo Duolingo.
+export async function getHistorialSemanas(uid, cantidadSemanas = 8) {
+  const todas = await getAsignacionesDe(uid)
+  const completadas = todas.filter((a) => a.estado === 'completado' && a.fechaCompletado)
+  const semanasConActividad = new Set(completadas.map((a) => getInicioSemana(a.fechaCompletado)))
+
+  const unaSemanaMs = 7 * 24 * 60 * 60 * 1000
+  const inicioSemanaActual = getInicioSemana(new Date())
+
+  const historial = []
+  for (let i = cantidadSemanas - 1; i >= 0; i -= 1) {
+    const inicio = inicioSemanaActual - i * unaSemanaMs
+    historial.push({
+      inicio,
+      activa: semanasConActividad.has(inicio),
+      esSemanaActual: inicio === inicioSemanaActual,
+    })
+  }
+  return historial
 }
 
 export async function getRankingCampamento() {
