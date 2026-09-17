@@ -12,7 +12,7 @@ import {
 import Sky from '../components/Sky'
 import Avatar from '../components/Avatar'
 import RachaBadge from '../components/RachaBadge'
-import { generarCertificado, descargarImagen } from '../utils/certificado'
+import { generarCertificado, compartirCertificado } from '../utils/certificado'
 
 function Medalla({ nombre, icono, imagen, desbloqueada, progreso, variante, delay = 0, onDescargarCertificado }) {
   return (
@@ -233,7 +233,12 @@ export default function BadgesScreen({ usuario }) {
       logro: `Por alcanzar el rango ${insignias.nivelActual.nombre}`,
       icono: insignias.nivelActual.icono,
     })
-    descargarImagen(dataUrl, `certificado-rango-${insignias.nivelActual.id}.png`)
+    await compartirCertificado({
+      dataUrl,
+      nombreArchivo: `certificado-rango-${insignias.nivelActual.id}.png`,
+      titulo: '¡Nuevo rango en RadGen Education!',
+      texto: `Alcancé el rango ${insignias.nivelActual.nombre} en RadGen Education 🙌`,
+    })
   }
 
   async function descargarCertificadoSerie(nombreSerie) {
@@ -242,7 +247,12 @@ export default function BadgesScreen({ usuario }) {
       logro: `Por completar la serie: ${nombreSerie}`,
       icono: '🏆',
     })
-    descargarImagen(dataUrl, `certificado-serie-${nombreSerie.toLowerCase().replace(/\s+/g, '-')}.png`)
+    await compartirCertificado({
+      dataUrl,
+      nombreArchivo: `certificado-serie-${nombreSerie.toLowerCase().replace(/\s+/g, '-')}.png`,
+      titulo: '¡Serie completa en RadGen Education!',
+      texto: `Terminé la serie "${nombreSerie}" en RadGen Education 🙌`,
+    })
   }
 
   async function descargarCertificadoLeccion(leccion) {
@@ -251,7 +261,12 @@ export default function BadgesScreen({ usuario }) {
       logro: leccion.nombre,
       imagenUrl: leccion.imagen,
     })
-    descargarImagen(dataUrl, `certificado-${leccion.nombre.toLowerCase().replace(/\s+/g, '-')}.png`)
+    await compartirCertificado({
+      dataUrl,
+      nombreArchivo: `certificado-${leccion.nombre.toLowerCase().replace(/\s+/g, '-')}.png`,
+      titulo: '¡Cápsula completada en RadGen Education!',
+      texto: `Completé "${leccion.nombre}" en RadGen Education 🙌`,
+    })
   }
 
   async function descargarCertificadoManual(insignia) {
@@ -261,7 +276,12 @@ export default function BadgesScreen({ usuario }) {
       motivo: insignia.ultimoMotivo || undefined,
       imagenUrl: insignia.imagen,
     })
-    descargarImagen(dataUrl, `certificado-${insignia.id}.png`)
+    await compartirCertificado({
+      dataUrl,
+      nombreArchivo: `certificado-${insignia.id}.png`,
+      titulo: '¡Insignia especial en RadGen Education!',
+      texto: `Recibí la insignia "${insignia.nombre}" en RadGen Education 🙌`,
+    })
   }
 
   return (

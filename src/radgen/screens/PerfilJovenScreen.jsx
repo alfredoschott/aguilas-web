@@ -25,7 +25,7 @@ import TareaPersonal from '../components/TareaPersonal'
 import Toast from '../components/Toast'
 import { useBorrador } from '../hooks/useBorrador'
 import useEliminarConDeshacer from '../hooks/useEliminarConDeshacer'
-import { generarCertificado, descargarImagen } from '../utils/certificado'
+import { generarCertificado, compartirCertificado } from '../utils/certificado'
 
 export default function PerfilJovenScreen({ usuario }) {
   const { uid } = useParams()
@@ -153,7 +153,12 @@ export default function PerfilJovenScreen({ usuario }) {
       motivo: b.ultimoMotivo || undefined,
       imagenUrl: b.imagen,
     })
-    descargarImagen(dataUrl, `certificado-${b.id}-${joven.nombre.toLowerCase().replace(/\s+/g, '-')}.png`)
+    await compartirCertificado({
+      dataUrl,
+      nombreArchivo: `certificado-${b.id}-${joven.nombre.toLowerCase().replace(/\s+/g, '-')}.png`,
+      titulo: '¡Insignia especial en RadGen Education!',
+      texto: `${joven.nombre} recibió la insignia "${b.nombre}" en RadGen Education 🙌`,
+    })
   }
 
   return (

@@ -1,5 +1,6 @@
 // Genera una tarjeta de insignia como imagen (Canvas) para compartir en
-// Instagram/WhatsApp — sin dependencias externas.
+// una historia de Instagram — formato 9:16 exacto (1080x1920), sin
+// dependencias externas.
 import skyLogrado from '../../assets/sky-logrado.png'
 
 function dibujarRectRedondeado(ctx, x, y, w, h, r) {
@@ -53,7 +54,7 @@ export async function generarTarjetaInsignia({ nombreJoven, nombreInsignia, icon
   }
 
   const W = 1080
-  const H = 1350
+  const H = 1920
   const canvas = document.createElement('canvas')
   canvas.width = W
   canvas.height = H
@@ -62,6 +63,7 @@ export async function generarTarjetaInsignia({ nombreJoven, nombreInsignia, icon
   const ink = '#0F0F12'
   const paper = '#F5F3EE'
   const blue = '#3a7bff'
+  const red = '#FF3B3B'
   const bg = '#101014'
 
   // Fondo oscuro punteado
@@ -76,16 +78,23 @@ export async function generarTarjetaInsignia({ nombreJoven, nombreInsignia, icon
     }
   }
 
+  // Franjas de color arriba/abajo — mismo acento que el certificado, para
+  // que ambas imágenes se sientan de la misma familia visual.
+  ctx.fillStyle = blue
+  ctx.fillRect(0, 0, W, 14)
+  ctx.fillStyle = red
+  ctx.fillRect(0, H - 14, W, 14)
+
   // Marca
   ctx.textAlign = 'center'
   ctx.fillStyle = paper
-  ctx.font = '900 34px Montserrat, sans-serif'
-  ctx.fillText('RADGEN EDUCATION', W / 2, 100)
+  ctx.font = '900 38px Montserrat, sans-serif'
+  ctx.fillText('RADGEN EDUCATION', W / 2, 130)
 
   // Tarjeta central
   const pad = 90
-  const cardY = 160
-  const cardH = H - cardY - 120
+  const cardY = 200
+  const cardH = 1160
   ctx.fillStyle = paper
   ctx.strokeStyle = ink
   ctx.lineWidth = 10
@@ -104,58 +113,57 @@ export async function generarTarjetaInsignia({ nombreJoven, nombreInsignia, icon
 
   // Resplandor azul detrás de la insignia — le da más peso visual que
   // dejarla flotando sola sobre el papel.
-  const resplandor = ctx.createRadialGradient(W / 2, cardY + 210, 20, W / 2, cardY + 210, 240)
+  const resplandor = ctx.createRadialGradient(W / 2, cardY + 250, 20, W / 2, cardY + 250, 280)
   resplandor.addColorStop(0, 'rgba(58,123,255,0.22)')
   resplandor.addColorStop(1, 'rgba(58,123,255,0)')
   ctx.fillStyle = resplandor
-  ctx.fillRect(W / 2 - 240, cardY - 30, 480, 480)
+  ctx.fillRect(W / 2 - 280, cardY - 30, 560, 560)
 
   // Ícono grande — la insignia real en PNG si viene, si no el emoji.
   if (imagenUrl) {
     try {
       const img = await cargarImagen(imagenUrl)
-      const lado = 300
-      ctx.drawImage(img, W / 2 - lado / 2, cardY + 60, lado, lado)
+      const lado = 340
+      ctx.drawImage(img, W / 2 - lado / 2, cardY + 90, lado, lado)
     } catch {
       ctx.font = '260px sans-serif'
       ctx.fillStyle = ink
-      ctx.fillText(icono, W / 2, cardY + 300)
+      ctx.fillText(icono, W / 2, cardY + 340)
     }
   } else {
     ctx.font = '260px sans-serif'
     ctx.fillStyle = ink
-    ctx.fillText(icono, W / 2, cardY + 300)
+    ctx.fillText(icono, W / 2, cardY + 340)
   }
 
   // Título
   ctx.fillStyle = ink
-  ctx.font = '900 58px Montserrat, sans-serif'
-  ctx.fillText('¡INSIGNIA', W / 2, cardY + 420)
-  ctx.fillText('DESBLOQUEADA!', W / 2, cardY + 490)
+  ctx.font = '900 62px Montserrat, sans-serif'
+  ctx.fillText('¡INSIGNIA', W / 2, cardY + 500)
+  ctx.fillText('DESBLOQUEADA!', W / 2, cardY + 575)
 
   // Nombre de la insignia
-  ctx.font = '700 40px Inter, sans-serif'
+  ctx.font = '700 42px Inter, sans-serif'
   ctx.fillStyle = blue
-  envolverTexto(ctx, nombreInsignia, W / 2, cardY + 580, W - pad * 2 - 100, 50)
+  envolverTexto(ctx, nombreInsignia, W / 2, cardY + 670, W - pad * 2 - 100, 52)
 
   // Joven
-  ctx.font = '600 34px Inter, sans-serif'
+  ctx.font = '600 36px Inter, sans-serif'
   ctx.fillStyle = 'rgba(15,15,18,0.65)'
   ctx.fillText(nombreJoven, W / 2, cardY + cardH - 60)
 
-  // Sky celebrando desde la esquina — la misma marca que ve el joven
-  // dentro de la app, para que la tarjeta se sienta de RadGen incluso
-  // fuera de la app (Instagram, WhatsApp).
+  // Sky celebrando, grande — el mismo protagonista que ve el joven dentro
+  // de la app, para que la imagen se sienta de RadGen incluso en IG.
   try {
     const sky = await cargarImagen(skyLogrado)
-    const altoSky = 190
+    const altoSky = 320
     const anchoSky = altoSky * (sky.width / sky.height)
     ctx.save()
-    ctx.shadowColor = 'rgba(0,0,0,0.45)'
-    ctx.shadowBlur = 16
-    ctx.shadowOffsetX = -3
-    ctx.shadowOffsetY = 5
-    ctx.drawImage(sky, W - anchoSky - 20, H - altoSky - 16, anchoSky, altoSky)
+    ctx.shadowColor = 'rgba(0,0,0,0.5)'
+    ctx.shadowBlur = 20
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 8
+    ctx.drawImage(sky, W / 2 - anchoSky / 2, cardY + cardH + 40, anchoSky, altoSky)
     ctx.restore()
   } catch {
     // Sin Sky, la tarjeta se sigue viendo bien.
@@ -164,6 +172,9 @@ export async function generarTarjetaInsignia({ nombreJoven, nombreInsignia, icon
   return canvas.toDataURL('image/png')
 }
 
+// Abre el share sheet nativo (en celular, esto es lo que deja elegir
+// "Instagram" y mandarlo directo a una historia) — si el navegador no lo
+// soporta, cae de vuelta a solo descargar la imagen.
 export async function compartirImagen({ dataUrl, nombreArchivo, titulo, texto }) {
   const blob = await (await fetch(dataUrl)).blob()
   const file = new File([blob], nombreArchivo, { type: 'image/png' })

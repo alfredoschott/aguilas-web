@@ -1,7 +1,6 @@
-// Genera un certificado de logro (diploma) como imagen — para cuando un
-// joven termina una serie completa, alcanza un rango, o recibe una
-// insignia especial de su líder. Mismo enfoque de canvas que
-// shareCard.js, en formato horizontal como un diploma de verdad.
+// Genera un certificado de logro como imagen — pensado para subirse
+// directo a una historia de Instagram: 1080x1920 (formato 9:16 exacto),
+// vistoso y con la marca de RadGen, no un diploma plano para imprimir.
 import skyLogrado from '../../assets/sky-logrado.png'
 
 function dibujarRectRedondeado(ctx, x, y, w, h, r) {
@@ -55,6 +54,22 @@ function envolverTextoCentrado(ctx, texto, x, y, maxAncho, alturaLinea, maxLinea
   return lineaY
 }
 
+// Unas cuantas estrellitas de confeti dispersas — sin ser tantas que
+// distraigan del centro de atención, solo para que se sienta festivo.
+function dibujarConfeti(ctx) {
+  const puntos = [
+    [120, 220, 10, '#3a7bff'], [960, 260, 8, '#FF3B3B'], [90, 520, 7, '#cf9a2e'],
+    [990, 560, 9, '#3a7bff'], [140, 900, 8, '#FF3B3B'], [950, 940, 7, '#cf9a2e'],
+    [110, 1240, 9, '#3a7bff'], [970, 1280, 8, '#FF3B3B'],
+  ]
+  puntos.forEach(([x, y, r, color]) => {
+    ctx.fillStyle = color
+    ctx.beginPath()
+    ctx.arc(x, y, r, 0, Math.PI * 2)
+    ctx.fill()
+  })
+}
+
 // `icono` es un emoji (fallback simple); `imagenUrl` es la insignia real
 // en PNG y, si viene, se dibuja en su lugar. `motivo` es opcional — el
 // porqué que escribió la líder al otorgar una insignia especial.
@@ -66,8 +81,8 @@ export async function generarCertificado({ nombreJoven, logro, motivo, icono = '
     ]).catch(() => {})
   }
 
-  const W = 1600
-  const H = 1131
+  const W = 1080
+  const H = 1920
   const canvas = document.createElement('canvas')
   canvas.width = W
   canvas.height = H
@@ -75,12 +90,13 @@ export async function generarCertificado({ nombreJoven, logro, motivo, icono = '
 
   const paper = '#F5F3EE'
   const oro = '#cf9a2e'
+  const azul = '#3a7bff'
+  const rojo = '#FF3B3B'
   const bg = '#101014'
 
-  // Fondo con un leve degradado radial (en vez de negro plano) para que
-  // no se sienta tan chato, más un escenario que un rectángulo de color.
-  const fondo = ctx.createRadialGradient(W / 2, H * 0.4, 80, W / 2, H * 0.5, W * 0.75)
-  fondo.addColorStop(0, '#1a1a20')
+  // Fondo con degradado radial — más escenario que rectángulo plano.
+  const fondo = ctx.createRadialGradient(W / 2, H * 0.32, 100, W / 2, H * 0.4, W * 1.1)
+  fondo.addColorStop(0, '#1d1d24')
   fondo.addColorStop(1, bg)
   ctx.fillStyle = fondo
   ctx.fillRect(0, 0, W, H)
@@ -93,89 +109,98 @@ export async function generarCertificado({ nombreJoven, logro, motivo, icono = '
       ctx.fill()
     }
   }
+  dibujarConfeti(ctx)
 
-  const marco = 60
+  // Franjas de color arriba y abajo — el mismo acento que usa el resto
+  // del sitio, para que se note que es de RadGen desde el primer vistazo.
+  ctx.fillStyle = rojo
+  ctx.fillRect(0, 0, W, 14)
+  ctx.fillStyle = azul
+  ctx.fillRect(0, H - 14, W, 14)
+
+  const marco = 46
   ctx.strokeStyle = oro
   ctx.lineWidth = 6
-  dibujarRectRedondeado(ctx, marco, marco, W - marco * 2, H - marco * 2, 24)
+  dibujarRectRedondeado(ctx, marco, marco + 20, W - marco * 2, H - marco * 2 - 40, 28)
   ctx.stroke()
   ctx.lineWidth = 2
-  dibujarRectRedondeado(ctx, marco + 16, marco + 16, W - (marco + 16) * 2, H - (marco + 16) * 2, 16)
+  dibujarRectRedondeado(ctx, marco + 16, marco + 36, W - (marco + 16) * 2, H - (marco + 16) * 2 - 40, 18)
   ctx.stroke()
-
-  // Resplandor dorado detrás de la insignia — le da peso al centro de
-  // atención en vez de que el ícono flote solo sobre el fondo.
-  const resplandor = ctx.createRadialGradient(W / 2, 330, 20, W / 2, 330, 260)
-  resplandor.addColorStop(0, 'rgba(207,154,46,0.45)')
-  resplandor.addColorStop(1, 'rgba(207,154,46,0)')
-  ctx.fillStyle = resplandor
-  ctx.fillRect(W / 2 - 260, 70, 520, 520)
 
   ctx.textAlign = 'center'
 
   ctx.fillStyle = paper
-  ctx.font = '900 34px Montserrat, sans-serif'
-  ctx.fillText('RADGEN EDUCATION', W / 2, 160)
+  ctx.font = '900 38px Montserrat, sans-serif'
+  ctx.fillText('RADGEN EDUCATION', W / 2, 175)
+
+  // Resplandor dorado detrás de la insignia — el centro de atención de
+  // toda la imagen, pensado para ser lo primero que se ve en una historia.
+  const resplandor = ctx.createRadialGradient(W / 2, 470, 30, W / 2, 470, 320)
+  resplandor.addColorStop(0, 'rgba(207,154,46,0.5)')
+  resplandor.addColorStop(1, 'rgba(207,154,46,0)')
+  ctx.fillStyle = resplandor
+  ctx.fillRect(W / 2 - 320, 190, 640, 640)
 
   if (imagenUrl) {
     try {
       const img = await cargarImagen(imagenUrl)
-      const lado = 240
-      ctx.drawImage(img, W / 2 - lado / 2, 210, lado, lado)
+      const lado = 360
+      ctx.drawImage(img, W / 2 - lado / 2, 300, lado, lado)
     } catch {
-      ctx.font = '210px sans-serif'
-      ctx.fillText(icono, W / 2, 400)
+      ctx.font = '260px sans-serif'
+      ctx.fillText(icono, W / 2, 560)
     }
   } else {
-    ctx.font = '210px sans-serif'
-    ctx.fillText(icono, W / 2, 400)
+    ctx.font = '260px sans-serif'
+    ctx.fillText(icono, W / 2, 560)
   }
 
   ctx.fillStyle = oro
-  ctx.font = '900 64px Montserrat, sans-serif'
-  ctx.fillText('CERTIFICADO DE LOGRO', W / 2, 500)
+  ctx.font = '900 66px Montserrat, sans-serif'
+  ctx.fillText('CERTIFICADO', W / 2, 790)
+  ctx.font = '900 44px Montserrat, sans-serif'
+  ctx.fillText('DE LOGRO', W / 2, 845)
 
-  // Línea divisoria angosta bajo el título, como listón de diploma.
   ctx.strokeStyle = oro
   ctx.lineWidth = 3
   ctx.beginPath()
-  ctx.moveTo(W / 2 - 90, 522)
-  ctx.lineTo(W / 2 + 90, 522)
+  ctx.moveTo(W / 2 - 90, 875)
+  ctx.lineTo(W / 2 + 90, 875)
   ctx.stroke()
 
   ctx.fillStyle = paper
-  ctx.font = '600 30px Inter, sans-serif'
-  ctx.fillText('Se otorga a', W / 2, 590)
+  ctx.font = '600 32px Inter, sans-serif'
+  ctx.fillText('Se otorga a', W / 2, 945)
 
-  ctx.font = '900 72px Montserrat, sans-serif'
-  ctx.fillText(nombreJoven, W / 2, 680)
+  ctx.font = '900 76px Montserrat, sans-serif'
+  ctx.fillText(nombreJoven, W / 2, 1040)
 
   ctx.fillStyle = oro
-  ctx.font = '800 38px Montserrat, sans-serif'
-  let cursorY = envolverTextoCentrado(ctx, logro, W / 2, 755, W - 460, 46, 2)
+  ctx.font = '800 42px Montserrat, sans-serif'
+  let cursorY = envolverTextoCentrado(ctx, logro, W / 2, 1120, W - 220, 50, 2)
 
   if (motivo) {
     ctx.fillStyle = 'rgba(245,243,238,0.85)'
-    ctx.font = 'italic 500 30px Inter, sans-serif'
-    cursorY = envolverTextoCentrado(ctx, `"${motivo}"`, W / 2, cursorY + 34, W - 560, 40, 3)
+    ctx.font = 'italic 500 32px Inter, sans-serif'
+    cursorY = envolverTextoCentrado(ctx, `"${motivo}"`, W / 2, cursorY + 38, W - 300, 42, 3)
   }
 
   const fecha = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
-  ctx.font = '600 26px Inter, sans-serif'
+  ctx.font = '600 28px Inter, sans-serif'
   ctx.fillStyle = 'rgba(245,243,238,0.65)'
-  ctx.fillText(fecha, W / 2, Math.max(cursorY + 40, H - 110))
+  ctx.fillText(fecha, W / 2, Math.max(cursorY + 50, 1560))
 
-  // Sky asomándose en la esquina — como si él también celebrara contigo.
+  // Sky celebrando, grande — el protagonista visual de la parte de abajo.
   try {
     const sky = await cargarImagen(skyLogrado)
-    const altoSky = 210
+    const altoSky = 340
     const anchoSky = altoSky * (sky.width / sky.height)
     ctx.save()
     ctx.shadowColor = 'rgba(0,0,0,0.5)'
-    ctx.shadowBlur = 18
-    ctx.shadowOffsetX = -4
-    ctx.shadowOffsetY = 6
-    ctx.drawImage(sky, W - anchoSky - 30, H - altoSky - 20, anchoSky, altoSky)
+    ctx.shadowBlur = 20
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 8
+    ctx.drawImage(sky, W / 2 - anchoSky / 2, 1620, anchoSky, altoSky)
     ctx.restore()
   } catch {
     // Si no carga, el certificado se ve bien de todos modos sin Sky.
@@ -191,4 +216,24 @@ export function descargarImagen(dataUrl, nombreArchivo) {
   document.body.appendChild(enlace)
   enlace.click()
   document.body.removeChild(enlace)
+}
+
+// Abre el share sheet nativo (en celular, esto es lo que deja elegir
+// "Instagram" y mandarlo directo a una historia) — si el navegador no lo
+// soporta, cae de vuelta a solo descargar la imagen.
+export async function compartirCertificado({ dataUrl, nombreArchivo, titulo, texto }) {
+  const blob = await (await fetch(dataUrl)).blob()
+  const file = new File([blob], nombreArchivo, { type: 'image/png' })
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: titulo, text: texto })
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  descargarImagen(dataUrl, nombreArchivo)
+  return true
 }
