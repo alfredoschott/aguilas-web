@@ -55,16 +55,26 @@ class MetaRewriter {
   }
 }
 
+// Esto es puramente cosmético (mejora cómo se ve el link al compartirlo) —
+// nunca debe poder tumbar la página real. Si algo falla aquí (el fetch
+// interno a /index.html, HTMLRewriter, lo que sea), se deja pasar la
+// petición normal en vez de responder con un error.
 export default async function middleware(request) {
-  const { pathname } = new URL(request.url)
-  const meta = ROUTE_META[pathname]
-  if (!meta) return
+  try {
+    const { pathname } = new URL(request.url)
+    const meta = ROUTE_META[pathname]
+    if (!meta) return
 
-  const response = await fetch(new URL('/index.html', request.url))
-  const rewriter = new HTMLRewriter()
-    .on('title', new MetaRewriter(meta))
-    .on('link', new MetaRewriter(meta))
-    .on('meta', new MetaRewriter(meta))
+    const response = await fetch(new URL('/index.html', request.url))
+    if (!response.ok) return
 
-  return rewriter.transform(response)
+    const rewriter = new HTMLRewriter()
+      .on('title', new MetaRewriter(meta))
+      .on('link', new MetaRewriter(meta))
+      .on('meta', new MetaRewriter(meta))
+
+    return rewriter.transform(response)
+  } catch {
+    return
+  }
 }
