@@ -256,6 +256,9 @@ function PanelCursos({ series, lecciones, refrescarLecciones }) {
                     ↓
                   </button>
                 </div>
+                <Link to={`/radgen/education/lider/serie/${s.serieId}/preview`} className="re-vinculo">
+                  👁 Vista previa
+                </Link>
               </div>
             </div>
 
@@ -298,6 +301,9 @@ function PanelCursos({ series, lecciones, refrescarLecciones }) {
                   <div style={{ display: 'flex', gap: 14, marginTop: 6, flexWrap: 'wrap' }}>
                     <Link to={`/radgen/education/lider/leccion/${l.id}/editar`} className="re-vinculo">
                       Editar
+                    </Link>
+                    <Link to={`/radgen/education/lider/leccion/${l.id}/preview`} className="re-vinculo">
+                      👁 Vista previa
                     </Link>
                     <button className="re-vinculo" onClick={() => duplicar(l.id)}>
                       Duplicar

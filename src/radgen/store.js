@@ -368,6 +368,23 @@ export function obtenerBloques(leccion) {
   return bloques
 }
 
+// Junta bloques consecutivos del mismo tipo (texto o punto) en un solo
+// grupo, para que dos "texto" seguidos no se vean como dos tarjetas
+// separadas, y los puntos clave salgan en una sola lista. Usado tanto en la
+// lección real (LessonDetailScreen) como en la vista previa de la líder.
+export function agruparBloques(bloques) {
+  const grupos = []
+  bloques.forEach((b) => {
+    const ultimo = grupos[grupos.length - 1]
+    if (ultimo && ultimo.tipo === b.tipo && (b.tipo === 'punto' || b.tipo === 'texto')) {
+      ultimo.items.push(b)
+    } else {
+      grupos.push({ tipo: b.tipo, items: [b] })
+    }
+  })
+  return grupos
+}
+
 // Crea una lección nueva desde el panel de líder — sin tocar código. Si
 // `serieId` coincide con una serie existente, se agrega a ella; si no,
 // `serieTitulo` define una serie nueva (y crea su doc en `radgenSeries`).

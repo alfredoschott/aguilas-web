@@ -1,27 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getAsignacionesDe, marcarCompletado, getInsigniasDe, marcarRetoCumplido, obtenerBloques } from '../store'
+import { getAsignacionesDe, marcarCompletado, getInsigniasDe, marcarRetoCumplido, obtenerBloques, agruparBloques } from '../store'
 import Celebracion from '../components/Celebracion'
 import QuizLeccion from '../components/QuizLeccion'
 import ComentariosLeccion from '../components/ComentariosLeccion'
 import Sky from '../components/Sky'
 import { sonidoReto } from '../utils/sonidos'
-
-// Junta bloques consecutivos del mismo tipo (texto o punto) en un solo
-// grupo, para que dos "texto" seguidos no se vean como dos tarjetas
-// separadas, y los puntos clave salgan en una sola lista.
-function agruparBloques(bloques) {
-  const grupos = []
-  bloques.forEach((b) => {
-    const ultimo = grupos[grupos.length - 1]
-    if (ultimo && ultimo.tipo === b.tipo && (b.tipo === 'punto' || b.tipo === 'texto')) {
-      ultimo.items.push(b)
-    } else {
-      grupos.push({ tipo: b.tipo, items: [b] })
-    }
-  })
-  return grupos
-}
 
 // Subir de rango es un logro distinto a desbloquear la insignia de una
 // cápsula cualquiera — se devuelve aparte para que la celebración le dé

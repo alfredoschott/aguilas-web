@@ -180,6 +180,17 @@
   padding: 2.5rem 2rem;
 }
 
+.re-vista-previa-banner {
+  border-radius: 10px;
+  border: 2.5px dashed var(--rg-blue-light);
+  color: var(--rg-blue-light);
+  background: rgba(58, 123, 255, 0.08);
+  padding: 0.8rem 1.1rem;
+  margin-bottom: 1.2rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
 .re-preregistro-banner {
   display: flex;
   align-items: center;
@@ -1494,6 +1505,8 @@
 
 .re-serie-grupo {
   margin-bottom: 2rem;
+  border-left: 4px solid var(--serie-color, transparent);
+  padding-left: 14px;
 }
 
 .re-serie-grupo__header {

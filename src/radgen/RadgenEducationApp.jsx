@@ -9,6 +9,8 @@ import BadgesScreen from './screens/BadgesScreen'
 import ProyectorScreen from './screens/ProyectorScreen'
 import PerfilJovenScreen from './screens/PerfilJovenScreen'
 import LessonEditorScreen from './screens/LessonEditorScreen'
+import LeccionPreviewScreen from './screens/LeccionPreviewScreen'
+import SeriePreviewScreen from './screens/SeriePreviewScreen'
 import PerfilScreen from './screens/PerfilScreen'
 import PerfilPublicoScreen from './screens/PerfilPublicoScreen'
 import PreRegistroScreen from './screens/PreRegistroScreen'
@@ -117,6 +119,14 @@ export default function RadgenEducationApp() {
           <Route
             path="/lider/leccion/:leccionId/editar"
             element={requiereSesion('lider', <LessonEditorScreen />)}
+          />
+          <Route
+            path="/lider/leccion/:leccionId/preview"
+            element={requiereSesion('lider', <LeccionPreviewScreen />)}
+          />
+          <Route
+            path="/lider/serie/:serieId/preview"
+            element={requiereSesion('lider', <SeriePreviewScreen />)}
           />
           <Route path="*" element={<Navigate to="/radgen/education" replace />} />
         </Routes>
