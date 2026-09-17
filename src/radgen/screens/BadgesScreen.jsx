@@ -6,19 +6,23 @@ import {
   getHistorialSemanas,
   getMostrarRankingAJovenes,
   getRankingCampamento,
+  getInsigniasManualesDe,
+  getExperienciaDe,
 } from '../store'
 import Sky from '../components/Sky'
 import Avatar from '../components/Avatar'
 import RachaBadge from '../components/RachaBadge'
 import { generarCertificado, descargarImagen } from '../utils/certificado'
 
-function Medalla({ nombre, icono, desbloqueada, progreso, variante, delay = 0, onDescargarCertificado }) {
+function Medalla({ nombre, icono, imagen, desbloqueada, progreso, variante, delay = 0, onDescargarCertificado }) {
   return (
     <div
       className={`re-medalla ${variante ? `re-medalla--${variante}` : ''} ${desbloqueada ? '' : 're-medalla--bloqueada'}`}
       style={{ animationDelay: `${delay}s` }}
     >
-      <div className="re-medalla__icono">{desbloqueada ? icono : '🔒'}</div>
+      <div className="re-medalla__icono">
+        {!desbloqueada ? '🔒' : imagen ? <img src={imagen} alt="" className="re-medalla__imagen" /> : icono}
+      </div>
       <p className="re-medalla__nombre">{nombre}</p>
       {progreso && <p className="re-medalla__progreso">{progreso}</p>}
       {desbloqueada && onDescargarCertificado && (
@@ -143,6 +147,27 @@ function HeroRango({ insignias, racha, onDescargarCertificado }) {
   )
 }
 
+// Nivel de experiencia — separado del rango (que depende solo de cápsulas
+// completadas). La XP suma cápsulas, aciertos de quiz, racha e insignias
+// especiales, con valores que la líder puede ajustar desde su panel.
+function TarjetaExperiencia({ experiencia }) {
+  const porcentaje = Math.round((experiencia.xpEnNivelActual / experiencia.xpPorNivel) * 100)
+  return (
+    <div className="re-card re-card--xp">
+      <div className="re-seccion-header">
+        <h2 className="re-subtitulo" style={{ margin: 0 }}>Nivel {experiencia.nivel}</h2>
+        <span className="re-seccion-header__contador">{experiencia.xpTotal} XP</span>
+      </div>
+      <div className="re-barra">
+        <div className="re-barra__relleno" style={{ width: `${porcentaje}%` }} />
+      </div>
+      <p style={{ margin: '4px 0 0', fontSize: '0.8rem', opacity: 0.7 }}>
+        {experiencia.xpEnNivelActual} / {experiencia.xpPorNivel} XP para el nivel {experiencia.nivel + 1}
+      </p>
+    </div>
+  )
+}
+
 function CabeceraSeccion({ titulo, contador }) {
   return (
     <div className="re-seccion-header">
@@ -159,6 +184,8 @@ export default function BadgesScreen({ usuario }) {
   const [historialSemanas, setHistorialSemanas] = useState([])
   const [mostrarRanking, setMostrarRanking] = useState(false)
   const [ranking, setRanking] = useState([])
+  const [insigniasManuales, setInsigniasManuales] = useState([])
+  const [experiencia, setExperiencia] = useState(null)
 
   useEffect(() => {
     Promise.all([
@@ -167,12 +194,16 @@ export default function BadgesScreen({ usuario }) {
       getRachaSemanas(usuario.uid),
       getHistorialSemanas(usuario.uid),
       getMostrarRankingAJovenes(),
-    ]).then(([i, m, r, h, mr]) => {
+      getInsigniasManualesDe(usuario.uid),
+      getExperienciaDe(usuario.uid),
+    ]).then(([i, m, r, h, mr, im, exp]) => {
       setInsignias(i)
       setMostrarElegibilidad(m)
       setRacha(r)
       setHistorialSemanas(h)
       setMostrarRanking(mr)
+      setInsigniasManuales(im)
+      setExperiencia(exp)
       if (mr) getRankingCampamento().then(setRanking)
     })
   }, [usuario.uid])
@@ -214,6 +245,15 @@ export default function BadgesScreen({ usuario }) {
     descargarImagen(dataUrl, `certificado-serie-${nombreSerie.toLowerCase().replace(/\s+/g, '-')}.png`)
   }
 
+  async function descargarCertificadoLeccion(leccion) {
+    const dataUrl = await generarCertificado({
+      nombreJoven: usuario.nombre,
+      logro: leccion.nombre,
+      imagenUrl: leccion.imagen,
+    })
+    descargarImagen(dataUrl, `certificado-${leccion.nombre.toLowerCase().replace(/\s+/g, '-')}.png`)
+  }
+
   return (
     <div className="re-shell re-shell--ancho">
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 6 }}>
@@ -223,6 +263,8 @@ export default function BadgesScreen({ usuario }) {
       <p style={{ fontWeight: 600, opacity: 0.85, marginBottom: '1.5rem' }}>{mensajeSky}</p>
 
       <HeroRango insignias={insignias} racha={racha} onDescargarCertificado={descargarCertificadoRango} />
+
+      {experiencia && <TarjetaExperiencia experiencia={experiencia} />}
 
       {historialSemanas.length > 0 && (
         <div className="re-card" style={{ marginBottom: '1.5rem' }}>
@@ -238,7 +280,38 @@ export default function BadgesScreen({ usuario }) {
         <CabeceraSeccion titulo="Cápsulas" contador={`${capsulasDesbloqueadas}/${insignias.porLeccion.length}`} />
         <div className="re-medallas-grid">
           {insignias.porLeccion.map((b, i) => (
-            <Medalla key={b.id} nombre={b.nombre} icono={b.icono} desbloqueada={b.desbloqueada} delay={i * 0.06} />
+            <Medalla
+              key={b.id}
+              nombre={b.nombre}
+              icono={b.icono}
+              imagen={b.imagen}
+              desbloqueada={b.desbloqueada}
+              delay={i * 0.06}
+              onDescargarCertificado={b.desbloqueada ? () => descargarCertificadoLeccion(b) : undefined}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="re-card">
+        <CabeceraSeccion
+          titulo="Insignias especiales"
+          contador={`${insigniasManuales.filter((b) => b.desbloqueada).length}/${insigniasManuales.length}`}
+        />
+        <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
+          Estas te las otorga tu líder en persona — no se desbloquean solas.
+        </p>
+        <div className="re-medallas-grid">
+          {insigniasManuales.map((b, i) => (
+            <Medalla
+              key={b.id}
+              nombre={b.nombre}
+              imagen={b.imagen}
+              desbloqueada={b.desbloqueada}
+              progreso={b.veces > 1 ? `${b.veces} veces` : null}
+              variante="serie"
+              delay={i * 0.06}
+            />
           ))}
         </div>
       </div>

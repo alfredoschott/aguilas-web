@@ -12,7 +12,19 @@ function dibujarRectRedondeado(ctx, x, y, w, h, r) {
   ctx.closePath()
 }
 
-export async function generarCertificado({ nombreJoven, logro, icono = '🏆' }) {
+function cargarImagen(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => resolve(img)
+    img.onerror = reject
+    img.src = src
+  })
+}
+
+// `icono` es un emoji (fallback simple); `imagenUrl` es la insignia real
+// en PNG y, si viene, se dibuja en su lugar.
+export async function generarCertificado({ nombreJoven, logro, icono = '🏆', imagenUrl }) {
   if (document.fonts) {
     await Promise.all([
       document.fonts.load('900 80px Montserrat'),
@@ -57,8 +69,19 @@ export async function generarCertificado({ nombreJoven, logro, icono = '🏆' })
   ctx.font = '900 34px Montserrat, sans-serif'
   ctx.fillText('RADGEN EDUCATION', W / 2, 160)
 
-  ctx.font = '210px sans-serif'
-  ctx.fillText(icono, W / 2, 400)
+  if (imagenUrl) {
+    try {
+      const img = await cargarImagen(imagenUrl)
+      const lado = 240
+      ctx.drawImage(img, W / 2 - lado / 2, 210, lado, lado)
+    } catch {
+      ctx.font = '210px sans-serif'
+      ctx.fillText(icono, W / 2, 400)
+    }
+  } else {
+    ctx.font = '210px sans-serif'
+    ctx.fillText(icono, W / 2, 400)
+  }
 
   ctx.fillStyle = oro
   ctx.font = '900 64px Montserrat, sans-serif'

@@ -17,6 +17,7 @@ export default function Celebracion({ tipo, titulo, detalle, onCerrar, textoBoto
         nombreJoven: nombreJoven || '',
         nombreInsignia: insignia?.nombre || 'Nueva insignia',
         icono: insignia?.icono || '🏅',
+        imagenUrl: insignia?.imagen,
       })
       await compartirImagen({
         dataUrl,

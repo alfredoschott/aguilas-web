@@ -881,6 +881,21 @@
   font-size: 2rem;
   line-height: 1;
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.re-medalla__imagen {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, 0.25));
+}
+
+.re-card--xp {
+  box-shadow: 6px 6px 0 #cf9a2e;
 }
 
 .re-medalla__nombre {

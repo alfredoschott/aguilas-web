@@ -33,7 +33,17 @@ function envolverTexto(ctx, texto, x, y, maxAncho, alturaLinea) {
   return lineaY
 }
 
-export async function generarTarjetaInsignia({ nombreJoven, nombreInsignia, icono = '🏅' }) {
+function cargarImagen(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => resolve(img)
+    img.onerror = reject
+    img.src = src
+  })
+}
+
+export async function generarTarjetaInsignia({ nombreJoven, nombreInsignia, icono = '🏅', imagenUrl }) {
   if (document.fonts) {
     await Promise.all([
       document.fonts.load('900 60px Montserrat'),
@@ -91,10 +101,22 @@ export async function generarTarjetaInsignia({ nombreJoven, nombreInsignia, icon
   ctx.fill()
   ctx.restore()
 
-  // Ícono grande
-  ctx.font = '260px sans-serif'
-  ctx.fillStyle = ink
-  ctx.fillText(icono, W / 2, cardY + 300)
+  // Ícono grande — la insignia real en PNG si viene, si no el emoji.
+  if (imagenUrl) {
+    try {
+      const img = await cargarImagen(imagenUrl)
+      const lado = 300
+      ctx.drawImage(img, W / 2 - lado / 2, cardY + 60, lado, lado)
+    } catch {
+      ctx.font = '260px sans-serif'
+      ctx.fillStyle = ink
+      ctx.fillText(icono, W / 2, cardY + 300)
+    }
+  } else {
+    ctx.font = '260px sans-serif'
+    ctx.fillStyle = ink
+    ctx.fillText(icono, W / 2, cardY + 300)
+  }
 
   // Título
   ctx.fillStyle = ink

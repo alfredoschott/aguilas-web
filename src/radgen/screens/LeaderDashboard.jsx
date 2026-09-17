@@ -26,6 +26,9 @@ import {
   getMostrarRankingAJovenes,
   setMostrarRankingAJovenes,
   getActividadReciente,
+  getXpConfig,
+  setXpConfig,
+  getExperienciaRanking,
 } from '../store'
 import Sky from '../components/Sky'
 import Avatar from '../components/Avatar'
@@ -41,6 +44,7 @@ const TABS = [
   ['elegibilidad', 'Elegibilidad'],
   ['notas', 'Notas y preguntas'],
   ['ranking', 'Ranking'],
+  ['experiencia', 'Experiencia'],
 ]
 
 function PanelCursos({ series, lecciones, refrescarLecciones }) {
@@ -600,6 +604,103 @@ function PanelRanking({ ranking, mostrarRanking, cambiarVisibilidadRanking }) {
   )
 }
 
+const CAMPOS_XP = [
+  ['porLeccionCompletada', 'Por cápsula completada'],
+  ['porQuizCorrecta', 'Por respuesta correcta del quiz'],
+  ['porRachaSemana', 'Por cada semana de racha'],
+  ['porInsigniaManual', 'Por cada insignia especial otorgada'],
+  ['xpPorNivel', 'XP necesaria para subir de nivel'],
+]
+
+function PanelExperiencia({ xpConfig, guardarXpConfig, expRanking }) {
+  const [valores, setValores] = useState(xpConfig)
+  const [guardando, setGuardando] = useState(false)
+  const [mensaje, setMensaje] = useState('')
+
+  function cambiarValor(campo, valor) {
+    setValores((prev) => ({ ...prev, [campo]: Math.max(0, Number(valor) || 0) }))
+  }
+
+  async function guardar() {
+    setGuardando(true)
+    try {
+      await guardarXpConfig(valores)
+      setMensaje('Guardado.')
+      setTimeout(() => setMensaje(''), 2000)
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="re-card">
+        <h2 className="re-subtitulo">Cuánto vale cada cosa</h2>
+        <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
+          Ajusta cuánta experiencia (XP) da cada acción. Se recalcula sola para todos, sin perder historial.
+        </p>
+        {CAMPOS_XP.map(([campo, etiqueta]) => (
+          <div key={campo} style={{ marginBottom: 14 }}>
+            <label className="re-label">{etiqueta}</label>
+            <input
+              type="number"
+              min="0"
+              className="re-input"
+              style={{ maxWidth: 160, marginBottom: 0 }}
+              value={valores[campo]}
+              onChange={(e) => cambiarValor(campo, e.target.value)}
+            />
+          </div>
+        ))}
+        <button className="re-btn re-btn--lleno" onClick={guardar} disabled={guardando}>
+          {guardando ? 'Guardando…' : 'Guardar valores'}
+        </button>
+        {mensaje && <span style={{ marginLeft: 12, fontWeight: 700 }}>{mensaje}</span>}
+      </div>
+
+      <div className="re-card re-card--rojo">
+        <h2 className="re-subtitulo">Ranking por experiencia</h2>
+        <div className="re-tabla-wrap">
+          <table className="re-tabla">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Joven</th>
+                <th>Nivel</th>
+                <th>XP total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {expRanking.map((fila, i) => (
+                <tr key={fila.joven.uid}>
+                  <td>{i + 1}</td>
+                  <td>
+                    <Link
+                      to={`/radgen/education/lider/joven/${fila.joven.uid}`}
+                      className="re-vinculo re-vinculo--nombre"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <Avatar nombre={fila.joven.nombre} foto={fila.joven.fotoPerfil} uid={fila.joven.uid} size={26} />
+                      {fila.joven.nombre}
+                    </Link>
+                  </td>
+                  <td>{fila.experiencia.nivel}</td>
+                  <td>{fila.experiencia.xpTotal}</td>
+                </tr>
+              ))}
+              {expRanking.length === 0 && (
+                <tr>
+                  <td colSpan={4}>Todavía no hay jóvenes registrados.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  )
+}
+
 function tiempoRelativo(fechaIso) {
   const minutos = Math.floor((Date.now() - new Date(fechaIso).getTime()) / 60000)
   if (minutos < 1) return 'justo ahora'
@@ -655,6 +756,8 @@ export default function LeaderDashboard({ usuario }) {
   const [elegibilidadPorJoven, setElegibilidadPorJoven] = useState([])
   const [preRegistro, setPreRegistro] = useState(true)
   const [actividad, setActividad] = useState([])
+  const [xpConfig, setXpConfigState] = useState(null)
+  const [expRanking, setExpRanking] = useState([])
 
   useEffect(() => {
     const unsub = observarModoPreRegistro(setPreRegistro)
@@ -683,7 +786,9 @@ export default function LeaderDashboard({ usuario }) {
       getMostrarElegibilidadAJovenes(),
       getMostrarRankingAJovenes(),
       getComentariosPendientes(),
-    ]).then(async ([js, ls, la, se, tb, rk, rq, me, mr, pd]) => {
+      getXpConfig(),
+      getExperienciaRanking(),
+    ]).then(async ([js, ls, la, se, tb, rk, rq, me, mr, pd, xc, er]) => {
       setJovenes(js)
       setLecciones(ls)
       setLeccionesActivas(la)
@@ -694,6 +799,8 @@ export default function LeaderDashboard({ usuario }) {
       setMostrarElegibilidad(me)
       setMostrarRanking(mr)
       setPendientes(pd)
+      setXpConfigState(xc)
+      setExpRanking(er)
       const elegibilidad = await Promise.all(js.map(async (j) => ({ joven: j, insignias: await getInsigniasDe(j.uid) })))
       setElegibilidadPorJoven(elegibilidad)
       setCargando(false)
@@ -724,6 +831,11 @@ export default function LeaderDashboard({ usuario }) {
 
   async function cambiarVisibilidadRanking() {
     setMostrarRanking(await setMostrarRankingAJovenes(!mostrarRanking))
+  }
+
+  async function guardarXpConfig(nuevoConfig) {
+    setXpConfigState(await setXpConfig(nuevoConfig))
+    setExpRanking(await getExperienciaRanking())
   }
 
   async function refrescarPendientes() {
@@ -830,6 +942,10 @@ export default function LeaderDashboard({ usuario }) {
           mostrarRanking={mostrarRanking}
           cambiarVisibilidadRanking={cambiarVisibilidadRanking}
         />
+      )}
+
+      {tab === 'experiencia' && xpConfig && (
+        <PanelExperiencia xpConfig={xpConfig} guardarXpConfig={guardarXpConfig} expRanking={expRanking} />
       )}
     </div>
   )

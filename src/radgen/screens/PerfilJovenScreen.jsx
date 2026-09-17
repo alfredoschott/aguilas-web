@@ -12,6 +12,10 @@ import {
   eliminarTareaPersonal,
   eliminarAsignacion,
   revertirCompletado,
+  getInsigniasManualesDe,
+  otorgarInsigniaManual,
+  quitarInsigniaManual,
+  getExperienciaDe,
 } from '../store'
 import { useEffect, useState } from 'react'
 import Sky from '../components/Sky'
@@ -33,6 +37,9 @@ export default function PerfilJovenScreen({ usuario }) {
   const [notas, setNotas] = useState([])
   const [tareas, setTareas] = useState([])
   const [asignaciones, setAsignaciones] = useState([])
+  const [insigniasManuales, setInsigniasManuales] = useState([])
+  const [experiencia, setExperiencia] = useState(null)
+  const [otorgando, setOtorgando] = useState('')
 
   useEffect(() => {
     Promise.all([
@@ -42,13 +49,17 @@ export default function PerfilJovenScreen({ usuario }) {
       getNotasDe(uid),
       getTareasDe(uid),
       getAsignacionesDe(uid),
-    ]).then(([j, i, r, n, t, a]) => {
+      getInsigniasManualesDe(uid),
+      getExperienciaDe(uid),
+    ]).then(([j, i, r, n, t, a, im, exp]) => {
       setJoven(j)
       setInsignias(i)
       setRacha(r)
       setNotas(n)
       setTareas(t)
       setAsignaciones(a)
+      setInsigniasManuales(im)
+      setExperiencia(exp)
     })
   }, [uid])
 
@@ -115,6 +126,21 @@ export default function PerfilJovenScreen({ usuario }) {
     setInsignias(await getInsigniasDe(uid))
   }
 
+  async function otorgar(tipo) {
+    setOtorgando(tipo)
+    try {
+      setInsigniasManuales(await otorgarInsigniaManual({ jovenUid: uid, tipo, liderUid: usuario.uid }))
+      setExperiencia(await getExperienciaDe(uid))
+    } finally {
+      setOtorgando('')
+    }
+  }
+
+  async function quitarUltima(registroId) {
+    setInsigniasManuales(await quitarInsigniaManual({ jovenUid: uid, registroId }))
+    setExperiencia(await getExperienciaDe(uid))
+  }
+
   return (
     <div className="re-shell re-shell--ancho">
       <button className="re-vinculo re-vinculo--volver" style={{ marginBottom: 16 }} onClick={() => navigate('/radgen/education/lider')}>
@@ -133,6 +159,7 @@ export default function PerfilJovenScreen({ usuario }) {
         </div>
         <RachaBadge semanas={racha} />
         <div className="re-racha">{insignias.totalCompletadas} cápsula{insignias.totalCompletadas === 1 ? '' : 's'} completada{insignias.totalCompletadas === 1 ? '' : 's'}</div>
+        {experiencia && <div className="re-racha">Nivel {experiencia.nivel} · {experiencia.xpTotal} XP</div>}
       </div>
 
       <div className="re-card">
@@ -150,6 +177,42 @@ export default function PerfilJovenScreen({ usuario }) {
               {insignias.elegibilidad.misiones.apto ? 'Apto' : 'No apto'}
             </span>
           </p>
+        </div>
+      </div>
+
+      <div className="re-card">
+        <h2 className="re-subtitulo">Insignias especiales</h2>
+        <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
+          Estas no se desbloquean solas — se las otorgas tú en persona.
+        </p>
+        <div className="re-medallas-grid">
+          {insigniasManuales.map((b) => (
+            <div key={b.id} className={`re-medalla ${b.desbloqueada ? '' : 're-medalla--bloqueada'}`}>
+              <div className="re-medalla__icono">
+                {b.desbloqueada ? <img src={b.imagen} alt="" className="re-medalla__imagen" /> : '🔒'}
+              </div>
+              <p className="re-medalla__nombre">{b.nombre}</p>
+              {b.veces > 1 && <p className="re-medalla__progreso">{b.veces} veces</p>}
+              <button
+                type="button"
+                className="re-medalla__certificado"
+                onClick={() => otorgar(b.id)}
+                disabled={otorgando === b.id}
+              >
+                {otorgando === b.id ? 'Otorgando…' : '+ Otorgar'}
+              </button>
+              {b.registros[0] && (
+                <button
+                  type="button"
+                  className="re-medalla__certificado"
+                  style={{ marginTop: 6 }}
+                  onClick={() => quitarUltima(b.registros[0].id)}
+                >
+                  Quitar la última
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       </div>
 

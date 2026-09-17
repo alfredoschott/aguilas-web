@@ -16,6 +16,16 @@ import {
 } from 'firebase/firestore'
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
 import { db, auth, googleProvider } from '../firebase'
+import insigniaLeccionImg from '../assets/insignias/insignia-leccion.png'
+import insigniaLibretaImg from '../assets/insignias/insignia-libreta.png'
+import insigniaServicioImg from '../assets/insignias/insignia-servicio.png'
+import insigniaEspecialImg from '../assets/insignias/insignia-especial.png'
+
+export const IMAGENES_INSIGNIA_MANUAL = {
+  libreta: insigniaLibretaImg,
+  servicio: insigniaServicioImg,
+  especial: insigniaEspecialImg,
+}
 
 // Insignias de rango por cantidad total de cápsulas completadas (ajustable
 // según crezca el currículo real).
@@ -26,6 +36,26 @@ const NIVELES = [
 ]
 
 export const NIVELES_INSIGNIA = NIVELES
+
+// Insignias que solo la líder puede otorgar a mano — no se desbloquean
+// solas por completar cápsulas, son un reconocimiento que ella decide dar.
+const INSIGNIAS_MANUALES = [
+  { id: 'libreta', nombre: 'Libreta', imagen: insigniaLibretaImg },
+  { id: 'servicio', nombre: 'Reunión de servicio', imagen: insigniaServicioImg },
+  { id: 'especial', nombre: 'Especial', imagen: insigniaEspecialImg },
+]
+
+export const TIPOS_INSIGNIA_MANUAL = INSIGNIAS_MANUALES
+
+// Cuánta experiencia da cada acción — la líder puede ajustar estos
+// números desde su panel sin tocar código.
+const XP_CONFIG_POR_DEFECTO = {
+  porLeccionCompletada: 10,
+  porQuizCorrecta: 2,
+  porRachaSemana: 5,
+  porInsigniaManual: 15,
+  xpPorNivel: 50,
+}
 
 const CONFIG_ID = 'config'
 const CONFIG_POR_DEFECTO = {
@@ -172,6 +202,20 @@ export async function getMostrarRankingAJovenes() {
 export async function setMostrarRankingAJovenes(valor) {
   await setDoc(doc(db, 'radgenEduConfig', CONFIG_ID), { mostrarRankingAJovenes: valor }, { merge: true })
   return valor
+}
+
+// El doc solo guarda lo que la líder haya cambiado — se completa siempre
+// contra los valores por defecto para que un campo nunca llegue undefined.
+export async function getXpConfig() {
+  const config = await getConfig()
+  return { ...XP_CONFIG_POR_DEFECTO, ...(config.xp || {}) }
+}
+
+export async function setXpConfig(nuevoConfig) {
+  const actual = await getXpConfig()
+  const combinado = { ...actual, ...nuevoConfig }
+  await setDoc(doc(db, 'radgenEduConfig', CONFIG_ID), { xp: combinado }, { merge: true })
+  return combinado
 }
 
 export async function getRequisitos() {
@@ -458,6 +502,7 @@ export async function getInsigniasDe(uid) {
     id: `leccion-${l.id}`,
     nombre: l.titulo,
     icono: l.icono,
+    imagen: insigniaLeccionImg,
     desbloqueada: completadasIds.has(l.id),
   }))
 
@@ -569,6 +614,86 @@ export async function getRankingCampamento() {
     }),
   )
   return filas.sort((a, b) => b.totalCompletadas - a.totalCompletadas)
+}
+
+// ===== Insignias otorgadas a mano por la líder =====
+
+export async function getInsigniasManualesDe(uid) {
+  // Defensivo: si las reglas de Firestore todavía no cubren esta colección
+  // (se agregó después que el resto), que no tumbe pantallas enteras — se
+  // ve simplemente como "sin insignias especiales todavía".
+  let otorgadas = []
+  try {
+    const snap = await getDocs(query(collection(db, 'radgenInsigniasManuales'), where('jovenUid', '==', uid)))
+    otorgadas = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+  } catch {
+    otorgadas = []
+  }
+
+  return INSIGNIAS_MANUALES.map((tipo) => {
+    const deEsteTipo = otorgadas.filter((o) => o.tipo === tipo.id)
+    return {
+      ...tipo,
+      desbloqueada: deEsteTipo.length > 0,
+      veces: deEsteTipo.length,
+      ultimaFecha: deEsteTipo[0]?.fecha || null,
+      registros: deEsteTipo,
+    }
+  })
+}
+
+export async function otorgarInsigniaManual({ jovenUid, tipo, liderUid }) {
+  await addDoc(collection(db, 'radgenInsigniasManuales'), {
+    jovenUid,
+    tipo,
+    otorgadaPor: liderUid,
+    fecha: new Date().toISOString(),
+  })
+  return getInsigniasManualesDe(jovenUid)
+}
+
+export async function quitarInsigniaManual({ jovenUid, registroId }) {
+  await deleteDoc(doc(db, 'radgenInsigniasManuales', registroId))
+  return getInsigniasManualesDe(jovenUid)
+}
+
+// ===== Experiencia y niveles =====
+
+// Todo se calcula al vuelo a partir del historial real — igual que
+// insignias, racha y ranking — para que cambiar los valores de XP desde
+// el panel de líder recalcule a todos de inmediato, sin tener que migrar
+// contadores guardados.
+export async function getExperienciaDe(uid) {
+  const xpCfg = await getXpConfig()
+  const [asignaciones, racha, manuales] = await Promise.all([
+    getAsignacionesDe(uid),
+    getRachaSemanas(uid),
+    getInsigniasManualesDe(uid),
+  ])
+
+  const completadas = asignaciones.filter((a) => a.estado === 'completado')
+  const quizCorrectas = completadas.reduce((suma, a) => suma + (a.quizScore?.correctas || 0), 0)
+  const insigniasManualesTotal = manuales.reduce((suma, m) => suma + m.veces, 0)
+
+  const xpTotal =
+    completadas.length * xpCfg.porLeccionCompletada +
+    quizCorrectas * xpCfg.porQuizCorrecta +
+    racha * xpCfg.porRachaSemana +
+    insigniasManualesTotal * xpCfg.porInsigniaManual
+
+  const xpPorNivel = Math.max(1, xpCfg.xpPorNivel)
+  const nivel = Math.floor(xpTotal / xpPorNivel) + 1
+  const xpEnNivelActual = xpTotal % xpPorNivel
+
+  return { xpTotal, nivel, xpEnNivelActual, xpPorNivel }
+}
+
+export async function getExperienciaRanking() {
+  const jovenes = await getJovenes()
+  const filas = await Promise.all(
+    jovenes.map(async (j) => ({ joven: j, experiencia: await getExperienciaDe(j.uid) })),
+  )
+  return filas.sort((a, b) => b.experiencia.xpTotal - a.experiencia.xpTotal)
 }
 
 // ===== Notas del líder =====
