@@ -637,16 +637,18 @@ export async function getInsigniasManualesDe(uid) {
       desbloqueada: deEsteTipo.length > 0,
       veces: deEsteTipo.length,
       ultimaFecha: deEsteTipo[0]?.fecha || null,
+      ultimoMotivo: deEsteTipo[0]?.motivo || '',
       registros: deEsteTipo,
     }
   })
 }
 
-export async function otorgarInsigniaManual({ jovenUid, tipo, liderUid }) {
+export async function otorgarInsigniaManual({ jovenUid, tipo, liderUid, motivo }) {
   await addDoc(collection(db, 'radgenInsigniasManuales'), {
     jovenUid,
     tipo,
     otorgadaPor: liderUid,
+    motivo: motivo?.trim() || '',
     fecha: new Date().toISOString(),
   })
   return getInsigniasManualesDe(jovenUid)

@@ -254,6 +254,16 @@ export default function BadgesScreen({ usuario }) {
     descargarImagen(dataUrl, `certificado-${leccion.nombre.toLowerCase().replace(/\s+/g, '-')}.png`)
   }
 
+  async function descargarCertificadoManual(insignia) {
+    const dataUrl = await generarCertificado({
+      nombreJoven: usuario.nombre,
+      logro: insignia.nombre,
+      motivo: insignia.ultimoMotivo || undefined,
+      imagenUrl: insignia.imagen,
+    })
+    descargarImagen(dataUrl, `certificado-${insignia.id}.png`)
+  }
+
   return (
     <div className="re-shell re-shell--ancho">
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 6 }}>
@@ -311,6 +321,7 @@ export default function BadgesScreen({ usuario }) {
               progreso={b.veces > 1 ? `${b.veces} veces` : null}
               variante="serie"
               delay={i * 0.06}
+              onDescargarCertificado={b.desbloqueada ? () => descargarCertificadoManual(b) : undefined}
             />
           ))}
         </div>

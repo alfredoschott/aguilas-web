@@ -25,6 +25,7 @@ import TareaPersonal from '../components/TareaPersonal'
 import Toast from '../components/Toast'
 import { useBorrador } from '../hooks/useBorrador'
 import useEliminarConDeshacer from '../hooks/useEliminarConDeshacer'
+import { generarCertificado, descargarImagen } from '../utils/certificado'
 
 export default function PerfilJovenScreen({ usuario }) {
   const { uid } = useParams()
@@ -40,6 +41,7 @@ export default function PerfilJovenScreen({ usuario }) {
   const [insigniasManuales, setInsigniasManuales] = useState([])
   const [experiencia, setExperiencia] = useState(null)
   const [otorgando, setOtorgando] = useState('')
+  const [motivos, setMotivos] = useState({})
 
   useEffect(() => {
     Promise.all([
@@ -129,8 +131,11 @@ export default function PerfilJovenScreen({ usuario }) {
   async function otorgar(tipo) {
     setOtorgando(tipo)
     try {
-      setInsigniasManuales(await otorgarInsigniaManual({ jovenUid: uid, tipo, liderUid: usuario.uid }))
+      setInsigniasManuales(
+        await otorgarInsigniaManual({ jovenUid: uid, tipo, liderUid: usuario.uid, motivo: motivos[tipo] }),
+      )
       setExperiencia(await getExperienciaDe(uid))
+      setMotivos((prev) => ({ ...prev, [tipo]: '' }))
     } finally {
       setOtorgando('')
     }
@@ -139,6 +144,16 @@ export default function PerfilJovenScreen({ usuario }) {
   async function quitarUltima(registroId) {
     setInsigniasManuales(await quitarInsigniaManual({ jovenUid: uid, registroId }))
     setExperiencia(await getExperienciaDe(uid))
+  }
+
+  async function descargarCertificadoManual(b) {
+    const dataUrl = await generarCertificado({
+      nombreJoven: joven.nombre,
+      logro: b.nombre,
+      motivo: b.ultimoMotivo || undefined,
+      imagenUrl: b.imagen,
+    })
+    descargarImagen(dataUrl, `certificado-${b.id}-${joven.nombre.toLowerCase().replace(/\s+/g, '-')}.png`)
   }
 
   return (
@@ -185,7 +200,7 @@ export default function PerfilJovenScreen({ usuario }) {
         <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
           Estas no se desbloquean solas — se las otorgas tú en persona.
         </p>
-        <div className="re-medallas-grid">
+        <div className="re-medallas-grid re-medallas-grid--otorgar">
           {insigniasManuales.map((b) => (
             <div key={b.id} className={`re-medalla ${b.desbloqueada ? '' : 're-medalla--bloqueada'}`}>
               <div className="re-medalla__icono">
@@ -193,6 +208,17 @@ export default function PerfilJovenScreen({ usuario }) {
               </div>
               <p className="re-medalla__nombre">{b.nombre}</p>
               {b.veces > 1 && <p className="re-medalla__progreso">{b.veces} veces</p>}
+              {b.ultimoMotivo && <p className="re-medalla__progreso">"{b.ultimoMotivo}"</p>}
+
+              <textarea
+                className="re-input"
+                rows={2}
+                placeholder="¿Por qué se la otorgas? (opcional)"
+                value={motivos[b.id] || ''}
+                onChange={(e) => setMotivos((prev) => ({ ...prev, [b.id]: e.target.value }))}
+                style={{ resize: 'vertical', fontFamily: 'inherit', fontSize: '0.75rem', marginTop: 8, marginBottom: 8 }}
+              />
+
               <button
                 type="button"
                 className="re-medalla__certificado"
@@ -201,6 +227,16 @@ export default function PerfilJovenScreen({ usuario }) {
               >
                 {otorgando === b.id ? 'Otorgando…' : '+ Otorgar'}
               </button>
+              {b.desbloqueada && (
+                <button
+                  type="button"
+                  className="re-medalla__certificado"
+                  style={{ marginTop: 6 }}
+                  onClick={() => descargarCertificadoManual(b)}
+                >
+                  🎓 Certificado
+                </button>
+              )}
               {b.registros[0] && (
                 <button
                   type="button"

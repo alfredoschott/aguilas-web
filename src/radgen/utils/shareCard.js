@@ -1,5 +1,6 @@
 // Genera una tarjeta de insignia como imagen (Canvas) para compartir en
 // Instagram/WhatsApp — sin dependencias externas.
+import skyLogrado from '../../assets/sky-logrado.png'
 
 function dibujarRectRedondeado(ctx, x, y, w, h, r) {
   ctx.beginPath()
@@ -101,6 +102,14 @@ export async function generarTarjetaInsignia({ nombreJoven, nombreInsignia, icon
   ctx.fill()
   ctx.restore()
 
+  // Resplandor azul detrás de la insignia — le da más peso visual que
+  // dejarla flotando sola sobre el papel.
+  const resplandor = ctx.createRadialGradient(W / 2, cardY + 210, 20, W / 2, cardY + 210, 240)
+  resplandor.addColorStop(0, 'rgba(58,123,255,0.22)')
+  resplandor.addColorStop(1, 'rgba(58,123,255,0)')
+  ctx.fillStyle = resplandor
+  ctx.fillRect(W / 2 - 240, cardY - 30, 480, 480)
+
   // Ícono grande — la insignia real en PNG si viene, si no el emoji.
   if (imagenUrl) {
     try {
@@ -133,6 +142,24 @@ export async function generarTarjetaInsignia({ nombreJoven, nombreInsignia, icon
   ctx.font = '600 34px Inter, sans-serif'
   ctx.fillStyle = 'rgba(15,15,18,0.65)'
   ctx.fillText(nombreJoven, W / 2, cardY + cardH - 60)
+
+  // Sky celebrando desde la esquina — la misma marca que ve el joven
+  // dentro de la app, para que la tarjeta se sienta de RadGen incluso
+  // fuera de la app (Instagram, WhatsApp).
+  try {
+    const sky = await cargarImagen(skyLogrado)
+    const altoSky = 190
+    const anchoSky = altoSky * (sky.width / sky.height)
+    ctx.save()
+    ctx.shadowColor = 'rgba(0,0,0,0.45)'
+    ctx.shadowBlur = 16
+    ctx.shadowOffsetX = -3
+    ctx.shadowOffsetY = 5
+    ctx.drawImage(sky, W - anchoSky - 20, H - altoSky - 16, anchoSky, altoSky)
+    ctx.restore()
+  } catch {
+    // Sin Sky, la tarjeta se sigue viendo bien.
+  }
 
   return canvas.toDataURL('image/png')
 }
