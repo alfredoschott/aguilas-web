@@ -16,6 +16,7 @@ import {
   otorgarInsigniaManual,
   quitarInsigniaManual,
   getExperienciaDe,
+  obtenerBloques,
 } from '../store'
 import { useEffect, useState } from 'react'
 import Sky from '../components/Sky'
@@ -168,10 +169,23 @@ export default function PerfilJovenScreen({ usuario }) {
       </button>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <Avatar nombre={joven.nombre} foto={joven.fotoPerfil} uid={joven.uid} size={56} />
-        <h1 className="re-titulo-pagina" style={{ margin: 0, flex: '1 1 200px' }}>{joven.nombre}</h1>
+        <Avatar
+          nombre={joven.nombre}
+          foto={joven.fotoPerfil}
+          uid={joven.uid}
+          size={56}
+          marco={insignias.nivelActual?.id}
+          racha={racha}
+          colorAcento={joven.colorAcento}
+        />
+        <div style={{ flex: '1 1 200px' }}>
+          <h1 className="re-titulo-pagina" style={{ margin: 0 }}>{joven.nombre}</h1>
+          {joven.apodo && <p style={{ margin: '2px 0 0', fontWeight: 700, opacity: 0.75 }}>{joven.apodo}</p>}
+        </div>
         <Sky size={56} pose={insignias.nivelActual ? 'logrado' : 'relajado'} animado={false} />
       </div>
+
+      {joven.bio && <p className="re-bio-card" style={{ marginBottom: '1.5rem' }}>"{joven.bio}"</p>}
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: '1.5rem' }}>
         <div className="re-racha">
@@ -283,7 +297,7 @@ export default function PerfilJovenScreen({ usuario }) {
                   <td>{a.fechaCompletado ? new Date(a.fechaCompletado).toLocaleDateString('es-MX') : '—'}</td>
                   <td>{a.quizScore ? `${a.quizScore.correctas}/${a.quizScore.total}` : '—'}</td>
                   <td>
-                    {a.leccion?.reto ? (
+                    {obtenerBloques(a.leccion).some((b) => b.tipo === 'reto') ? (
                       <span className={`re-badge ${a.retoCumplido ? 're-badge--completado' : 're-badge--pendiente'}`}>
                         {a.retoCumplido ? '🎯 Cumplido' : 'Sin cumplir'}
                       </span>

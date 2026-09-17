@@ -1,19 +1,22 @@
 import { useEffect, useState } from 'react'
-import { getRankingCampamento } from '../store'
+import { getRankingCampamento, getParticipacionSemanal } from '../store'
 import logo from '../../assets/radgen-education-logo.png'
 
 const MEDALLAS = ['🥇', '🥈', '🥉']
 
 export default function ProyectorScreen() {
   const [ranking, setRanking] = useState([])
+  const [participacion, setParticipacion] = useState({ activos: 0, total: 0 })
 
   // Modo proyector: se refresca solo, pensado para dejarse abierto en una
   // pantalla durante todo el evento sin que nadie tenga que tocar nada.
   useEffect(() => {
-    getRankingCampamento().then(setRanking)
-    const intervalo = setInterval(() => {
+    function refrescar() {
       getRankingCampamento().then(setRanking)
-    }, 5000)
+      getParticipacionSemanal().then(setParticipacion)
+    }
+    refrescar()
+    const intervalo = setInterval(refrescar, 5000)
     return () => clearInterval(intervalo)
   }, [])
 
@@ -23,6 +26,12 @@ export default function ProyectorScreen() {
         <img src={logo} alt="RadGen Education" style={{ height: 90, width: 'auto' }} />
       </div>
       <h1 className="re-proyector__titulo">Ranking del campamento</h1>
+
+      {participacion.total > 0 && (
+        <div className="re-proyector__meta-grupo">
+          🙌 Esta semana: <strong>{participacion.activos}/{participacion.total}</strong> jóvenes ya completaron una cápsula
+        </div>
+      )}
 
       {ranking.map((fila, i) => (
         <div key={fila.joven.uid} className="re-proyector__fila">

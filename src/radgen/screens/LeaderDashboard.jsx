@@ -7,6 +7,12 @@ import {
   getSeries,
   alternarArchivoLeccion,
   moverLeccion,
+  duplicarLeccion,
+  publicarLeccion,
+  actualizarSerie,
+  renombrarSerie,
+  moverSerie,
+  asignarSerieCompleta,
   getTablaEstado,
   asignarLeccion,
   getRankingCampamento,
@@ -26,6 +32,7 @@ import {
   getMostrarRankingAJovenes,
   setMostrarRankingAJovenes,
   getActividadReciente,
+  reaccionarActividad,
   getXpConfig,
   setXpConfig,
   getExperienciaRanking,
@@ -34,6 +41,7 @@ import Sky from '../components/Sky'
 import Avatar from '../components/Avatar'
 import Toast from '../components/Toast'
 import { exportarEstadoCsv } from '../utils/exportCsv'
+import { subirImagenSerie } from '../utils/imagenLeccion'
 import { useBorrador } from '../hooks/useBorrador'
 import useEliminarConDeshacer from '../hooks/useEliminarConDeshacer'
 
@@ -47,7 +55,22 @@ const TABS = [
   ['experiencia', 'Experiencia'],
 ]
 
+const COLORES_SERIE = [
+  { valor: null, nombre: 'Sin color' },
+  { valor: '#2952E3', nombre: 'Azul' },
+  { valor: '#E33434', nombre: 'Rojo' },
+  { valor: '#E3A234', nombre: 'Ámbar' },
+  { valor: '#34A853', nombre: 'Verde' },
+  { valor: '#9333E3', nombre: 'Morado' },
+]
+
 function PanelCursos({ series, lecciones, refrescarLecciones }) {
+  const [filtro, setFiltro] = useState('')
+  const [subiendoPortada, setSubiendoPortada] = useState(null)
+  const [renombrando, setRenombrando] = useState(null) // serieId en edición, o null
+  const [nombreTemp, setNombreTemp] = useState('')
+  const [guardandoNombre, setGuardandoNombre] = useState(false)
+
   async function archivar(leccionId) {
     await alternarArchivoLeccion(leccionId)
     refrescarLecciones()
@@ -57,6 +80,64 @@ function PanelCursos({ series, lecciones, refrescarLecciones }) {
     await moverLeccion(leccionId, direccion)
     refrescarLecciones()
   }
+
+  async function duplicar(leccionId) {
+    await duplicarLeccion(leccionId)
+    refrescarLecciones()
+  }
+
+  async function publicar(leccionId) {
+    await publicarLeccion(leccionId)
+    refrescarLecciones()
+  }
+
+  async function cambiarColorSerie(serieId, color) {
+    await actualizarSerie(serieId, { color })
+    refrescarLecciones()
+  }
+
+  async function subirPortadaSerie(serieId, archivo) {
+    if (!archivo) return
+    setSubiendoPortada(serieId)
+    try {
+      const url = await subirImagenSerie(archivo)
+      await actualizarSerie(serieId, { portada: url })
+      refrescarLecciones()
+    } finally {
+      setSubiendoPortada(null)
+    }
+  }
+
+  async function moverSerieDir(serieId, direccion) {
+    await moverSerie(serieId, direccion)
+    refrescarLecciones()
+  }
+
+  function empezarRenombrar(serie) {
+    setRenombrando(serie.serieId)
+    setNombreTemp(serie.serieTitulo)
+  }
+
+  async function guardarNombreSerie() {
+    if (!nombreTemp.trim()) return
+    setGuardandoNombre(true)
+    try {
+      await renombrarSerie(renombrando, nombreTemp)
+      await refrescarLecciones()
+      setRenombrando(null)
+    } finally {
+      setGuardandoNombre(false)
+    }
+  }
+
+  const filtroNorm = filtro.trim().toLowerCase()
+  const seriesFiltradas = filtroNorm
+    ? series.filter(
+        (s) =>
+          s.serieTitulo.toLowerCase().includes(filtroNorm) ||
+          lecciones.some((l) => l.serieId === s.serieId && l.titulo.toLowerCase().includes(filtroNorm))
+      )
+    : series
 
   return (
     <div className="re-card">
@@ -72,15 +153,112 @@ function PanelCursos({ series, lecciones, refrescarLecciones }) {
         </Link>
       </div>
 
-      {series.length === 0 && <p style={{ opacity: 0.6 }}>Todavía no hay ninguna serie creada.</p>}
+      <input
+        className="re-input"
+        placeholder="🔎 Buscar serie o lección…"
+        value={filtro}
+        onChange={(e) => setFiltro(e.target.value)}
+        style={{ marginBottom: 24 }}
+      />
 
-      {series.map((s) => {
-        const deSerie = lecciones.filter((l) => l.serieId === s.serieId).sort((a, b) => a.orden - b.orden)
+      {seriesFiltradas.length === 0 && (
+        <p style={{ opacity: 0.6 }}>
+          {series.length === 0 ? 'Todavía no hay ninguna serie creada.' : 'Sin resultados para esa búsqueda.'}
+        </p>
+      )}
+
+      {seriesFiltradas.map((s, si) => {
+        let deSerie = lecciones.filter((l) => l.serieId === s.serieId).sort((a, b) => a.orden - b.orden)
+        if (filtroNorm && !s.serieTitulo.toLowerCase().includes(filtroNorm)) {
+          deSerie = deSerie.filter((l) => l.titulo.toLowerCase().includes(filtroNorm))
+        }
         return (
-          <div key={s.serieId} style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: '0.85rem', textTransform: 'uppercase', margin: '0 0 10px' }}>
-              {s.serieTitulo}
-            </h3>
+          <div
+            key={s.serieId}
+            style={{
+              marginBottom: '1.5rem',
+              borderLeft: s.color ? `5px solid ${s.color}` : '5px solid transparent',
+              paddingLeft: 12,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {s.portada && (
+                  <img src={s.portada} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover' }} />
+                )}
+                {renombrando === s.serieId ? (
+                  <>
+                    <input
+                      className="re-input"
+                      style={{ marginBottom: 0, maxWidth: 240 }}
+                      value={nombreTemp}
+                      onChange={(e) => setNombreTemp(e.target.value)}
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      className="re-vinculo"
+                      onClick={guardarNombreSerie}
+                      disabled={!nombreTemp.trim() || guardandoNombre}
+                    >
+                      {guardandoNombre ? 'Guardando…' : 'Guardar'}
+                    </button>
+                    <button type="button" className="re-vinculo" onClick={() => setRenombrando(null)} disabled={guardandoNombre}>
+                      Cancelar
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h3 style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: '0.85rem', textTransform: 'uppercase', margin: 0 }}>
+                      {s.serieTitulo}
+                    </h3>
+                    <button type="button" className="re-vinculo" onClick={() => empezarRenombrar(s)}>
+                      ✏️
+                    </button>
+                  </>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {COLORES_SERIE.map((c) => (
+                    <button
+                      key={c.nombre}
+                      type="button"
+                      title={c.nombre}
+                      onClick={() => cambiarColorSerie(s.serieId, c.valor)}
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: '50%',
+                        border: s.color === c.valor ? '2px solid var(--rg-ink)' : '1px solid rgba(15, 15, 18, 0.2)',
+                        background: c.valor || '#fff',
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    />
+                  ))}
+                </div>
+                <label className="re-vinculo" style={{ cursor: 'pointer' }}>
+                  {subiendoPortada === s.serieId ? 'Subiendo…' : '📷 Portada'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    disabled={subiendoPortada === s.serieId}
+                    onChange={(e) => subirPortadaSerie(s.serieId, e.target.files?.[0])}
+                  />
+                </label>
+                <div style={{ display: 'flex', gap: 2 }}>
+                  <button type="button" className="re-vinculo re-vinculo--icono" disabled={si === 0} onClick={() => moverSerieDir(s.serieId, -1)}>
+                    ↑
+                  </button>
+                  <button type="button" className="re-vinculo re-vinculo--icono" disabled={si === seriesFiltradas.length - 1} onClick={() => moverSerieDir(s.serieId, 1)}>
+                    ↓
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {deSerie.map((l, i) => (
               <div key={l.id} className="re-tarea" style={{ alignItems: 'center' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -104,21 +282,35 @@ function PanelCursos({ series, lecciones, refrescarLecciones }) {
                 <div className="re-tarea__cuerpo">
                   <p className="re-tarea__titulo">
                     {l.icono} {l.titulo}{' '}
-                    <span className={`re-badge ${l.estado === 'archivada' ? 're-badge--pendiente' : 're-badge--completado'}`} style={{ marginLeft: 8 }}>
-                      {l.estado === 'archivada' ? 'Archivada' : 'Activa'}
+                    <span
+                      className={`re-badge ${
+                        l.estado === 'archivada' ? 're-badge--pendiente' : l.estado === 'borrador' ? 're-badge--borrador' : 're-badge--completado'
+                      }`}
+                      style={{ marginLeft: 8 }}
+                    >
+                      {l.estado === 'archivada' ? 'Archivada' : l.estado === 'borrador' ? 'Borrador' : 'Activa'}
                     </span>
                   </p>
                   <p className="re-tarea__descripcion">
                     {l.quiz?.length > 0 ? `${l.quiz.length} pregunta${l.quiz.length === 1 ? '' : 's'} de quiz` : 'Sin quiz'}
                     {l.youtubeId ? ' · Con video' : ' · Sin video'}
                   </p>
-                  <div style={{ display: 'flex', gap: 14, marginTop: 6 }}>
+                  <div style={{ display: 'flex', gap: 14, marginTop: 6, flexWrap: 'wrap' }}>
                     <Link to={`/radgen/education/lider/leccion/${l.id}/editar`} className="re-vinculo">
                       Editar
                     </Link>
-                    <button className="re-vinculo" onClick={() => archivar(l.id)}>
-                      {l.estado === 'archivada' ? 'Reactivar' : 'Archivar'}
+                    <button className="re-vinculo" onClick={() => duplicar(l.id)}>
+                      Duplicar
                     </button>
+                    {l.estado === 'borrador' ? (
+                      <button className="re-vinculo" onClick={() => publicar(l.id)}>
+                        Publicar
+                      </button>
+                    ) : (
+                      <button className="re-vinculo" onClick={() => archivar(l.id)}>
+                        {l.estado === 'archivada' ? 'Reactivar' : 'Archivar'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -130,8 +322,10 @@ function PanelCursos({ series, lecciones, refrescarLecciones }) {
   )
 }
 
-function PanelAsignar({ usuario, jovenes, lecciones, refrescar }) {
+function PanelAsignar({ usuario, jovenes, lecciones, series, refrescar }) {
+  const [modo, setModo] = useState('leccion') // leccion | serie
   const [leccionId, setLeccionId] = useState(lecciones[0]?.id || '')
+  const [serieId, setSerieId] = useState(series[0]?.serieId || '')
   const [seleccionados, setSeleccionados] = useState([])
   const [mensaje, setMensaje] = useState('')
   const [asignando, setAsignando] = useState(false)
@@ -140,14 +334,27 @@ function PanelAsignar({ usuario, jovenes, lecciones, refrescar }) {
     setSeleccionados((prev) => (prev.includes(uid) ? prev.filter((u) => u !== uid) : [...prev, uid]))
   }
 
+  const todosSeleccionados = jovenes.length > 0 && seleccionados.length === jovenes.length
+
+  function toggleTodos() {
+    setSeleccionados(todosSeleccionados ? [] : jovenes.map((j) => j.uid))
+  }
+
   async function asignar() {
-    if (!leccionId || seleccionados.length === 0) return
+    if (seleccionados.length === 0) return
+    if (modo === 'serie' && !serieId) return
+    if (modo === 'leccion' && !leccionId) return
     setAsignando(true)
     try {
-      await asignarLeccion({ leccionId, jovenUids: seleccionados, liderUid: usuario.uid })
+      if (modo === 'serie') {
+        const cuantas = await asignarSerieCompleta({ serieId, jovenUids: seleccionados, liderUid: usuario.uid })
+        setMensaje(`Serie asignada (${cuantas} lecci${cuantas === 1 ? 'ón' : 'ones'}).`)
+      } else {
+        await asignarLeccion({ leccionId, jovenUids: seleccionados, liderUid: usuario.uid })
+        setMensaje('Lección asignada.')
+      }
       await refrescar()
       setSeleccionados([])
-      setMensaje('Lección asignada.')
       setTimeout(() => setMensaje(''), 2500)
     } finally {
       setAsignando(false)
@@ -156,17 +363,52 @@ function PanelAsignar({ usuario, jovenes, lecciones, refrescar }) {
 
   return (
     <div className="re-card">
-      <h2 className="re-subtitulo">Asignar lección</h2>
+      <h2 className="re-subtitulo">Asignar</h2>
 
-      <label className="re-label">Lección</label>
-      <select className="re-input" value={leccionId} onChange={(e) => setLeccionId(e.target.value)}>
-        {lecciones.map((l) => (
-          <option key={l.id} value={l.id}>{l.titulo}</option>
-        ))}
-      </select>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <button
+          type="button"
+          className={`re-btn re-btn--sm ${modo === 'leccion' ? 're-btn--lleno' : ''}`}
+          onClick={() => setModo('leccion')}
+        >
+          Lección individual
+        </button>
+        <button
+          type="button"
+          className={`re-btn re-btn--sm ${modo === 'serie' ? 're-btn--lleno' : ''}`}
+          onClick={() => setModo('serie')}
+        >
+          Serie completa
+        </button>
+      </div>
 
-      <label className="re-label">Jóvenes</label>
-      <div className="re-check-grid">
+      {modo === 'leccion' ? (
+        <>
+          <label className="re-label">Lección</label>
+          <select className="re-input" value={leccionId} onChange={(e) => setLeccionId(e.target.value)}>
+            {lecciones.map((l) => (
+              <option key={l.id} value={l.id}>{l.titulo}</option>
+            ))}
+          </select>
+        </>
+      ) : (
+        <>
+          <label className="re-label">Serie</label>
+          <select className="re-input" value={serieId} onChange={(e) => setSerieId(e.target.value)}>
+            {series.map((s) => (
+              <option key={s.serieId} value={s.serieId}>{s.serieTitulo}</option>
+            ))}
+          </select>
+        </>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <label className="re-label" style={{ marginBottom: 0 }}>Jóvenes</label>
+        <button type="button" className="re-vinculo" onClick={toggleTodos} disabled={jovenes.length === 0}>
+          {todosSeleccionados ? 'Deseleccionar todos' : 'Seleccionar todos'}
+        </button>
+      </div>
+      <div className="re-check-grid" style={{ marginTop: 10 }}>
         {jovenes.map((j) => (
           <button
             key={j.uid}
@@ -179,7 +421,11 @@ function PanelAsignar({ usuario, jovenes, lecciones, refrescar }) {
         ))}
       </div>
 
-      <button className="re-btn re-btn--lleno" onClick={asignar} disabled={!leccionId || seleccionados.length === 0 || asignando}>
+      <button
+        className="re-btn re-btn--lleno"
+        onClick={asignar}
+        disabled={(modo === 'leccion' ? !leccionId : !serieId) || seleccionados.length === 0 || asignando}
+      >
         {asignando ? 'Asignando…' : 'Asignar'}
       </button>
       {mensaje && <span style={{ marginLeft: 12, fontWeight: 700, color: 'var(--rg-ink)' }}>{mensaje}</span>}
@@ -714,7 +960,9 @@ function tiempoRelativo(fechaIso) {
 // El "pulso" del panel — quién completó qué y hace cuánto, siempre visible
 // arriba de las pestañas y refrescándose sola, para que abrir el panel se
 // sienta vivo en vez de una tabla estática que hay que ir a buscar.
-function ActividadReciente({ actividad }) {
+const EMOJIS_REACCION = ['🔥', '👏']
+
+function ActividadReciente({ actividad, onReaccionar }) {
   if (actividad.length === 0) return null
 
   return (
@@ -722,17 +970,28 @@ function ActividadReciente({ actividad }) {
       <p className="re-actividad__titulo">🟢 Actividad reciente</p>
       <div className="re-actividad__lista">
         {actividad.map((fila) => (
-          <Link
-            key={fila.id}
-            to={`/radgen/education/lider/joven/${fila.joven?.uid}`}
-            className="re-actividad__fila"
-          >
-            <Avatar nombre={fila.joven?.nombre} foto={fila.joven?.fotoPerfil} uid={fila.joven?.uid} size={30} />
-            <span className="re-actividad__texto">
-              <strong>{fila.joven?.nombre}</strong> completó <strong>{fila.leccion?.titulo}</strong>
-            </span>
-            <span className="re-actividad__tiempo">{tiempoRelativo(fila.fechaCompletado)}</span>
-          </Link>
+          <div key={fila.id} className="re-actividad__fila">
+            <Link to={`/radgen/education/lider/joven/${fila.joven?.uid}`} className="re-actividad__enlace">
+              <Avatar nombre={fila.joven?.nombre} foto={fila.joven?.fotoPerfil} uid={fila.joven?.uid} size={30} />
+              <span className="re-actividad__texto">
+                <strong>{fila.joven?.nombre}</strong> completó <strong>{fila.leccion?.titulo}</strong>
+              </span>
+              <span className="re-actividad__tiempo">{tiempoRelativo(fila.fechaCompletado)}</span>
+            </Link>
+            <div className="re-actividad__reacciones">
+              {EMOJIS_REACCION.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  className={`re-actividad__reaccion ${fila.reaccionLider?.emoji === emoji ? 'activo' : ''}`}
+                  onClick={() => onReaccionar(fila.id, emoji)}
+                  title={fila.reaccionLider?.emoji === emoji ? 'Quitar reacción' : `Reaccionar con ${emoji}`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     </div>
@@ -807,6 +1066,11 @@ export default function LeaderDashboard({ usuario }) {
     })
   }, [])
 
+  async function reaccionar(asignacionId, emoji) {
+    await reaccionarActividad({ asignacionId, emoji })
+    setActividad(await getActividadReciente())
+  }
+
   async function refrescar() {
     const [tb, rk, ac] = await Promise.all([getTablaEstado(), getRankingCampamento(), getActividadReciente()])
     setTabla(tb)
@@ -877,7 +1141,7 @@ export default function LeaderDashboard({ usuario }) {
         </button>
       </div>
 
-      <ActividadReciente actividad={actividad} />
+      <ActividadReciente actividad={actividad} onReaccionar={reaccionar} />
 
       <div className="re-tabs re-tabs--lider">
         {TABS.map(([valor, etiqueta]) => (
@@ -909,7 +1173,7 @@ export default function LeaderDashboard({ usuario }) {
 
       {tab === 'asignar' && (
         <>
-          <PanelAsignar usuario={usuario} jovenes={jovenes} lecciones={leccionesActivas} refrescar={refrescar} />
+          <PanelAsignar usuario={usuario} jovenes={jovenes} lecciones={leccionesActivas} series={series} refrescar={refrescar} />
           <PanelAsignacionPersonal usuario={usuario} jovenes={jovenes} />
         </>
       )}

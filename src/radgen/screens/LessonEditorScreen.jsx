@@ -1,11 +1,23 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getSeries, getLeccionPorId, crearLeccion, actualizarLeccion, slugificar } from '../store'
+import { getSeries, getLeccionPorId, crearLeccion, actualizarLeccion, slugificar, obtenerBloques } from '../store'
 import { extraerYoutubeId } from '../utils/youtube'
 import { subirImagenLeccion, borrarImagenLeccion } from '../utils/imagenLeccion'
 import Sky from '../components/Sky'
 
 const PREGUNTA_VACIA = () => ({ pregunta: '', opciones: ['', '', '', ''], correcta: 0 })
+
+const TIPOS_BLOQUE = [
+  ['versiculo', '📖 Versículo'],
+  ['texto', '📝 Texto'],
+  ['punto', '✅ Punto clave'],
+  ['reto', '🎯 Reto'],
+]
+
+function bloqueVacio(tipo) {
+  const base = { id: `b${Date.now()}${Math.random().toString(36).slice(2, 7)}`, tipo }
+  return tipo === 'versiculo' ? { ...base, referencia: '', texto: '' } : { ...base, texto: '' }
+}
 
 export default function LessonEditorScreen() {
   const { leccionId } = useParams()
@@ -20,14 +32,11 @@ export default function LessonEditorScreen() {
   const [titulo, setTitulo] = useState('')
   const [icono, setIcono] = useState('📖')
   const [youtubeInput, setYoutubeInput] = useState('')
-  const [versiculoReferencia, setVersiculoReferencia] = useState('')
-  const [versiculoTexto, setVersiculoTexto] = useState('')
-  const [notas, setNotas] = useState('')
-  const [puntos, setPuntos] = useState([''])
   const [imagen, setImagen] = useState('')
   const [subiendoImagen, setSubiendoImagen] = useState(false)
   const [quiz, setQuiz] = useState([])
-  const [reto, setReto] = useState('')
+  const [bloques, setBloques] = useState([])
+  const [comoBorrador, setComoBorrador] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [guardando, setGuardando] = useState(false)
 
@@ -40,27 +49,33 @@ export default function LessonEditorScreen() {
       setTitulo(d?.titulo || '')
       setIcono(d?.icono || '📖')
       setYoutubeInput(d?.youtubeId || '')
-      setVersiculoReferencia(d?.versiculo?.referencia || '')
-      setVersiculoTexto(d?.versiculo?.texto || '')
-      setNotas(d?.notas || '')
-      setPuntos(d?.puntos?.length ? d.puntos : [''])
       setImagen(d?.imagen || '')
       setQuiz(d?.quiz?.length ? d.quiz : [])
-      setReto(d?.reto || '')
+      setBloques(d ? obtenerBloques(d) : [])
       setCargando(false)
     })
   }, [leccionId])
 
   const usaSerieNueva = modoSerie === 'nueva' || series.length === 0
 
-  function cambiarPunto(i, valor) {
-    setPuntos((prev) => prev.map((p, idx) => (idx === i ? valor : p)))
+  function agregarBloque(tipo) {
+    setBloques((prev) => [...prev, bloqueVacio(tipo)])
   }
-  function agregarPunto() {
-    setPuntos((prev) => [...prev, ''])
+  function quitarBloque(id) {
+    setBloques((prev) => prev.filter((b) => b.id !== id))
   }
-  function quitarPunto(i) {
-    setPuntos((prev) => prev.filter((_, idx) => idx !== i))
+  function moverBloque(id, direccion) {
+    setBloques((prev) => {
+      const i = prev.findIndex((b) => b.id === id)
+      const j = i + direccion
+      if (j < 0 || j >= prev.length) return prev
+      const copia = [...prev]
+      ;[copia[i], copia[j]] = [copia[j], copia[i]]
+      return copia
+    })
+  }
+  function cambiarBloque(id, cambios) {
+    setBloques((prev) => prev.map((b) => (b.id === id ? { ...b, ...cambios } : b)))
   }
 
   function agregarPregunta() {
@@ -116,17 +131,16 @@ export default function LessonEditorScreen() {
         : series.find((s) => s.serieId === serieId)?.serieTitulo,
       icono: icono.trim() || '📖',
       youtubeId: extraerYoutubeId(youtubeInput) || null,
-      versiculo: versiculoReferencia.trim() || versiculoTexto.trim()
-        ? { referencia: versiculoReferencia.trim(), texto: versiculoTexto.trim() }
-        : null,
-      notas: notas.trim(),
-      puntos: puntos.map((p) => p.trim()).filter(Boolean),
       imagen: imagen.trim() || null,
       quiz: quiz
         .filter((p) => p.pregunta.trim() && p.opciones.every((o) => o.trim()))
         .map((p) => ({ ...p, pregunta: p.pregunta.trim(), opciones: p.opciones.map((o) => o.trim()) })),
-      reto: reto.trim() || null,
+      contenido: bloques,
     }
+    // El estado solo se decide aquí al crear — al editar una ya existente
+    // no lo tocamos, para no reactivar sin querer una archivada o
+    // publicar sin querer un borrador (eso se hace desde Cursos).
+    if (!existente) payload.estado = comoBorrador ? 'borrador' : 'activa'
 
     setGuardando(true)
     try {
@@ -161,6 +175,9 @@ export default function LessonEditorScreen() {
       </button>
 
       <h1 className="re-titulo-pagina">{existente ? 'Editar lección' : 'Nueva lección'}</h1>
+      {existente?.estado === 'borrador' && (
+        <p className="re-eyebrow" style={{ marginBottom: '1rem' }}>📝 Borrador — publícala desde Cursos cuando esté lista</p>
+      )}
 
       <div className="re-card">
         <h2 className="re-subtitulo">Serie</h2>
@@ -257,67 +274,84 @@ export default function LessonEditorScreen() {
       </div>
 
       <div className="re-card">
-        <h2 className="re-subtitulo">Versículo destacado</h2>
-        <label className="re-label">Referencia</label>
-        <input
-          className="re-input"
-          placeholder="Ej. Génesis 1:1"
-          value={versiculoReferencia}
-          onChange={(e) => setVersiculoReferencia(e.target.value)}
-        />
-        <label className="re-label">Texto (opcional)</label>
-        <textarea
-          className="re-input"
-          rows={2}
-          placeholder="Cita o paráfrasis del versículo…"
-          value={versiculoTexto}
-          onChange={(e) => setVersiculoTexto(e.target.value)}
-          style={{ resize: 'vertical', fontFamily: 'inherit' }}
-        />
-      </div>
+        <h2 className="re-subtitulo">Contenido de la lección</h2>
+        <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
+          Arma la lección con los bloques que quieras, en el orden que quieras — cuantos versículos, textos, puntos
+          o retos necesites.
+        </p>
 
-      <div className="re-card">
-        <h2 className="re-subtitulo">Notas de la lección</h2>
-        <textarea
-          className="re-input"
-          rows={4}
-          placeholder="Resumen o contexto que verá el joven…"
-          value={notas}
-          onChange={(e) => setNotas(e.target.value)}
-          style={{ resize: 'vertical', fontFamily: 'inherit' }}
-        />
-      </div>
+        {bloques.map((b, i) => (
+          <div key={b.id} className="re-bloque">
+            <div className="re-bloque__barra">
+              <span className="re-bloque__tipo">{TIPOS_BLOQUE.find(([t]) => t === b.tipo)?.[1] || b.tipo}</span>
+              <div className="re-bloque__acciones">
+                <button type="button" className="re-vinculo re-vinculo--icono" disabled={i === 0} onClick={() => moverBloque(b.id, -1)}>↑</button>
+                <button type="button" className="re-vinculo re-vinculo--icono" disabled={i === bloques.length - 1} onClick={() => moverBloque(b.id, 1)}>↓</button>
+                <button type="button" className="re-vinculo re-vinculo--peligro" onClick={() => quitarBloque(b.id)}>✕</button>
+              </div>
+            </div>
 
-      <div className="re-card">
-        <h2 className="re-subtitulo">Puntos clave</h2>
-        {puntos.map((p, i) => (
-          <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-            <input
-              className="re-input"
-              style={{ marginBottom: 0 }}
-              placeholder={`Punto ${i + 1}`}
-              value={p}
-              onChange={(e) => cambiarPunto(i, e.target.value)}
-            />
-            <button type="button" className="re-btn re-btn--sm" onClick={() => quitarPunto(i)}>✕</button>
+            {b.tipo === 'versiculo' && (
+              <>
+                <input
+                  className="re-input"
+                  placeholder="Referencia (ej. Génesis 1:1)"
+                  value={b.referencia}
+                  onChange={(e) => cambiarBloque(b.id, { referencia: e.target.value })}
+                />
+                <textarea
+                  className="re-input"
+                  rows={2}
+                  placeholder="Cita o paráfrasis del versículo…"
+                  value={b.texto}
+                  onChange={(e) => cambiarBloque(b.id, { texto: e.target.value })}
+                  style={{ resize: 'vertical', fontFamily: 'inherit', marginBottom: 0 }}
+                />
+              </>
+            )}
+            {b.tipo === 'texto' && (
+              <textarea
+                className="re-input"
+                rows={4}
+                placeholder="Texto libre — resumen, contexto, explicación…"
+                value={b.texto}
+                onChange={(e) => cambiarBloque(b.id, { texto: e.target.value })}
+                style={{ resize: 'vertical', fontFamily: 'inherit', marginBottom: 0 }}
+              />
+            )}
+            {b.tipo === 'punto' && (
+              <input
+                className="re-input"
+                style={{ marginBottom: 0 }}
+                placeholder="Punto clave…"
+                value={b.texto}
+                onChange={(e) => cambiarBloque(b.id, { texto: e.target.value })}
+              />
+            )}
+            {b.tipo === 'reto' && (
+              <textarea
+                className="re-input"
+                rows={2}
+                placeholder="Ej. Esta semana, cuéntale a alguien lo que aprendiste hoy."
+                value={b.texto}
+                onChange={(e) => cambiarBloque(b.id, { texto: e.target.value })}
+                style={{ resize: 'vertical', fontFamily: 'inherit', marginBottom: 0 }}
+              />
+            )}
           </div>
         ))}
-        <button type="button" className="re-btn re-btn--sm" onClick={agregarPunto}>+ Agregar punto</button>
-      </div>
 
-      <div className="re-card">
-        <h2 className="re-subtitulo">Reto de la semana</h2>
-        <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
-          Una acción práctica y corta para llevar la lección a la vida diaria, más allá de ver el video.
-        </p>
-        <textarea
-          className="re-input"
-          rows={2}
-          placeholder="Ej. Esta semana, cuéntale a alguien lo que aprendiste hoy."
-          value={reto}
-          onChange={(e) => setReto(e.target.value)}
-          style={{ resize: 'vertical', fontFamily: 'inherit' }}
-        />
+        {bloques.length === 0 && (
+          <p style={{ opacity: 0.6, marginBottom: 16 }}>Todavía no agregas contenido — usa los botones de abajo.</p>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: bloques.length ? 16 : 0 }}>
+          {TIPOS_BLOQUE.map(([tipo, etiqueta]) => (
+            <button key={tipo} type="button" className="re-btn re-btn--sm" onClick={() => agregarBloque(tipo)}>
+              + {etiqueta}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="re-card">
@@ -363,12 +397,19 @@ export default function LessonEditorScreen() {
         <button type="button" className="re-btn re-btn--sm" onClick={agregarPregunta}>+ Agregar pregunta</button>
       </div>
 
+      {!existente && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, cursor: 'pointer', marginBottom: '1.2rem' }}>
+          <input type="checkbox" checked={comoBorrador} onChange={(e) => setComoBorrador(e.target.checked)} />
+          Guardar como borrador (no se podrá asignar todavía)
+        </label>
+      )}
+
       <button
         className="re-btn re-btn--lleno re-btn--bloque"
         onClick={guardar}
         disabled={!titulo.trim() || (usaSerieNueva ? !serieNueva.trim() : !serieId) || guardando || subiendoImagen}
       >
-        {guardando ? 'Guardando…' : existente ? 'Guardar cambios' : 'Crear lección'}
+        {guardando ? 'Guardando…' : existente ? 'Guardar cambios' : comoBorrador ? 'Guardar borrador' : 'Crear lección'}
       </button>
       {mensaje && <p style={{ textAlign: 'center', marginTop: 10, fontWeight: 700 }}>{mensaje}</p>}
     </div>

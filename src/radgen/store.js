@@ -13,6 +13,7 @@ import {
   query,
   where,
   onSnapshot,
+  writeBatch,
 } from 'firebase/firestore'
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
 import { db, auth, googleProvider } from '../firebase'
@@ -236,12 +237,31 @@ export async function toggleRequisito({ track, leccionId }) {
 
 // ===== Perfiles =====
 
-// Nombre y foto que el propio usuario personaliza — no toca correo, rol ni
-// nada relacionado con el currículo.
-export async function actualizarPerfil({ uid, nombre, fotoPerfil }) {
+// Nombre, foto y personalización que el propio usuario controla — no toca
+// correo, rol ni nada relacionado con el currículo. Los campos de
+// personalización son opcionales por diseño: un perfil que nunca los tocó
+// simplemente no los tiene, y toda la UI que los lee ya asume que pueden
+// venir undefined/null.
+export async function actualizarPerfil({
+  uid,
+  nombre,
+  fotoPerfil,
+  bio,
+  apodo,
+  colorAcento,
+  skyElegido,
+  fondoPerfil,
+  insigniaDestacada,
+}) {
   const cambios = {}
   if (nombre?.trim()) cambios.nombre = nombre.trim()
   if (fotoPerfil !== undefined) cambios.fotoPerfil = fotoPerfil
+  if (bio !== undefined) cambios.bio = bio.trim().slice(0, 140)
+  if (apodo !== undefined) cambios.apodo = apodo.trim().slice(0, 40)
+  if (colorAcento !== undefined) cambios.colorAcento = colorAcento
+  if (skyElegido !== undefined) cambios.skyElegido = skyElegido
+  if (fondoPerfil !== undefined) cambios.fondoPerfil = fondoPerfil
+  if (insigniaDestacada !== undefined) cambios.insigniaDestacada = insigniaDestacada
   await updateDoc(doc(db, 'radgenPerfiles', uid), cambios)
   const snap = await getDoc(doc(db, 'radgenPerfiles', uid))
   return { uid, ...snap.data() }
@@ -252,8 +272,34 @@ export async function getJovenPorUid(uid) {
   return snap.exists() ? { uid: snap.id, ...snap.data() } : null
 }
 
+// Vista pública que un joven ve del perfil de OTRO joven — solo lo que ya es
+// visible en el ranking (rango, racha) más la personalización cosmética.
+// Deliberadamente no incluye nada del lado del líder (notas, tareas 1:1,
+// elegibilidad): eso vive solo en PerfilJovenScreen, que es líder-only.
+export async function getPerfilPublico(uid) {
+  const joven = await getJovenPorUid(uid)
+  if (!joven) return null
+
+  // Defensivo: si las reglas de Firestore para ver asignaciones/perfiles de
+  // otros todavía no están al día, que se vea el perfil sin rango/racha en
+  // vez de tronar toda la pantalla.
+  try {
+    const [insignias, racha] = await Promise.all([getInsigniasDe(uid), getRachaSemanas(uid)])
+    return { joven, nivelActual: insignias.nivelActual, racha }
+  } catch {
+    return { joven, nivelActual: null, racha: 0 }
+  }
+}
+
 export async function getJovenes() {
   const snap = await getDocs(query(collection(db, 'radgenPerfiles'), where('rol', '==', 'joven')))
+  return snap.docs.map((d) => ({ uid: d.id, ...d.data() }))
+}
+
+// Para que un joven pueda "conocer a su líder" desde su propia pantalla,
+// igual que ya puede ver el perfil de un compañero.
+export async function getLideresRadgen() {
+  const snap = await getDocs(query(collection(db, 'radgenPerfiles'), where('rol', '==', 'lider')))
   return snap.docs.map((d) => ({ uid: d.id, ...d.data() }))
 }
 
@@ -275,12 +321,14 @@ export async function getLecciones() {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.orden - b.orden)
 }
 
-// Solo las lecciones vigentes — para elegir qué asignar o exigir como
-// requisito. Las archivadas siguen contando para insignias de quien ya las
-// completó, pero no se ofrecen para asignaciones nuevas.
+// Solo las lecciones publicadas — para elegir qué asignar, exigir como
+// requisito, o mostrar como "próxima parada" en el camino del joven. Los
+// borradores no cuentan (todavía se están preparando) y las archivadas
+// tampoco (siguen contando para insignias de quien ya las completó, pero
+// no se ofrecen para asignaciones nuevas).
 export async function getLeccionesActivas() {
   const todas = await getLecciones()
-  return todas.filter((l) => l.estado !== 'archivada')
+  return todas.filter((l) => l.estado === 'activa')
 }
 
 export async function getLeccionPorId(leccionId) {
@@ -288,26 +336,58 @@ export async function getLeccionPorId(leccionId) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null
 }
 
+// Un bloque de contenido es { id, tipo: 'versiculo'|'texto'|'punto'|'reto', ... }.
+// La líder arma la lección con los bloques que quiera, en el orden que
+// quiera — nada de un molde fijo de "un versículo, unas notas, N puntos".
+function bloqueValido(b) {
+  if (b.tipo === 'versiculo') return !!(b.referencia?.trim() || b.texto?.trim())
+  return !!b.texto?.trim()
+}
+
+// Lee los bloques de una lección — si ya los tiene, los usa tal cual; si
+// es una lección de antes de este cambio (solo con los campos viejos:
+// versiculo/notas/puntos/reto), los sintetiza al vuelo en bloques
+// equivalentes. Así ninguna lección existente se rompe sin necesidad de
+// migrarlas a mano.
+export function obtenerBloques(leccion) {
+  if (!leccion) return []
+  if (Array.isArray(leccion.contenido) && leccion.contenido.length > 0) return leccion.contenido
+
+  const bloques = []
+  if (leccion.versiculo?.referencia || leccion.versiculo?.texto) {
+    bloques.push({
+      id: 'legacy-versiculo',
+      tipo: 'versiculo',
+      referencia: leccion.versiculo.referencia || '',
+      texto: leccion.versiculo.texto || '',
+    })
+  }
+  if (leccion.notas) bloques.push({ id: 'legacy-notas', tipo: 'texto', texto: leccion.notas })
+  ;(leccion.puntos || []).forEach((p, i) => bloques.push({ id: `legacy-punto-${i}`, tipo: 'punto', texto: p }))
+  if (leccion.reto) bloques.push({ id: 'legacy-reto', tipo: 'reto', texto: leccion.reto })
+  return bloques
+}
+
 // Crea una lección nueva desde el panel de líder — sin tocar código. Si
 // `serieId` coincide con una serie existente, se agrega a ella; si no,
-// `serieTitulo` define una serie nueva.
-export async function crearLeccion({ titulo, serieId, serieTitulo, icono, youtubeId, versiculo, notas, puntos, imagen, quiz, reto }) {
+// `serieTitulo` define una serie nueva (y crea su doc en `radgenSeries`).
+export async function crearLeccion({ titulo, serieId, serieTitulo, icono, youtubeId, imagen, quiz, contenido, estado }) {
   const todas = await getLecciones()
   const ordenMax = todas.reduce((max, l) => Math.max(max, l.orden || 0), 0)
+  const serieIdResuelto = serieId || slugificar(serieTitulo)
+  await asegurarSerie({ serieId: serieIdResuelto, serieTitulo: serieTitulo || 'Sin serie' })
+
   const nueva = {
     titulo,
     youtubeId: youtubeId || null,
     orden: ordenMax + 1,
-    serieId: serieId || slugificar(serieTitulo),
+    serieId: serieIdResuelto,
     serieTitulo: serieTitulo || 'Sin serie',
     icono: icono || '📖',
-    estado: 'activa',
-    versiculo: versiculo?.texto || versiculo?.referencia ? versiculo : null,
-    notas: notas || '',
-    puntos: (puntos || []).filter((p) => p.trim()),
+    estado: estado || 'activa',
     imagen: imagen || null,
     quiz: (quiz || []).filter((p) => p.pregunta.trim()),
-    reto: reto?.trim() || null,
+    contenido: (contenido || []).filter(bloqueValido),
   }
   const ref = await addDoc(collection(db, 'radgenLecciones'), nueva)
   return { id: ref.id, ...nueva }
@@ -316,15 +396,38 @@ export async function crearLeccion({ titulo, serieId, serieTitulo, icono, youtub
 export async function actualizarLeccion(leccionId, cambios) {
   const actual = await getLeccionPorId(leccionId)
   const limpio = { ...cambios }
-  if (cambios.puntos) limpio.puntos = cambios.puntos.filter((p) => p.trim())
   if (cambios.quiz) limpio.quiz = cambios.quiz.filter((p) => p.pregunta.trim())
+  if (cambios.contenido) limpio.contenido = cambios.contenido.filter(bloqueValido)
   // Firestore rechaza `undefined` en updateDoc — cualquier campo que el
   // llamador no haya resuelto simplemente se deja sin tocar.
   Object.keys(limpio).forEach((clave) => {
     if (limpio[clave] === undefined) delete limpio[clave]
   })
+  if (limpio.serieId && limpio.serieTitulo) {
+    await asegurarSerie({ serieId: limpio.serieId, serieTitulo: limpio.serieTitulo })
+  }
   await updateDoc(doc(db, 'radgenLecciones', leccionId), limpio)
   return { ...actual, ...limpio }
+}
+
+// Copia una lección completa (contenido, quiz, ícono) como punto de
+// partida rápido para una parecida — no reutiliza la imagen (cada una
+// puede borrar la suya sin afectar a la otra) y empieza como borrador
+// para revisarla antes de que quede disponible para asignar.
+export async function duplicarLeccion(leccionId) {
+  const original = await getLeccionPorId(leccionId)
+  if (!original) return null
+  return crearLeccion({
+    titulo: `${original.titulo} (copia)`,
+    serieId: original.serieId,
+    serieTitulo: original.serieTitulo,
+    icono: original.icono,
+    youtubeId: original.youtubeId,
+    imagen: null,
+    quiz: original.quiz,
+    contenido: obtenerBloques(original),
+    estado: 'borrador',
+  })
 }
 
 export async function alternarArchivoLeccion(leccionId) {
@@ -333,6 +436,11 @@ export async function alternarArchivoLeccion(leccionId) {
     const nuevoEstado = leccion.estado === 'archivada' ? 'activa' : 'archivada'
     await updateDoc(doc(db, 'radgenLecciones', leccionId), { estado: nuevoEstado })
   }
+  return getLecciones()
+}
+
+export async function publicarLeccion(leccionId) {
+  await updateDoc(doc(db, 'radgenLecciones', leccionId), { estado: 'activa' })
   return getLecciones()
 }
 
@@ -354,9 +462,112 @@ export async function moverLeccion(leccionId, direccion) {
   return getLecciones()
 }
 
+// ===== Series =====
+// Viven en su propia colección (`radgenSeries`) para poder personalizarlas
+// (color, portada) y reordenarlas como entidades propias. Series creadas
+// antes de este cambio no tienen doc todavía — se sintetizan al vuelo la
+// primera vez que se leen, sin necesidad de migrarlas a mano.
+
+// Best-effort: si las reglas de Firestore todavía no incluyen
+// `radgenSeries`, no queremos que crear/editar una lección truene por una
+// mejora que es puramente cosmética (color, portada, orden de la serie).
+async function asegurarSerie({ serieId, serieTitulo, orden }) {
+  try {
+    const ref = doc(db, 'radgenSeries', serieId)
+    const snap = await getDoc(ref)
+    if (snap.exists()) return
+
+    let ordenFinal = orden
+    if (ordenFinal === undefined) {
+      const todas = await getDocs(collection(db, 'radgenSeries'))
+      ordenFinal = todas.docs.reduce((max, d) => Math.max(max, d.data().orden || 0), 0) + 1
+    }
+    await setDoc(ref, {
+      titulo: serieTitulo,
+      color: null,
+      portada: null,
+      orden: ordenFinal,
+      creadaEn: new Date().toISOString(),
+    })
+  } catch {
+    // Sin permisos todavía sobre radgenSeries — la lección se guarda igual.
+  }
+}
+
 export async function getSeries() {
   const lecciones = await getLecciones()
-  return getSeriesUnicas(lecciones)
+  let snapDocs = []
+  try {
+    snapDocs = (await getDocs(collection(db, 'radgenSeries'))).docs
+  } catch {
+    // Sin permisos todavía sobre radgenSeries — se sintetiza solo de las lecciones.
+  }
+  const mapa = new Map(
+    snapDocs.map((d) => [
+      d.id,
+      {
+        serieId: d.id,
+        serieTitulo: d.data().titulo,
+        color: d.data().color || null,
+        portada: d.data().portada || null,
+        orden: d.data().orden ?? 0,
+      },
+    ]),
+  )
+
+  let siguienteOrden = mapa.size ? Math.max(...[...mapa.values()].map((s) => s.orden)) + 1 : 1
+  lecciones.forEach((l) => {
+    if (!mapa.has(l.serieId)) {
+      mapa.set(l.serieId, { serieId: l.serieId, serieTitulo: l.serieTitulo, color: null, portada: null, orden: siguienteOrden })
+      siguienteOrden += 1
+    }
+  })
+
+  return [...mapa.values()].sort((a, b) => a.orden - b.orden)
+}
+
+// Color y portada — el título se cambia aparte, con `renombrarSerie`, porque
+// ese sí requiere tocar todas las lecciones de la serie a la vez.
+export async function actualizarSerie(serieId, cambios) {
+  await setDoc(doc(db, 'radgenSeries', serieId), cambios, { merge: true })
+  return getSeries()
+}
+
+// El título vive duplicado en cada lección (`serieTitulo`), así que
+// renombrar una serie significa actualizar su doc en `radgenSeries` Y el
+// `serieTitulo` de cada una de sus lecciones, todo en un solo batch para
+// que nunca quede a medias (algunas lecciones con el nombre viejo).
+export async function renombrarSerie(serieId, nuevoTitulo) {
+  const titulo = nuevoTitulo.trim()
+  if (!titulo) return getSeries()
+
+  const lecciones = await getLecciones()
+  const deSerie = lecciones.filter((l) => l.serieId === serieId)
+
+  const batch = writeBatch(db)
+  batch.set(doc(db, 'radgenSeries', serieId), { titulo }, { merge: true })
+  deSerie.forEach((l) => batch.update(doc(db, 'radgenLecciones', l.id), { serieTitulo: titulo }))
+  await batch.commit()
+
+  return getSeries()
+}
+
+export async function moverSerie(serieId, direccion) {
+  const series = await getSeries()
+  const indice = series.findIndex((s) => s.serieId === serieId)
+  const vecino = series[indice + direccion]
+  if (!vecino) return series
+  const actual = series[indice]
+
+  await Promise.all([
+    asegurarSerie({ serieId: actual.serieId, serieTitulo: actual.serieTitulo, orden: actual.orden }),
+    asegurarSerie({ serieId: vecino.serieId, serieTitulo: vecino.serieTitulo, orden: vecino.orden }),
+  ])
+  await Promise.all([
+    setDoc(doc(db, 'radgenSeries', actual.serieId), { orden: vecino.orden }, { merge: true }),
+    setDoc(doc(db, 'radgenSeries', vecino.serieId), { orden: actual.orden }, { merge: true }),
+  ])
+  return getSeries()
 }
 
 function getSeriesUnicas(lecciones) {
@@ -414,30 +625,69 @@ async function asignarSiguienteLeccion({ leccionId, asignadoA }) {
 
   const deSerie = todas.filter((l) => l.serieId === actual.serieId).sort((a, b) => a.orden - b.orden)
   const indice = deSerie.findIndex((l) => l.id === leccionId)
-  const siguiente = deSerie.slice(indice + 1).find((l) => l.estado !== 'archivada')
+  const siguiente = deSerie.slice(indice + 1).find((l) => l.estado === 'activa')
   if (!siguiente) return
 
   await asignarLeccion({ leccionId: siguiente.id, jovenUids: [asignadoA], liderUid: 'auto' })
 }
+
+// Asigna todas las cápsulas publicadas de una serie de un jalón, en vez de
+// una por una — para cuando la líder quiere arrancar a alguien con el
+// curso completo desde el principio.
+export async function asignarSerieCompleta({ serieId, jovenUids, liderUid }) {
+  const activas = await getLeccionesActivas()
+  const deSerie = activas.filter((l) => l.serieId === serieId).sort((a, b) => a.orden - b.orden)
+  for (const leccion of deSerie) {
+    await asignarLeccion({ leccionId: leccion.id, jovenUids, liderUid })
+  }
+  return deSerie.length
+}
+
+// 1 de cada 5 cápsulas completadas trae un empujón extra de XP — nada
+// garantizado, para que completar una cápsula cualquiera a veces se sienta
+// como una sorpresa y no solo como marcar una casilla.
+const PROBABILIDAD_BONO = 0.2
+const BONO_XP_MIN = 5
+const BONO_XP_MAX = 15
 
 export async function marcarCompletado(asignacionId, quizScore = null) {
   const asignacionRef = doc(db, 'radgenAsignaciones', asignacionId)
   const snap = await getDoc(asignacionRef)
   const asignacion = snap.exists() ? snap.data() : null
 
+  const bonoXp =
+    Math.random() < PROBABILIDAD_BONO
+      ? Math.floor(Math.random() * (BONO_XP_MAX - BONO_XP_MIN + 1)) + BONO_XP_MIN
+      : 0
+
   await updateDoc(asignacionRef, {
     estado: 'completado',
     fechaCompletado: new Date().toISOString(),
     quizScore, // { correctas, total } o null si la lección no tiene quiz
+    bonoXp,
   })
 
   if (asignacion) {
     await asignarSiguienteLeccion(asignacion)
   }
+
+  return { bonoXp }
 }
 
 export async function marcarRetoCumplido(asignacionId, valor) {
   await updateDoc(doc(db, 'radgenAsignaciones', asignacionId), { retoCumplido: valor })
+}
+
+// Reacción rápida de la líder a una cápsula completada, directo desde el
+// feed de "Actividad reciente" — vive en la propia asignación (no en una
+// colección aparte) porque es un dato mínimo, uno solo por cápsula.
+export async function reaccionarActividad({ asignacionId, emoji }) {
+  const ref = doc(db, 'radgenAsignaciones', asignacionId)
+  const snap = await getDoc(ref)
+  const actual = snap.exists() ? snap.data().reaccionLider : null
+  const nuevaReaccion = actual?.emoji === emoji ? null : { emoji, fecha: new Date().toISOString() }
+  await updateDoc(ref, { reaccionLider: nuevaReaccion })
+  return nuevaReaccion
 }
 
 // Corrige una lección marcada como completada por error, sin borrar la
@@ -596,6 +846,49 @@ export async function getHistorialSemanas(uid, cantidadSemanas = 8) {
   return historial
 }
 
+// Si esta semana todavía no completan nada, la racha "oficial" (la que
+// cuenta desde la semana actual hacia atrás) ya se ve en 0 aunque venían de
+// varias semanas seguidas — así que se calcula aparte, empezando desde la
+// semana PASADA, para poder avisar "tu racha de N semanas está en riesgo"
+// en vez de que el número simplemente desaparezca sin explicación.
+export async function getRachaEnPeligro(uid) {
+  const todas = await getAsignacionesDe(uid)
+  const completadas = todas.filter((a) => a.estado === 'completado' && a.fechaCompletado)
+  if (completadas.length === 0) return { enPeligro: false, rachaPrevia: 0 }
+
+  const semanas = new Set(completadas.map((a) => getInicioSemana(a.fechaCompletado)))
+  const unaSemanaMs = 7 * 24 * 60 * 60 * 1000
+  const inicioSemanaActual = getInicioSemana(new Date())
+  if (semanas.has(inicioSemanaActual)) return { enPeligro: false, rachaPrevia: 0 }
+
+  let cursor = inicioSemanaActual - unaSemanaMs
+  let racha = 0
+  while (semanas.has(cursor)) {
+    racha += 1
+    cursor -= unaSemanaMs
+  }
+  return { enPeligro: racha > 0, rachaPrevia: racha }
+}
+
+// Cuántos jóvenes (de los que ya tienen currículo asignado) completaron al
+// menos una cápsula esta semana — un pulso de comunidad simple para el
+// proyector, sin la complejidad de rastrear una racha grupal real.
+export async function getParticipacionSemanal() {
+  const jovenes = await getJovenes()
+  const inicioSemanaActual = getInicioSemana(new Date())
+  const resultados = await Promise.all(
+    jovenes.map(async (j) => {
+      const asignaciones = await getAsignacionesDe(j.uid)
+      if (asignaciones.length === 0) return null
+      return asignaciones.some(
+        (a) => a.estado === 'completado' && a.fechaCompletado && getInicioSemana(a.fechaCompletado) === inicioSemanaActual,
+      )
+    }),
+  )
+  const conCurriculo = resultados.filter((r) => r !== null)
+  return { activos: conCurriculo.filter(Boolean).length, total: conCurriculo.length }
+}
+
 export async function getRankingCampamento() {
   const jovenes = await getJovenes()
   const filas = await Promise.all(
@@ -677,11 +970,14 @@ export async function getExperienciaDe(uid) {
   const quizCorrectas = completadas.reduce((suma, a) => suma + (a.quizScore?.correctas || 0), 0)
   const insigniasManualesTotal = manuales.reduce((suma, m) => suma + m.veces, 0)
 
+  const bonoXpTotal = completadas.reduce((suma, a) => suma + (a.bonoXp || 0), 0)
+
   const xpTotal =
     completadas.length * xpCfg.porLeccionCompletada +
     quizCorrectas * xpCfg.porQuizCorrecta +
     racha * xpCfg.porRachaSemana +
-    insigniasManualesTotal * xpCfg.porInsigniaManual
+    insigniasManualesTotal * xpCfg.porInsigniaManual +
+    bonoXpTotal
 
   const xpPorNivel = Math.max(1, xpCfg.xpPorNivel)
   const nivel = Math.floor(xpTotal / xpPorNivel) + 1

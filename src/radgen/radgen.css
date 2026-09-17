@@ -237,16 +237,53 @@
 .re-actividad__fila {
   display: flex;
   align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.re-actividad__enlace {
+  display: flex;
+  align-items: center;
   gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
   text-decoration: none;
   color: var(--rg-ink);
-  padding: 6px 8px;
+  padding: 2px 0;
   border-radius: 8px;
   transition: background-color 0.12s ease;
 }
 
-.re-actividad__fila:hover {
+.re-actividad__enlace:hover {
   background: rgba(15, 15, 18, 0.06);
+}
+
+.re-actividad__reacciones {
+  display: flex;
+  gap: 3px;
+  flex: none;
+}
+
+.re-actividad__reaccion {
+  border: 2px solid rgba(15, 15, 18, 0.15);
+  background: transparent;
+  border-radius: 8px;
+  padding: 3px 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  opacity: 0.55;
+  line-height: 1;
+}
+
+.re-actividad__reaccion:hover {
+  opacity: 0.9;
+}
+
+.re-actividad__reaccion.activo {
+  opacity: 1;
+  background: var(--rg-blue-light);
+  border-color: var(--rg-ink);
 }
 
 .re-actividad__texto {
@@ -468,6 +505,11 @@
   color: var(--rg-paper);
 }
 
+.re-badge--borrador {
+  background: repeating-linear-gradient(45deg, var(--rg-paper), var(--rg-paper) 4px, rgba(15, 15, 18, 0.08) 4px, rgba(15, 15, 18, 0.08) 8px);
+  color: var(--rg-ink);
+}
+
 .re-leccion-item {
   display: flex;
   align-items: center;
@@ -558,6 +600,231 @@
 .re-avatar--foto {
   object-fit: cover;
   background: var(--rg-paper);
+}
+
+/* ===== Marco de avatar (por rango) y halo de racha ===== */
+
+.re-avatar-marco {
+  display: inline-flex;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-sizing: content-box;
+}
+
+.re-avatar-marco--bronce {
+  background: linear-gradient(135deg, #cd7f32, #a85c2a);
+  box-shadow: 0 0 0 2px var(--rg-ink);
+}
+
+.re-avatar-marco--plata {
+  background: linear-gradient(135deg, #d8d8d8, #9a9a9a);
+  box-shadow: 0 0 0 2px var(--rg-ink);
+}
+
+.re-avatar-marco--oro {
+  background: linear-gradient(135deg, #ffd93b, #ff9d1c);
+  box-shadow: 0 0 0 2px var(--rg-ink);
+  animation: re-marco-oro-brillo 2.4s ease-in-out infinite;
+}
+
+@keyframes re-marco-oro-brillo {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.25); }
+}
+
+.re-avatar-marco--acento {
+  background: var(--re-avatar-acento, var(--rg-blue));
+  box-shadow: 0 0 0 2px var(--rg-ink);
+}
+
+.re-avatar-marco--racha {
+  position: relative;
+}
+
+.re-avatar-marco--racha::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--rg-red);
+  animation: re-racha-halo 1.6s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes re-racha-halo {
+  0% { transform: scale(0.92); opacity: 0.9; }
+  100% { transform: scale(1.22); opacity: 0; }
+}
+
+/* ===== Personalización de perfil (Mi perfil) ===== */
+
+.re-perfil-hero {
+  border-radius: 16px;
+  border: var(--rg-bw) solid var(--rg-ink);
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  box-shadow: 6px 6px 0 var(--rg-blue);
+  background: var(--rg-paper);
+  color: var(--rg-ink);
+}
+
+.re-fondo-perfil--fuego { background: linear-gradient(160deg, #ff9d5c, #ff3b3b); color: var(--rg-paper); box-shadow: 6px 6px 0 var(--rg-ink); }
+.re-fondo-perfil--oceano { background: linear-gradient(160deg, #6fc6ff, #2952e3); color: var(--rg-paper); box-shadow: 6px 6px 0 var(--rg-ink); }
+.re-fondo-perfil--bosque { background: linear-gradient(160deg, #8be08c, #1f8a4c); color: var(--rg-paper); box-shadow: 6px 6px 0 var(--rg-ink); }
+.re-fondo-perfil--amanecer { background: linear-gradient(160deg, #ffd93b, #ff6a3b); color: var(--rg-ink); box-shadow: 6px 6px 0 var(--rg-ink); }
+.re-fondo-perfil--noche { background: linear-gradient(160deg, #3a3a52, #101014); color: var(--rg-paper); box-shadow: 6px 6px 0 var(--rg-blue); }
+
+.re-perfil-hero__nombre {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
+  color: inherit;
+  margin: 10px 0 0;
+  line-height: 1.05;
+}
+
+.re-perfil-apodo {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: 0.85rem;
+  opacity: 0.85;
+  margin: 4px 0 0;
+}
+
+.re-swatch-fila {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 1.2rem;
+}
+
+.re-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid rgba(15, 15, 18, 0.2);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.re-swatch.activo {
+  border: 3px solid var(--rg-ink);
+  transform: scale(1.1);
+}
+
+.re-fondo-swatch {
+  width: 46px;
+  height: 30px;
+  border-radius: 8px;
+  border: 2px solid rgba(15, 15, 18, 0.2);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.re-fondo-swatch.activo {
+  border: 3px solid var(--rg-ink);
+  transform: scale(1.06);
+}
+
+.re-sky-picker {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 1.2rem;
+}
+
+.re-sky-picker__opcion {
+  border-radius: 12px;
+  border: 2.5px solid rgba(15, 15, 18, 0.15);
+  background: var(--rg-paper);
+  padding: 8px 10px 6px;
+  cursor: pointer;
+  text-align: center;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--rg-ink);
+}
+
+.re-sky-picker__opcion.activo {
+  border-color: var(--rg-ink);
+  background: var(--rg-blue-light);
+}
+
+.re-bio-card {
+  border-radius: 10px;
+  border-left: 4px solid var(--rg-blue);
+  background: rgba(58, 123, 255, 0.08);
+  padding: 0.9rem 1.1rem;
+  margin: 14px 0 0;
+  font-style: italic;
+  text-align: left;
+}
+
+.re-insignia-destacada {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 999px;
+  border: 2.5px solid var(--rg-ink);
+  background: var(--rg-paper);
+  color: var(--rg-ink);
+  padding: 6px 16px 6px 6px;
+  margin-top: 14px;
+}
+
+.re-insignia-destacada__icono {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--rg-blue-light);
+  font-size: 1.1rem;
+  overflow: hidden;
+}
+
+.re-insignia-destacada__icono img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.re-insignia-destacada__texto {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  text-align: left;
+  line-height: 1.2;
+}
+
+.re-medalla__destacar {
+  display: inline-block;
+  margin-top: 6px;
+  border: none;
+  background: none;
+  color: inherit;
+  opacity: 0.55;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0;
+}
+
+.re-medalla__destacar:hover {
+  opacity: 0.9;
+}
+
+.re-medalla__destacar.activo {
+  opacity: 1;
+  color: var(--rg-red);
 }
 
 .re-persona-card__nombre {
@@ -1139,6 +1406,27 @@
   margin: 0 0 1.3rem;
   opacity: 0.8;
   font-size: 0.9rem;
+}
+
+.re-overlay__bono {
+  display: inline-block;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: linear-gradient(135deg, #ffd93b, #ff9d1c);
+  color: var(--rg-ink);
+  border: 2.5px solid var(--rg-ink);
+  border-radius: 999px;
+  padding: 6px 16px;
+  margin: -0.6rem 0 1.3rem;
+  animation: re-bono-aparecer 0.4s ease both;
+}
+
+@keyframes re-bono-aparecer {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 /* ===== Momento especial: subir de rango ===== */
@@ -1826,6 +2114,155 @@
   flex-shrink: 0;
 }
 
+/* ===== Racha en riesgo (aviso en la lista de lecciones) ===== */
+
+.re-racha-peligro {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 12px;
+  border: var(--rg-bw) solid var(--rg-ink);
+  background: #2a1a10;
+  color: var(--rg-paper);
+  padding: 1rem 1.2rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 6px 6px 0 var(--rg-red);
+}
+
+.re-racha-peligro__icono {
+  font-size: 1.8rem;
+  animation: re-racha-peligro-parpadeo 1.4s ease-in-out infinite;
+}
+
+@keyframes re-racha-peligro-parpadeo {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.92); }
+}
+
+.re-racha-peligro__titulo {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  margin: 0 0 3px;
+}
+
+.re-racha-peligro__texto {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+/* ===== Retos de la semana (pendientes en la lista de lecciones) ===== */
+
+.re-retos-card {
+  position: relative;
+  border-radius: 14px;
+  border: var(--rg-bw) solid var(--rg-ink);
+  background: linear-gradient(135deg, var(--rg-red), #ff6a3b);
+  color: var(--rg-paper);
+  padding: 1.3rem 1.4rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 6px 6px 0 var(--rg-ink);
+  animation: re-retos-aparecer 0.4s ease both;
+}
+
+@keyframes re-retos-aparecer {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.re-retos-card__cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 0.9rem;
+}
+
+.re-retos-card__titulo {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+  margin: 0;
+}
+
+.re-retos-card__contador {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--rg-paper);
+  color: var(--rg-red);
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  font-size: 0.8rem;
+  animation: re-retos-pulso 1.8s ease-in-out infinite;
+}
+
+@keyframes re-retos-pulso {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+
+.re-reto-pendiente {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 10px;
+  background: rgba(245, 243, 238, 0.14);
+  padding: 0.8rem 0.9rem;
+  margin-bottom: 8px;
+  text-decoration: none;
+  color: var(--rg-paper);
+  transition: background-color 0.12s ease, transform 0.12s ease;
+}
+
+.re-reto-pendiente:last-child {
+  margin-bottom: 0;
+}
+
+.re-reto-pendiente:hover {
+  background: rgba(245, 243, 238, 0.24);
+  transform: translateX(2px);
+}
+
+.re-reto-pendiente__icono {
+  flex-shrink: 0;
+  font-size: 1.3rem;
+}
+
+.re-reto-pendiente__cuerpo {
+  flex: 1;
+  min-width: 0;
+}
+
+.re-reto-pendiente__leccion {
+  font-weight: 800;
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.re-reto-pendiente__texto {
+  margin: 3px 0 0;
+  font-size: 0.78rem;
+  opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.re-reto-pendiente__flecha {
+  flex-shrink: 0;
+  font-weight: 900;
+  opacity: 0.75;
+}
+
 /* ===== Tareas personales (1:1) ===== */
 
 .re-tarea {
@@ -1836,6 +2273,37 @@
   border: 2px solid rgba(15, 15, 18, 0.15);
   padding: 0.9rem 1rem;
   margin-bottom: 10px;
+}
+
+/* ===== Bloques de contenido de una lección ===== */
+
+.re-bloque {
+  border-radius: 10px;
+  border: 2px solid rgba(15, 15, 18, 0.15);
+  padding: 0.9rem 1rem 1rem;
+  margin-bottom: 14px;
+}
+
+.re-bloque__barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.re-bloque__tipo {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+
+.re-bloque__acciones {
+  display: flex;
+  gap: 6px;
 }
 
 .re-tarea__check {
@@ -1912,6 +2380,18 @@
   font-size: clamp(2.5rem, 5vw, 4rem);
   text-align: center;
   margin-bottom: 2.5rem;
+}
+
+.re-proyector__meta-grupo {
+  text-align: center;
+  font-size: clamp(1rem, 1.6vw, 1.3rem);
+  font-weight: 700;
+  margin: -1.5rem auto 2rem;
+  max-width: 700px;
+  padding: 0.8rem 1.5rem;
+  border-radius: 999px;
+  border: 2.5px solid var(--rg-paper);
+  background: rgba(245, 243, 238, 0.08);
 }
 
 .re-proyector__fila {

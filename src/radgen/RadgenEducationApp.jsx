@@ -10,6 +10,7 @@ import ProyectorScreen from './screens/ProyectorScreen'
 import PerfilJovenScreen from './screens/PerfilJovenScreen'
 import LessonEditorScreen from './screens/LessonEditorScreen'
 import PerfilScreen from './screens/PerfilScreen'
+import PerfilPublicoScreen from './screens/PerfilPublicoScreen'
 import PreRegistroScreen from './screens/PreRegistroScreen'
 import TopBar from './components/TopBar'
 import Sky from './components/Sky'
@@ -87,7 +88,11 @@ export default function RadgenEducationApp() {
           />
           <Route
             path="/insignias"
-            element={requiereCurriculoActivo(<BadgesScreen usuario={usuario} />)}
+            element={requiereCurriculoActivo(<BadgesScreen usuario={usuario} onActualizar={setUsuario} />)}
+          />
+          <Route
+            path="/joven/:uid"
+            element={requiereCurriculoActivo(<PerfilPublicoScreen usuario={usuario} />)}
           />
           <Route
             path="/pre-registro"

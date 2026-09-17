@@ -1,10 +1,27 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getAsignacionesDe, marcarCompletado, getInsigniasDe, marcarRetoCumplido } from '../store'
+import { getAsignacionesDe, marcarCompletado, getInsigniasDe, marcarRetoCumplido, obtenerBloques } from '../store'
 import Celebracion from '../components/Celebracion'
 import QuizLeccion from '../components/QuizLeccion'
 import ComentariosLeccion from '../components/ComentariosLeccion'
 import Sky from '../components/Sky'
+import { sonidoReto } from '../utils/sonidos'
+
+// Junta bloques consecutivos del mismo tipo (texto o punto) en un solo
+// grupo, para que dos "texto" seguidos no se vean como dos tarjetas
+// separadas, y los puntos clave salgan en una sola lista.
+function agruparBloques(bloques) {
+  const grupos = []
+  bloques.forEach((b) => {
+    const ultimo = grupos[grupos.length - 1]
+    if (ultimo && ultimo.tipo === b.tipo && (b.tipo === 'punto' || b.tipo === 'texto')) {
+      ultimo.items.push(b)
+    } else {
+      grupos.push({ tipo: b.tipo, items: [b] })
+    }
+  })
+  return grupos
+}
 
 // Subir de rango es un logro distinto a desbloquear la insignia de una
 // cápsula cualquiera — se devuelve aparte para que la celebración le dé
@@ -57,10 +74,13 @@ export default function LessonDetailScreen({ usuario }) {
 
   const completado = asignacion.estado === 'completado'
   const tieneQuiz = asignacion.leccion?.quiz?.length > 0
+  const bloques = obtenerBloques(asignacion.leccion)
+  const bloquesReto = bloques.filter((b) => b.tipo === 'reto')
+  const gruposContenido = agruparBloques(bloques.filter((b) => b.tipo !== 'reto'))
 
   async function completarLeccion(quizScore) {
     const antes = await getInsigniasDe(usuario.uid)
-    await marcarCompletado(asignacion.id, quizScore)
+    const { bonoXp } = await marcarCompletado(asignacion.id, quizScore)
     const despues = await getInsigniasDe(usuario.uid)
     const { nuevas, subioDeRango } = calcularNuevasInsignias(antes, despues)
 
@@ -74,6 +94,7 @@ export default function LessonDetailScreen({ usuario }) {
         textoBoton: 'Ver mis insignias',
         destino: '/radgen/education/insignias',
         insignia: { nombre: subioDeRango.nombre, icono: subioDeRango.icono },
+        bono: bonoXp,
       })
     } else if (nuevas.length > 0) {
       setCelebracion({
@@ -82,6 +103,7 @@ export default function LessonDetailScreen({ usuario }) {
         textoBoton: 'Ver mis insignias',
         destino: '/radgen/education/insignias',
         insignia: nuevas[0],
+        bono: bonoXp,
       })
     } else {
       setCelebracion({
@@ -89,6 +111,7 @@ export default function LessonDetailScreen({ usuario }) {
         detalle: detalleQuiz + 'Sigue así, cada cápsula suma para tus insignias.',
         textoBoton: 'Continuar',
         destino: '/radgen/education/lecciones',
+        bono: bonoXp,
       })
     }
   }
@@ -105,6 +128,7 @@ export default function LessonDetailScreen({ usuario }) {
     const nuevoValor = !asignacion.retoCumplido
     await marcarRetoCumplido(asignacion.id, nuevoValor)
     setAsignacion((prev) => ({ ...prev, retoCumplido: nuevoValor }))
+    if (nuevoValor) sonidoReto()
   }
 
   return (
@@ -119,15 +143,6 @@ export default function LessonDetailScreen({ usuario }) {
         <>
           {asignacion.leccion?.imagen && (
             <img src={asignacion.leccion.imagen} alt="" className="re-imagen-leccion" />
-          )}
-
-          {asignacion.leccion?.versiculo && (
-            <div className="re-versiculo">
-              {asignacion.leccion.versiculo.texto && <p className="re-versiculo__texto">"{asignacion.leccion.versiculo.texto}"</p>}
-              {asignacion.leccion.versiculo.referencia && (
-                <p className="re-versiculo__referencia">{asignacion.leccion.versiculo.referencia}</p>
-              )}
-            </div>
           )}
 
           <div className="re-video-placeholder">
@@ -157,23 +172,45 @@ export default function LessonDetailScreen({ usuario }) {
             )}
           </div>
 
-          {(asignacion.leccion?.notas || asignacion.leccion?.puntos?.length > 0) && (
-            <div className="re-card">
-              {asignacion.leccion?.notas && <p style={{ marginTop: 0 }}>{asignacion.leccion.notas}</p>}
-              {asignacion.leccion?.puntos?.length > 0 && (
-                <ul className="re-puntos-clave">
-                  {asignacion.leccion.puntos.map((punto, i) => (
-                    <li key={i}>{punto}</li>
+          {gruposContenido.map((grupo, gi) => {
+            if (grupo.tipo === 'versiculo') {
+              const v = grupo.items[0]
+              return (
+                <div key={gi} className="re-versiculo">
+                  {v.texto && <p className="re-versiculo__texto">"{v.texto}"</p>}
+                  {v.referencia && <p className="re-versiculo__referencia">{v.referencia}</p>}
+                </div>
+              )
+            }
+            if (grupo.tipo === 'texto') {
+              return (
+                <div key={gi} className="re-card">
+                  {grupo.items.map((b) => (
+                    <p key={b.id} style={{ marginTop: 0 }}>{b.texto}</p>
                   ))}
-                </ul>
-              )}
-            </div>
-          )}
+                </div>
+              )
+            }
+            if (grupo.tipo === 'punto') {
+              return (
+                <div key={gi} className="re-card">
+                  <ul className="re-puntos-clave">
+                    {grupo.items.map((b) => (
+                      <li key={b.id}>{b.texto}</li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            }
+            return null
+          })}
 
-          {asignacion.leccion?.reto && (
+          {bloquesReto.length > 0 && (
             <div className="re-card re-card--rojo">
               <h2 className="re-subtitulo">🎯 Reto de la semana</h2>
-              <p style={{ marginTop: 0, marginBottom: 14 }}>{asignacion.leccion.reto}</p>
+              {bloquesReto.map((b) => (
+                <p key={b.id} style={{ marginTop: 0, marginBottom: 14 }}>{b.texto}</p>
+              ))}
               <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, cursor: 'pointer' }}>
                 <input type="checkbox" checked={!!asignacion.retoCumplido} onChange={toggleReto} />
                 {asignacion.retoCumplido ? 'Reto cumplido' : 'Marcar como cumplido'}
@@ -189,6 +226,11 @@ export default function LessonDetailScreen({ usuario }) {
                 {asignacion.quizScore && (
                   <p style={{ margin: '4px 0 0', opacity: 0.7, fontSize: '0.85rem' }}>
                     Quiz: {asignacion.quizScore.correctas}/{asignacion.quizScore.total} correctas
+                  </p>
+                )}
+                {asignacion.reaccionLider && (
+                  <p style={{ margin: '4px 0 0', fontSize: '0.85rem', fontWeight: 700 }}>
+                    Tu líder reaccionó {asignacion.reaccionLider.emoji} a esta cápsula
                   </p>
                 )}
               </div>
@@ -217,6 +259,7 @@ export default function LessonDetailScreen({ usuario }) {
           textoBoton={celebracion.textoBoton}
           insignia={celebracion.insignia}
           nombreJoven={usuario.nombre}
+          bono={celebracion.bono}
           onCerrar={() => navigate(celebracion.destino)}
         />
       )}

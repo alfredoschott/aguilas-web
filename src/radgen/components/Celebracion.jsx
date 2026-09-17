@@ -1,14 +1,30 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Confetti from './Confetti'
 import Sky from './Sky'
 import { generarTarjetaInsignia, compartirImagen } from '../utils/shareCard'
+import { sonidoNivel, sonidoCompletar, sonidoBono } from '../utils/sonidos'
 
 // Overlay de celebración al completar una lección, desbloquear una
 // insignia, o (el momento más grande) subir de rango — `tipo="rango"` le
 // da su propia puesta en escena: más confeti, dorado, Sky más grande.
-export default function Celebracion({ tipo, titulo, detalle, onCerrar, textoBoton = 'Continuar', insignia, nombreJoven }) {
+// `bono` (XP extra ganada por sorpresa) es opcional y suma su propio
+// sonido, sin necesitar un `tipo` aparte.
+export default function Celebracion({ tipo, titulo, detalle, onCerrar, textoBoton = 'Continuar', insignia, nombreJoven, bono }) {
   const [compartiendo, setCompartiendo] = useState(false)
   const esRango = tipo === 'rango'
+
+  useEffect(() => {
+    if (bono) {
+      sonidoBono()
+    } else if (esRango) {
+      sonidoNivel()
+    } else {
+      sonidoCompletar()
+    }
+    // Solo al montar — es una celebración de un solo uso, no debe repetirse
+    // si algún otro prop cambia mientras sigue abierta.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function compartir() {
     setCompartiendo(true)
@@ -38,6 +54,7 @@ export default function Celebracion({ tipo, titulo, detalle, onCerrar, textoBoto
         <Sky size={esRango ? 150 : 110} pose="logrado" />
         <h2 className="re-overlay__titulo">{titulo}</h2>
         {detalle && <p className="re-overlay__detalle">{detalle}</p>}
+        {bono > 0 && <p className="re-overlay__bono">🎁 ¡Bono sorpresa! +{bono} XP</p>}
 
         {insignia && (
           <button

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   getInsigniasDe,
   getMostrarElegibilidadAJovenes,
@@ -8,13 +9,14 @@ import {
   getRankingCampamento,
   getInsigniasManualesDe,
   getExperienciaDe,
+  actualizarPerfil,
 } from '../store'
 import Sky from '../components/Sky'
 import Avatar from '../components/Avatar'
 import RachaBadge from '../components/RachaBadge'
 import { generarCertificado, compartirCertificado } from '../utils/certificado'
 
-function Medalla({ nombre, icono, imagen, desbloqueada, progreso, variante, delay = 0, onDescargarCertificado }) {
+function Medalla({ nombre, icono, imagen, desbloqueada, progreso, variante, delay = 0, onDescargarCertificado, destacada, onDestacar }) {
   return (
     <div
       className={`re-medalla ${variante ? `re-medalla--${variante}` : ''} ${desbloqueada ? '' : 're-medalla--bloqueada'}`}
@@ -28,6 +30,11 @@ function Medalla({ nombre, icono, imagen, desbloqueada, progreso, variante, dela
       {desbloqueada && onDescargarCertificado && (
         <button type="button" className="re-medalla__certificado" onClick={onDescargarCertificado}>
           🎓 Certificado
+        </button>
+      )}
+      {desbloqueada && onDestacar && (
+        <button type="button" className={`re-medalla__destacar ${destacada ? 'activo' : ''}`} onClick={onDestacar}>
+          {destacada ? '★ Destacada' : '☆ Destacar'}
         </button>
       )}
     </div>
@@ -105,7 +112,7 @@ function AnilloProgreso({ porcentaje, completo }) {
 // La tarjeta más importante de la pantalla: de un vistazo, dónde estás y
 // qué te falta para el siguiente rango — en vez de enterrar esa respuesta
 // entre varias tarjetas sueltas.
-function HeroRango({ insignias, racha, onDescargarCertificado }) {
+function HeroRango({ insignias, racha, onDescargarCertificado, destacada, onDestacar }) {
   const porcentaje = insignias.progresoNivel
     ? Math.min(100, Math.round((insignias.progresoNivel.actual / insignias.progresoNivel.meta) * 100))
     : 100
@@ -139,6 +146,11 @@ function HeroRango({ insignias, racha, onDescargarCertificado }) {
           {insignias.nivelActual && (
             <button type="button" className="re-hero-rango__certificado" onClick={onDescargarCertificado}>
               🎓 Descargar certificado
+            </button>
+          )}
+          {insignias.nivelActual && onDestacar && (
+            <button type="button" className={`re-medalla__destacar ${destacada ? 'activo' : ''}`} onClick={onDestacar}>
+              {destacada ? '★ Destacada' : '☆ Destacar'}
             </button>
           )}
         </div>
@@ -177,7 +189,7 @@ function CabeceraSeccion({ titulo, contador }) {
   )
 }
 
-export default function BadgesScreen({ usuario }) {
+export default function BadgesScreen({ usuario, onActualizar }) {
   const [insignias, setInsignias] = useState(null)
   const [mostrarElegibilidad, setMostrarElegibilidad] = useState(false)
   const [racha, setRacha] = useState(0)
@@ -284,6 +296,19 @@ export default function BadgesScreen({ usuario }) {
     })
   }
 
+  // Guarda una "foto" de la insignia en el perfil (nombre, ícono, imagen) en
+  // vez de solo un id — así el perfil la puede mostrar sin tener que volver
+  // a calcular todas las insignias del joven cada vez que carga.
+  async function destacar(snapshot) {
+    if (!onActualizar) return
+    const yaEstaba = usuario.insigniaDestacada?.id === snapshot.id
+    const actualizado = await actualizarPerfil({
+      uid: usuario.uid,
+      insigniaDestacada: yaEstaba ? null : snapshot,
+    })
+    onActualizar(actualizado)
+  }
+
   return (
     <div className="re-shell re-shell--ancho">
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 6 }}>
@@ -292,7 +317,17 @@ export default function BadgesScreen({ usuario }) {
       </div>
       <p style={{ fontWeight: 600, opacity: 0.85, marginBottom: '1.5rem' }}>{mensajeSky}</p>
 
-      <HeroRango insignias={insignias} racha={racha} onDescargarCertificado={descargarCertificadoRango} />
+      <HeroRango
+        insignias={insignias}
+        racha={racha}
+        onDescargarCertificado={descargarCertificadoRango}
+        destacada={insignias.nivelActual && usuario.insigniaDestacada?.id === insignias.nivelActual.id}
+        onDestacar={
+          insignias.nivelActual
+            ? () => destacar({ id: insignias.nivelActual.id, nombre: insignias.nivelActual.nombre, icono: insignias.nivelActual.icono })
+            : undefined
+        }
+      />
 
       {experiencia && <TarjetaExperiencia experiencia={experiencia} />}
 
@@ -318,6 +353,8 @@ export default function BadgesScreen({ usuario }) {
               desbloqueada={b.desbloqueada}
               delay={i * 0.06}
               onDescargarCertificado={b.desbloqueada ? () => descargarCertificadoLeccion(b) : undefined}
+              destacada={usuario.insigniaDestacada?.id === b.id}
+              onDestacar={b.desbloqueada ? () => destacar({ id: b.id, nombre: b.nombre, icono: b.icono, imagen: b.imagen }) : undefined}
             />
           ))}
         </div>
@@ -342,6 +379,8 @@ export default function BadgesScreen({ usuario }) {
               variante="serie"
               delay={i * 0.06}
               onDescargarCertificado={b.desbloqueada ? () => descargarCertificadoManual(b) : undefined}
+              destacada={usuario.insigniaDestacada?.id === b.id}
+              onDestacar={b.desbloqueada ? () => destacar({ id: b.id, nombre: b.nombre, imagen: b.imagen }) : undefined}
             />
           ))}
         </div>
@@ -360,6 +399,8 @@ export default function BadgesScreen({ usuario }) {
               variante="serie"
               delay={i * 0.06}
               onDescargarCertificado={b.desbloqueada ? () => descargarCertificadoSerie(b.nombre) : undefined}
+              destacada={usuario.insigniaDestacada?.id === b.id}
+              onDestacar={b.desbloqueada ? () => destacar({ id: b.id, nombre: b.nombre, icono: b.icono }) : undefined}
             />
           ))}
         </div>
@@ -398,9 +439,23 @@ export default function BadgesScreen({ usuario }) {
                       className={fila.joven.uid === usuario.uid ? 're-fila-actual' : undefined}
                     >
                       <td className="re-tabla__posicion">{i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</td>
-                      <td style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Avatar nombre={fila.joven.nombre} foto={fila.joven.fotoPerfil} uid={fila.joven.uid} size={26} />
-                        {fila.joven.nombre}
+                      <td>
+                        <Link
+                          to={`/radgen/education/joven/${fila.joven.uid}`}
+                          className="re-vinculo re-vinculo--nombre"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                        >
+                          <Avatar
+                            nombre={fila.joven.nombre}
+                            foto={fila.joven.fotoPerfil}
+                            uid={fila.joven.uid}
+                            size={26}
+                            marco={fila.nivelActual?.id}
+                            racha={fila.racha}
+                            colorAcento={fila.joven.colorAcento}
+                          />
+                          {fila.joven.apodo || fila.joven.nombre}
+                        </Link>
                       </td>
                       <td>{fila.totalCompletadas}</td>
                       <td>{fila.racha > 0 ? `🔥 ${fila.racha}` : '—'}</td>

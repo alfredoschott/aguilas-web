@@ -17,29 +17,50 @@ function colorDe(semilla) {
   return PALETA[hash % PALETA.length]
 }
 
-export default function Avatar({ nombre, uid, foto, size = 44 }) {
-  if (foto) {
-    return (
-      <img
-        src={foto}
-        alt={nombre || 'Avatar'}
-        className="re-avatar re-avatar--foto"
-        style={{ width: size, height: size }}
-      />
-    )
-  }
+// `marco` (rango: 'bronce'|'plata'|'oro') y `racha` (semanas seguidas) son
+// opcionales y puramente decorativos — un Avatar sin ellos se ve igual que
+// antes, así que ningún llamado existente se rompe por no pasarlos.
+export default function Avatar({ nombre, uid, foto, size = 44, marco, racha = 0, colorAcento }) {
+  const clasesExtra = [
+    marco ? `re-avatar-marco re-avatar-marco--${marco}` : colorAcento ? 're-avatar-marco re-avatar-marco--acento' : '',
+    racha > 0 ? 're-avatar-marco--racha' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
-  return (
+  const estiloAcento = colorAcento ? { '--re-avatar-acento': colorAcento } : undefined
+  const pad = clasesExtra ? Math.max(3, Math.round(size * 0.06)) : 0
+  const tamañoExterior = size + pad * 2
+
+  const contenido = foto ? (
+    <img
+      src={foto}
+      alt={nombre || 'Avatar'}
+      className="re-avatar re-avatar--foto"
+      style={{ width: size, height: size }}
+    />
+  ) : (
     <div
       className="re-avatar"
       style={{
         width: size,
         height: size,
         fontSize: size * 0.4,
-        background: colorDe(uid || nombre || ''),
+        background: colorAcento || colorDe(uid || nombre || ''),
       }}
     >
       {inicialesDe(nombre)}
+    </div>
+  )
+
+  if (!clasesExtra) return contenido
+
+  return (
+    <div
+      className={clasesExtra}
+      style={{ width: tamañoExterior, height: tamañoExterior, padding: pad, ...estiloAcento }}
+    >
+      {contenido}
     </div>
   )
 }
