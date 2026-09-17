@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getSeries, getLeccionPorId, crearLeccion, actualizarLeccion, slugificar, obtenerBloques } from '../store'
 import { extraerYoutubeId } from '../utils/youtube'
 import { subirImagenLeccion, borrarImagenLeccion } from '../utils/imagenLeccion'
 import Sky from '../components/Sky'
+import CampoTextoFormateado from '../components/CampoTextoFormateado'
 
 const PREGUNTA_VACIA = () => ({ pregunta: '', opciones: ['', '', '', ''], correcta: 0 })
+
+const ICONOS_SUGERIDOS = ['📖', '🙏', '✝️', '🔥', '⭐', '🕊️', '❤️', '💡', '🎯', '📘']
 
 const TIPOS_BLOQUE = [
   ['versiculo', '📖 Versículo'],
@@ -63,6 +66,14 @@ export default function LessonEditorScreen() {
   }
   function quitarBloque(id) {
     setBloques((prev) => prev.filter((b) => b.id !== id))
+  }
+  function duplicarBloque(id) {
+    setBloques((prev) => {
+      const i = prev.findIndex((b) => b.id === id)
+      if (i === -1) return prev
+      const copia = { ...prev[i], id: `b${Date.now()}${Math.random().toString(36).slice(2, 7)}` }
+      return [...prev.slice(0, i + 1), copia, ...prev.slice(i + 1)]
+    })
   }
   function moverBloque(id, direccion) {
     setBloques((prev) => {
@@ -174,9 +185,16 @@ export default function LessonEditorScreen() {
         ← Volver a cursos
       </button>
 
-      <h1 className="re-titulo-pagina">{existente ? 'Editar lección' : 'Nueva lección'}</h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+        <h1 className="re-titulo-pagina" style={{ margin: 0 }}>{existente ? 'Editar lección' : 'Nueva lección'}</h1>
+        {existente && (
+          <Link to={`/radgen/education/lider/leccion/${existente.id}/preview`} className="re-btn re-btn--sm">
+            👁 Vista previa
+          </Link>
+        )}
+      </div>
       {existente?.estado === 'borrador' && (
-        <p className="re-eyebrow" style={{ marginBottom: '1rem' }}>📝 Borrador — publícala desde Cursos cuando esté lista</p>
+        <p className="re-eyebrow" style={{ marginTop: 12, marginBottom: '1rem' }}>📝 Borrador — publícala desde Cursos cuando esté lista</p>
       )}
 
       <div className="re-card">
@@ -233,13 +251,27 @@ export default function LessonEditorScreen() {
         />
 
         <label className="re-label">Ícono</label>
-        <input
-          className="re-input"
-          style={{ maxWidth: 120 }}
-          placeholder="📖"
-          value={icono}
-          onChange={(e) => setIcono(e.target.value)}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: '1rem' }}>
+          <input
+            className="re-input"
+            style={{ maxWidth: 120, marginBottom: 0 }}
+            placeholder="📖"
+            value={icono}
+            onChange={(e) => setIcono(e.target.value)}
+          />
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {ICONOS_SUGERIDOS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                className="re-formato-btn"
+                onClick={() => setIcono(emoji)}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <label className="re-label">Video de YouTube (URL o ID, opcional)</label>
         <input
@@ -287,6 +319,7 @@ export default function LessonEditorScreen() {
               <div className="re-bloque__acciones">
                 <button type="button" className="re-vinculo re-vinculo--icono" disabled={i === 0} onClick={() => moverBloque(b.id, -1)}>↑</button>
                 <button type="button" className="re-vinculo re-vinculo--icono" disabled={i === bloques.length - 1} onClick={() => moverBloque(b.id, 1)}>↓</button>
+                <button type="button" className="re-vinculo re-vinculo--icono" title="Duplicar bloque" onClick={() => duplicarBloque(b.id)}>📋</button>
                 <button type="button" className="re-vinculo re-vinculo--peligro" onClick={() => quitarBloque(b.id)}>✕</button>
               </div>
             </div>
@@ -299,43 +332,36 @@ export default function LessonEditorScreen() {
                   value={b.referencia}
                   onChange={(e) => cambiarBloque(b.id, { referencia: e.target.value })}
                 />
-                <textarea
-                  className="re-input"
+                <CampoTextoFormateado
                   rows={2}
                   placeholder="Cita o paráfrasis del versículo…"
                   value={b.texto}
-                  onChange={(e) => cambiarBloque(b.id, { texto: e.target.value })}
-                  style={{ resize: 'vertical', fontFamily: 'inherit', marginBottom: 0 }}
+                  onChange={(texto) => cambiarBloque(b.id, { texto })}
                 />
               </>
             )}
             {b.tipo === 'texto' && (
-              <textarea
-                className="re-input"
+              <CampoTextoFormateado
                 rows={4}
                 placeholder="Texto libre — resumen, contexto, explicación…"
                 value={b.texto}
-                onChange={(e) => cambiarBloque(b.id, { texto: e.target.value })}
-                style={{ resize: 'vertical', fontFamily: 'inherit', marginBottom: 0 }}
+                onChange={(texto) => cambiarBloque(b.id, { texto })}
               />
             )}
             {b.tipo === 'punto' && (
-              <input
-                className="re-input"
-                style={{ marginBottom: 0 }}
+              <CampoTextoFormateado
+                rows={1}
                 placeholder="Punto clave…"
                 value={b.texto}
-                onChange={(e) => cambiarBloque(b.id, { texto: e.target.value })}
+                onChange={(texto) => cambiarBloque(b.id, { texto })}
               />
             )}
             {b.tipo === 'reto' && (
-              <textarea
-                className="re-input"
+              <CampoTextoFormateado
                 rows={2}
                 placeholder="Ej. Esta semana, cuéntale a alguien lo que aprendiste hoy."
                 value={b.texto}
-                onChange={(e) => cambiarBloque(b.id, { texto: e.target.value })}
-                style={{ resize: 'vertical', fontFamily: 'inherit', marginBottom: 0 }}
+                onChange={(texto) => cambiarBloque(b.id, { texto })}
               />
             )}
           </div>

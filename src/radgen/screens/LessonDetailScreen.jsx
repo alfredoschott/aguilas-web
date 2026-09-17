@@ -6,6 +6,7 @@ import QuizLeccion from '../components/QuizLeccion'
 import ComentariosLeccion from '../components/ComentariosLeccion'
 import Sky from '../components/Sky'
 import { sonidoReto } from '../utils/sonidos'
+import { renderTextoFormateado } from '../utils/formatoTexto'
 
 // Subir de rango es un logro distinto a desbloquear la insignia de una
 // cápsula cualquiera — se devuelve aparte para que la celebración le dé
@@ -161,7 +162,7 @@ export default function LessonDetailScreen({ usuario }) {
               const v = grupo.items[0]
               return (
                 <div key={gi} className="re-versiculo">
-                  {v.texto && <p className="re-versiculo__texto">"{v.texto}"</p>}
+                  {v.texto && <p className="re-versiculo__texto">"{renderTextoFormateado(v.texto)}"</p>}
                   {v.referencia && <p className="re-versiculo__referencia">{v.referencia}</p>}
                 </div>
               )
@@ -170,7 +171,7 @@ export default function LessonDetailScreen({ usuario }) {
               return (
                 <div key={gi} className="re-card">
                   {grupo.items.map((b) => (
-                    <p key={b.id} style={{ marginTop: 0 }}>{b.texto}</p>
+                    <p key={b.id} style={{ marginTop: 0 }}>{renderTextoFormateado(b.texto)}</p>
                   ))}
                 </div>
               )
@@ -180,7 +181,7 @@ export default function LessonDetailScreen({ usuario }) {
                 <div key={gi} className="re-card">
                   <ul className="re-puntos-clave">
                     {grupo.items.map((b) => (
-                      <li key={b.id}>{b.texto}</li>
+                      <li key={b.id}>{renderTextoFormateado(b.texto)}</li>
                     ))}
                   </ul>
                 </div>
@@ -193,7 +194,7 @@ export default function LessonDetailScreen({ usuario }) {
             <div className="re-card re-card--rojo">
               <h2 className="re-subtitulo">🎯 Reto de la semana</h2>
               {bloquesReto.map((b) => (
-                <p key={b.id} style={{ marginTop: 0, marginBottom: 14 }}>{b.texto}</p>
+                <p key={b.id} style={{ marginTop: 0, marginBottom: 14 }}>{renderTextoFormateado(b.texto)}</p>
               ))}
               <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, cursor: 'pointer' }}>
                 <input type="checkbox" checked={!!asignacion.retoCumplido} onChange={toggleReto} />

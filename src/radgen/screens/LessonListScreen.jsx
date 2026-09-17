@@ -13,6 +13,7 @@ import Sky from '../components/Sky'
 import TareaPersonal from '../components/TareaPersonal'
 import Avatar from '../components/Avatar'
 import { mostrarNotificacion } from '../utils/notificaciones'
+import { textoPlano } from '../utils/formatoTexto'
 
 function inicioSemanaLocal(fecha) {
   const d = new Date(fecha)
@@ -111,7 +112,7 @@ function RetoPendiente({ asignacion }) {
       <span className="re-reto-pendiente__icono" aria-hidden="true">🎯</span>
       <div className="re-reto-pendiente__cuerpo">
         <p className="re-reto-pendiente__leccion">{asignacion.leccion?.titulo}</p>
-        {reto?.texto && <p className="re-reto-pendiente__texto">{reto.texto}</p>}
+        {reto?.texto && <p className="re-reto-pendiente__texto">{textoPlano(reto.texto)}</p>}
       </div>
       <span className="re-reto-pendiente__flecha" aria-hidden="true">→</span>
     </Link>

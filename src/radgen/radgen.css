@@ -2319,6 +2319,40 @@
   gap: 6px;
 }
 
+/* ===== Barra de formato (negrita/cursiva) en campos de texto ===== */
+
+.re-formato-barra {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.re-formato-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 2px solid rgba(15, 15, 18, 0.2);
+  background: var(--rg-paper);
+  color: var(--rg-ink);
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.re-formato-btn:hover {
+  border-color: var(--rg-ink);
+}
+
+.re-formato-ayuda {
+  font-size: 0.68rem;
+  opacity: 0.55;
+}
+
 .re-tarea__check {
   flex-shrink: 0;
   width: 26px;

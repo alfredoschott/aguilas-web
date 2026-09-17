@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getLeccionPorId, obtenerBloques, agruparBloques } from '../store'
 import Sky from '../components/Sky'
+import { renderTextoFormateado } from '../utils/formatoTexto'
 
 // Lo que la líder ve al previsualizar una lección desde Cursos — el mismo
 // contenido que vería un joven, pero de solo lectura: sin marcar como
@@ -87,7 +88,7 @@ export default function LeccionPreviewScreen() {
           const v = grupo.items[0]
           return (
             <div key={gi} className="re-versiculo">
-              {v.texto && <p className="re-versiculo__texto">"{v.texto}"</p>}
+              {v.texto && <p className="re-versiculo__texto">"{renderTextoFormateado(v.texto)}"</p>}
               {v.referencia && <p className="re-versiculo__referencia">{v.referencia}</p>}
             </div>
           )
@@ -96,7 +97,7 @@ export default function LeccionPreviewScreen() {
           return (
             <div key={gi} className="re-card">
               {grupo.items.map((b) => (
-                <p key={b.id} style={{ marginTop: 0 }}>{b.texto}</p>
+                <p key={b.id} style={{ marginTop: 0 }}>{renderTextoFormateado(b.texto)}</p>
               ))}
             </div>
           )
@@ -106,7 +107,7 @@ export default function LeccionPreviewScreen() {
             <div key={gi} className="re-card">
               <ul className="re-puntos-clave">
                 {grupo.items.map((b) => (
-                  <li key={b.id}>{b.texto}</li>
+                  <li key={b.id}>{renderTextoFormateado(b.texto)}</li>
                 ))}
               </ul>
             </div>
@@ -119,7 +120,7 @@ export default function LeccionPreviewScreen() {
         <div className="re-card re-card--rojo">
           <h2 className="re-subtitulo">🎯 Reto de la semana</h2>
           {bloquesReto.map((b) => (
-            <p key={b.id} style={{ marginTop: 0, marginBottom: 0 }}>{b.texto}</p>
+            <p key={b.id} style={{ marginTop: 0, marginBottom: 0 }}>{renderTextoFormateado(b.texto)}</p>
           ))}
         </div>
       )}
