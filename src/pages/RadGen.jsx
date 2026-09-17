@@ -379,9 +379,43 @@ function RadGen() {
         }
         .radgen-nb .edu-card h2{ position: relative; font-size: clamp(26px,3.4vw,38px); margin-bottom:14px; }
         .radgen-nb .edu-card p{ position: relative; color:#EAF0FF; max-width:420px; margin:0 0 6px; font-size:15px; font-weight:600; }
+
+        .radgen-nb .edu-badge-glow{ animation: eduBadgePulso 2s ease-in-out infinite; }
+        @keyframes eduBadgePulso{
+          0%,100%{ box-shadow: 0 0 0 0 rgba(245,243,238,0.55); }
+          50%{ box-shadow: 0 0 0 8px rgba(245,243,238,0); }
+        }
+
+        .radgen-nb .edu-features{
+          position:relative; display:flex; flex-wrap:wrap; gap:10px; margin:16px 0 6px;
+        }
+        .radgen-nb .edu-feature{
+          display:inline-flex; align-items:center; gap:6px;
+          background: rgba(245,243,238,0.14); border: 2px solid var(--paper); color:var(--paper);
+          border-radius:999px; padding:6px 14px; font-weight:800; font-size:12.5px;
+          font-family:'Montserrat',sans-serif; text-transform:uppercase; letter-spacing:0.02em;
+          transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        .radgen-nb .edu-feature:hover{ transform:translateY(-2px); background: rgba(245,243,238,0.26); }
+
+        .radgen-nb .edu-cta{ margin-top:16px; }
+        .radgen-nb .edu-cta-flecha{ display:inline-block; transition: transform 0.15s ease; }
+        .radgen-nb .edu-cta:hover .edu-cta-flecha{ transform: translateX(4px); }
+
+        .radgen-nb .edu-sky-wrap{ position:relative; flex-shrink:0; }
         .radgen-nb .edu-sky{
-          position: relative; height:220px; width:auto; flex-shrink:0;
+          position: relative; height:220px; width:auto;
           filter: drop-shadow(6px 8px 0 rgba(0,0,0,0.28));
+          animation: eduSkyFlotar 3.4s ease-in-out infinite;
+        }
+        @keyframes eduSkyFlotar{
+          0%,100%{ transform: translateY(0) rotate(-1.5deg); }
+          50%{ transform: translateY(-12px) rotate(1.5deg); }
+        }
+        .radgen-nb .edu-float-badge{
+          top:-14px; right:-18px; transform: rotate(5deg);
+          background: var(--red); color: var(--paper); font-size:12px;
+          animation: eduSkyFlotar 3.4s ease-in-out infinite reverse;
         }
 
         .radgen-nb .galeria-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
@@ -575,7 +609,9 @@ function RadGen() {
           .radgen-nb .edu-texto{ text-align:center; }
           .radgen-nb .edu-logo{ height:100px; margin:0 auto 16px; }
           .radgen-nb .edu-card p{ max-width:360px; margin:0 auto 6px; }
+          .radgen-nb .edu-features{ justify-content:center; }
           .radgen-nb .edu-sky{ height:170px; }
+          .radgen-nb .edu-float-badge{ top:-10px; right:6px; }
         }
         @media (max-width:480px){
           .radgen-nb .nav-back span{ display:none; }
@@ -630,12 +666,24 @@ function RadGen() {
       <section id="educacion">
         <div className="edu-card">
           <div className="edu-texto">
-            <span className="edu-badge">⏳ Ya casi</span>
+            <span className="edu-badge edu-badge-glow">✅ Ya disponible</span>
             <img src="/radgen-education-logo.png" alt="RadGen Education" className="edu-logo" />
             <h2>RadGen Education</h2>
-            <p>Una plataforma para crecer en tu fe a tu ritmo. Se viene pronto.</p>
+            <p>Una plataforma para crecer en tu fe a tu ritmo. Entra con Google y empieza tus lecciones.</p>
+            <div className="edu-features">
+              <span className="edu-feature">🎓 Lecciones</span>
+              <span className="edu-feature">🏆 Insignias</span>
+              <span className="edu-feature">🔥 Rachas</span>
+              <span className="edu-feature">👑 Rangos</span>
+            </div>
+            <Link to="/radgen/education" className="btn btn-outline edu-cta">
+              Entrar a RadGen Education <span className="edu-cta-flecha">→</span>
+            </Link>
           </div>
-          <img src="/sky-estudiando.png" alt="Sky estudiando" className="edu-sky" />
+          <div className="edu-sky-wrap">
+            <img src="/sky-estudiando.png" alt="Sky estudiando" className="edu-sky" />
+            <div className="float-badge edu-float-badge">🔥 Rachas semanales</div>
+          </div>
         </div>
       </section>
 
