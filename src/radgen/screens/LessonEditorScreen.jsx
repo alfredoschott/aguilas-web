@@ -254,7 +254,7 @@ export default function LessonEditorScreen() {
       }
       limpiarBorradorLeccion(claveBorrador)
       setMensaje('Guardado.')
-      setTimeout(() => navigate('/radgen/education/lider', { state: { tab: 'cursos' } }), 600)
+      setTimeout(() => navigate('/radgen/education/lider?tab=cursos'), 600)
     } finally {
       setGuardando(false)
     }
@@ -293,7 +293,7 @@ export default function LessonEditorScreen() {
       <button
         className="re-vinculo re-vinculo--volver"
         style={{ marginBottom: 16 }}
-        onClick={() => navigate('/radgen/education/lider', { state: { tab: 'cursos' } })}
+        onClick={() => navigate(-1)}
       >
         ← Volver a cursos
       </button>

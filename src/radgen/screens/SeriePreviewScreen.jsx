@@ -40,7 +40,7 @@ export default function SeriePreviewScreen() {
     return (
       <div className="re-shell">
         <div className="re-card">Esta serie ya no existe.</div>
-        <button className="re-btn" onClick={() => navigate('/radgen/education/lider')}>← Volver a Cursos</button>
+        <button className="re-btn" onClick={() => navigate(-1)}>← Volver</button>
       </div>
     )
   }

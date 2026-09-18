@@ -118,7 +118,7 @@ export default function LessonDetailScreen({ usuario }) {
 
   return (
     <div className="re-shell">
-      <button className="re-vinculo re-vinculo--volver" style={{ marginBottom: 16 }} onClick={() => navigate('/radgen/education/lecciones')}>
+      <button className="re-vinculo re-vinculo--volver" style={{ marginBottom: 16 }} onClick={() => navigate(-1)}>
         ← Volver a mis lecciones
       </button>
 

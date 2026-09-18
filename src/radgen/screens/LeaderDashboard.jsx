@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   getJovenes,
   getLecciones,
@@ -1005,8 +1005,16 @@ function ActividadReciente({ actividad, onReaccionar }) {
 }
 
 export default function LeaderDashboard({ usuario }) {
-  const location = useLocation()
-  const [tab, setTab] = useState(location.state?.tab || 'asignar')
+  // La pestaña activa vive en la URL (?tab=…), no solo en memoria — así
+  // "regresar" desde el perfil de un joven (o de cualquier otra pantalla)
+  // te devuelve exactamente a la pestaña donde estabas, en vez de
+  // reiniciar siempre a la primera. `replace: true` para que cambiar de
+  // pestaña no llene el historial con una entrada por cada clic.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') || 'asignar'
+  function cambiarTab(valor) {
+    setSearchParams({ tab: valor }, { replace: true })
+  }
   const [cargando, setCargando] = useState(true)
   const [jovenes, setJovenes] = useState([])
   const [lecciones, setLecciones] = useState([])
@@ -1155,7 +1163,7 @@ export default function LeaderDashboard({ usuario }) {
             key={valor}
             type="button"
             className={`re-tab ${tab === valor ? 'activo' : ''}`}
-            onClick={() => setTab(valor)}
+            onClick={() => cambiarTab(valor)}
           >
             {etiqueta}
             {valor === 'notas' && pendientes.length > 0 && ` (${pendientes.length})`}
@@ -1166,7 +1174,7 @@ export default function LeaderDashboard({ usuario }) {
       <select
         className="re-input re-tabs-select"
         value={tab}
-        onChange={(e) => setTab(e.target.value)}
+        onChange={(e) => cambiarTab(e.target.value)}
       >
         {TABS.map(([valor, etiqueta]) => (
           <option key={valor} value={valor}>

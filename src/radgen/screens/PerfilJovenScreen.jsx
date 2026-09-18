@@ -100,7 +100,7 @@ export default function PerfilJovenScreen({ usuario }) {
     return (
       <div className="re-shell">
         <div className="re-card">Este joven no existe.</div>
-        <button className="re-btn" onClick={() => navigate('/radgen/education/lider')}>
+        <button className="re-btn" onClick={() => navigate(-1)}>
           ← Volver al panel
         </button>
       </div>
@@ -166,7 +166,7 @@ export default function PerfilJovenScreen({ usuario }) {
 
   return (
     <div className="re-shell re-shell--ancho">
-      <button className="re-vinculo re-vinculo--volver" style={{ marginBottom: 16 }} onClick={() => navigate('/radgen/education/lider')}>
+      <button className="re-vinculo re-vinculo--volver" style={{ marginBottom: 16 }} onClick={() => navigate(-1)}>
         ← Volver al panel
       </button>
 
