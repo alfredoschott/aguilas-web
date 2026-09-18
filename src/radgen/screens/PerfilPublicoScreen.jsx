@@ -45,7 +45,7 @@ export default function PerfilPublicoScreen({ usuario }) {
     )
   }
 
-  const { joven, nivelActual, racha } = perfil
+  const { joven, nivelActual, racha, insigniasEspeciales } = perfil
   const esMiPropioPerfil = uid === usuario.uid
 
   return (
@@ -89,6 +89,23 @@ export default function PerfilPublicoScreen({ usuario }) {
               )}
             </span>
             <span className="re-insignia-destacada__texto">{joven.insigniaDestacada.nombre}</span>
+          </div>
+        </div>
+      )}
+
+      {insigniasEspeciales?.length > 0 && (
+        <div className="re-card">
+          <h2 className="re-subtitulo">Insignias especiales</h2>
+          <div className="re-medallas-grid">
+            {insigniasEspeciales.map((r) => (
+              <div key={r.id} className="re-medalla">
+                <div className="re-medalla__icono">
+                  <img src={r.imagen} alt="" className="re-medalla__imagen" />
+                </div>
+                <p className="re-medalla__nombre">{r.nombre}</p>
+                {r.motivo && <p className="re-medalla__progreso">"{r.motivo}"</p>}
+              </div>
+            ))}
           </div>
         </div>
       )}

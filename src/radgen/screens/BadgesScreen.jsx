@@ -198,6 +198,16 @@ export default function BadgesScreen({ usuario, onActualizar }) {
   const [ranking, setRanking] = useState([])
   const [insigniasManuales, setInsigniasManuales] = useState([])
   const [experiencia, setExperiencia] = useState(null)
+  const [expandidas, setExpandidas] = useState(new Set())
+
+  function alternarExpandida(id) {
+    setExpandidas((prev) => {
+      const copia = new Set(prev)
+      if (copia.has(id)) copia.delete(id)
+      else copia.add(id)
+      return copia
+    })
+  }
 
   useEffect(() => {
     Promise.all([
@@ -244,6 +254,7 @@ export default function BadgesScreen({ usuario, onActualizar }) {
       nombreJoven: usuario.nombre,
       logro: `Por alcanzar el rango ${insignias.nivelActual.nombre}`,
       icono: insignias.nivelActual.icono,
+      tipo: 'rango',
     })
     await compartirCertificado({
       dataUrl,
@@ -258,6 +269,7 @@ export default function BadgesScreen({ usuario, onActualizar }) {
       nombreJoven: usuario.nombre,
       logro: `Por completar la serie: ${nombreSerie}`,
       icono: '🏆',
+      tipo: 'serie',
     })
     await compartirCertificado({
       dataUrl,
@@ -272,6 +284,7 @@ export default function BadgesScreen({ usuario, onActualizar }) {
       nombreJoven: usuario.nombre,
       logro: leccion.nombre,
       imagenUrl: leccion.imagen,
+      tipo: 'leccion',
     })
     await compartirCertificado({
       dataUrl,
@@ -281,16 +294,17 @@ export default function BadgesScreen({ usuario, onActualizar }) {
     })
   }
 
-  async function descargarCertificadoManual(insignia) {
+  async function descargarCertificadoManual(insignia, motivo, sufijoArchivo = '') {
     const dataUrl = await generarCertificado({
       nombreJoven: usuario.nombre,
       logro: insignia.nombre,
-      motivo: insignia.ultimoMotivo || undefined,
+      motivo: motivo || undefined,
       imagenUrl: insignia.imagen,
+      tipo: 'especial',
     })
     await compartirCertificado({
       dataUrl,
-      nombreArchivo: `certificado-${insignia.id}.png`,
+      nombreArchivo: `certificado-${insignia.id}${sufijoArchivo}.png`,
       titulo: '¡Insignia especial en RadGen Education!',
       texto: `Recibí la insignia "${insignia.nombre}" en RadGen Education 🙌`,
     })
@@ -369,20 +383,79 @@ export default function BadgesScreen({ usuario, onActualizar }) {
           Estas te las otorga tu líder en persona — no se desbloquean solas.
         </p>
         <div className="re-medallas-grid">
-          {insigniasManuales.map((b, i) => (
-            <Medalla
-              key={b.id}
-              nombre={b.nombre}
-              imagen={b.imagen}
-              desbloqueada={b.desbloqueada}
-              progreso={b.veces > 1 ? `${b.veces} veces` : null}
-              variante="serie"
-              delay={i * 0.06}
-              onDescargarCertificado={b.desbloqueada ? () => descargarCertificadoManual(b) : undefined}
-              destacada={usuario.insigniaDestacada?.id === b.id}
-              onDestacar={b.desbloqueada ? () => destacar({ id: b.id, nombre: b.nombre, imagen: b.imagen }) : undefined}
-            />
-          ))}
+          {insigniasManuales
+            .filter((b) => b.id !== 'especial')
+            .map((b, i) => (
+              <div key={b.id}>
+                <Medalla
+                  nombre={b.nombre}
+                  imagen={b.imagen}
+                  desbloqueada={b.desbloqueada}
+                  progreso={b.veces > 1 ? `${b.veces} veces` : null}
+                  variante="serie"
+                  delay={i * 0.06}
+                  onDescargarCertificado={b.desbloqueada ? () => descargarCertificadoManual(b, b.ultimoMotivo) : undefined}
+                  destacada={usuario.insigniaDestacada?.id === b.id}
+                  onDestacar={b.desbloqueada ? () => destacar({ id: b.id, nombre: b.nombre, imagen: b.imagen }) : undefined}
+                />
+                {b.registros.length > 0 && (
+                  <button
+                    type="button"
+                    className="re-vinculo"
+                    style={{ display: 'block', margin: '6px auto 0', fontSize: '0.72rem' }}
+                    onClick={() => alternarExpandida(b.id)}
+                  >
+                    {expandidas.has(b.id) ? 'Ocultar detalle' : `Ver cada una (${b.registros.length})`}
+                  </button>
+                )}
+                {expandidas.has(b.id) && (
+                  <div className="re-detalle-registros">
+                    {b.registros.map((r) => (
+                      <div key={r.id} className="re-detalle-registros__fila">
+                        <span className="re-detalle-registros__fecha">
+                          {new Date(r.fecha).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span>
+                        {r.motivo && <span className="re-detalle-registros__motivo">"{r.motivo}"</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+        </div>
+      </div>
+
+      <div className="re-card">
+        <CabeceraSeccion
+          titulo="Insignias especiales individuales"
+          contador={`${insigniasManuales.find((b) => b.id === 'especial')?.veces || 0}`}
+        />
+        <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
+          Por lo mismo que son especiales, cada una se muestra por su cuenta — con su propio motivo y su propio
+          certificado.
+        </p>
+        <div className="re-medallas-grid">
+          {(() => {
+            const especial = insigniasManuales.find((b) => b.id === 'especial')
+            if (!especial) return null
+            if (especial.registros.length === 0) {
+              return <Medalla nombre="Especial" desbloqueada={false} />
+            }
+            return especial.registros.map((r, i) => (
+              <Medalla
+                key={r.id}
+                nombre={especial.nombre}
+                imagen={especial.imagen}
+                desbloqueada
+                progreso={r.motivo ? `"${r.motivo}"` : new Date(r.fecha).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                variante="serie"
+                delay={i * 0.06}
+                onDescargarCertificado={() => descargarCertificadoManual(especial, r.motivo, `-${r.id}`)}
+                destacada={usuario.insigniaDestacada?.id === `especial-${r.id}`}
+                onDestacar={() => destacar({ id: `especial-${r.id}`, nombre: especial.nombre, imagen: especial.imagen })}
+              />
+            ))
+          })()}
         </div>
       </div>
 

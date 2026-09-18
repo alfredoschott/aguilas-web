@@ -284,10 +284,18 @@ export async function getPerfilPublico(uid) {
   // otros todavía no están al día, que se vea el perfil sin rango/racha en
   // vez de tronar toda la pantalla.
   try {
-    const [insignias, racha] = await Promise.all([getInsigniasDe(uid), getRachaSemanas(uid)])
-    return { joven, nivelActual: insignias.nivelActual, racha }
+    const [insignias, racha, manuales] = await Promise.all([
+      getInsigniasDe(uid),
+      getRachaSemanas(uid),
+      getInsigniasManualesDe(uid),
+    ])
+    const especial = manuales.find((m) => m.id === 'especial')
+    const insigniasEspeciales = especial
+      ? especial.registros.map((r) => ({ id: r.id, motivo: r.motivo, fecha: r.fecha, nombre: especial.nombre, imagen: especial.imagen }))
+      : []
+    return { joven, nivelActual: insignias.nivelActual, racha, insigniasEspeciales }
   } catch {
-    return { joven, nivelActual: null, racha: 0 }
+    return { joven, nivelActual: null, racha: 0, insigniasEspeciales: [] }
   }
 }
 

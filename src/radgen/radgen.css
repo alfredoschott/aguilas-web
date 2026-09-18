@@ -838,6 +838,35 @@
   color: var(--rg-red);
 }
 
+/* ===== Detalle expandible de insignias agrupadas (libreta/servicio) ===== */
+
+.re-detalle-registros {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(15, 15, 18, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.re-detalle-registros__fila {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.7rem;
+}
+
+.re-detalle-registros__fecha {
+  font-weight: 800;
+  opacity: 0.6;
+}
+
+.re-detalle-registros__motivo {
+  font-style: italic;
+  opacity: 0.8;
+}
+
 .re-persona-card__nombre {
   font-family: 'Montserrat', sans-serif;
   font-weight: 900;

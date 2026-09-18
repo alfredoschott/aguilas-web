@@ -43,6 +43,7 @@ export default function PerfilJovenScreen({ usuario }) {
   const [experiencia, setExperiencia] = useState(null)
   const [otorgando, setOtorgando] = useState('')
   const [motivos, setMotivos] = useState({})
+  const [expandidas, setExpandidas] = useState({})
 
   useEffect(() => {
     Promise.all([
@@ -147,16 +148,17 @@ export default function PerfilJovenScreen({ usuario }) {
     setExperiencia(await getExperienciaDe(uid))
   }
 
-  async function descargarCertificadoManual(b) {
+  async function descargarCertificadoManual(b, motivo, sufijoArchivo = '') {
     const dataUrl = await generarCertificado({
       nombreJoven: joven.nombre,
       logro: b.nombre,
-      motivo: b.ultimoMotivo || undefined,
+      motivo: motivo || undefined,
       imagenUrl: b.imagen,
+      tipo: 'especial',
     })
     await compartirCertificado({
       dataUrl,
-      nombreArchivo: `certificado-${b.id}-${joven.nombre.toLowerCase().replace(/\s+/g, '-')}.png`,
+      nombreArchivo: `certificado-${b.id}${sufijoArchivo}-${joven.nombre.toLowerCase().replace(/\s+/g, '-')}.png`,
       titulo: '¡Insignia especial en RadGen Education!',
       texto: `${joven.nombre} recibió la insignia "${b.nombre}" en RadGen Education 🙌`,
     })
@@ -217,10 +219,11 @@ export default function PerfilJovenScreen({ usuario }) {
       <div className="re-card">
         <h2 className="re-subtitulo">Insignias especiales</h2>
         <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
-          Estas no se desbloquean solas — se las otorgas tú en persona.
+          Estas no se desbloquean solas — se las otorgas tú en persona. Libreta y Reunión de servicio se agrupan con
+          un contador; Especial, por lo mismo que es especial, se muestra cada una por su cuenta más abajo.
         </p>
         <div className="re-medallas-grid re-medallas-grid--otorgar">
-          {insigniasManuales.map((b) => (
+          {insigniasManuales.filter((b) => b.id !== 'especial').map((b) => (
             <div key={b.id} className={`re-medalla ${b.desbloqueada ? '' : 're-medalla--bloqueada'}`}>
               <div className="re-medalla__icono">
                 {b.desbloqueada ? <img src={b.imagen} alt="" className="re-medalla__imagen" /> : '🔒'}
@@ -251,24 +254,108 @@ export default function PerfilJovenScreen({ usuario }) {
                   type="button"
                   className="re-medalla__certificado"
                   style={{ marginTop: 6 }}
-                  onClick={() => descargarCertificadoManual(b)}
+                  onClick={() => descargarCertificadoManual(b, b.ultimoMotivo)}
                 >
                   🎓 Certificado
                 </button>
               )}
-              {b.registros[0] && (
+              {b.registros.length > 0 && (
                 <button
                   type="button"
                   className="re-medalla__certificado"
                   style={{ marginTop: 6 }}
-                  onClick={() => quitarUltima(b.registros[0].id)}
+                  onClick={() => setExpandidas((prev) => ({ ...prev, [b.id]: !prev[b.id] }))}
                 >
-                  Quitar la última
+                  {expandidas[b.id] ? 'Ocultar detalle' : `Ver cada una (${b.registros.length})`}
                 </button>
+              )}
+              {expandidas[b.id] && (
+                <div className="re-detalle-registros">
+                  {b.registros.map((r) => (
+                    <div key={r.id} className="re-detalle-registros__fila">
+                      <span className="re-detalle-registros__fecha">
+                        {new Date(r.fecha).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                      {r.motivo && <span className="re-detalle-registros__motivo">"{r.motivo}"</span>}
+                      <button type="button" className="re-vinculo re-vinculo--peligro" onClick={() => quitarUltima(r.id)}>
+                        Quitar esta
+                      </button>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="re-card">
+        <h2 className="re-subtitulo">Insignia "Especial" (individuales)</h2>
+        <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
+          Cada vez que otorgas una, se agrega a la lista de abajo por su cuenta — nunca se agrupan.
+        </p>
+        {(() => {
+          const especial = insigniasManuales.find((b) => b.id === 'especial')
+          if (!especial) return null
+          return (
+            <>
+              <div className="re-medalla" style={{ maxWidth: 260 }}>
+                <div className="re-medalla__icono">
+                  <img src={especial.imagen} alt="" className="re-medalla__imagen" />
+                </div>
+                <p className="re-medalla__nombre">{especial.nombre}</p>
+                <textarea
+                  className="re-input"
+                  rows={2}
+                  placeholder="¿Por qué se la otorgas? (opcional)"
+                  value={motivos.especial || ''}
+                  onChange={(e) => setMotivos((prev) => ({ ...prev, especial: e.target.value }))}
+                  style={{ resize: 'vertical', fontFamily: 'inherit', fontSize: '0.75rem', marginTop: 8, marginBottom: 8 }}
+                />
+                <button
+                  type="button"
+                  className="re-medalla__certificado"
+                  onClick={() => otorgar('especial')}
+                  disabled={otorgando === 'especial'}
+                >
+                  {otorgando === 'especial' ? 'Otorgando…' : '+ Otorgar una nueva'}
+                </button>
+              </div>
+
+              {especial.registros.length > 0 && (
+                <div className="re-medallas-grid" style={{ marginTop: 20 }}>
+                  {especial.registros.map((r) => (
+                    <div key={r.id} className="re-medalla">
+                      <div className="re-medalla__icono">
+                        <img src={especial.imagen} alt="" className="re-medalla__imagen" />
+                      </div>
+                      <p className="re-medalla__nombre">{especial.nombre}</p>
+                      <p className="re-medalla__progreso">
+                        {new Date(r.fecha).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                      {r.motivo && <p className="re-medalla__progreso">"{r.motivo}"</p>}
+                      <button
+                        type="button"
+                        className="re-medalla__certificado"
+                        onClick={() => descargarCertificadoManual(especial, r.motivo, `-${r.id}`)}
+                      >
+                        🎓 Certificado
+                      </button>
+                      <button
+                        type="button"
+                        className="re-medalla__certificado"
+                        style={{ marginTop: 6 }}
+                        onClick={() => quitarUltima(r.id)}
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )
+        })()}
       </div>
 
       <div className="re-card">

@@ -13,6 +13,14 @@ function dibujarRectRedondeado(ctx, x, y, w, h, r) {
   ctx.closePath()
 }
 
+function hexARgba(hex, alpha) {
+  const limpio = hex.replace('#', '')
+  const r = parseInt(limpio.slice(0, 2), 16)
+  const g = parseInt(limpio.slice(2, 4), 16)
+  const b = parseInt(limpio.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
 function cargarImagen(src) {
   return new Promise((resolve, reject) => {
     const img = new Image()
@@ -70,10 +78,21 @@ function dibujarConfeti(ctx) {
   })
 }
 
+// Cada tipo de logro tiene su propio color y su propio título, para que un
+// certificado de cápsula, de serie, de rango o una insignia especial se
+// sientan distintos entre sí de un vistazo, sin cambiar el layout general.
+const TEMAS_CERTIFICADO = {
+  leccion: { color: '#3a7bff', titulo1: 'CERTIFICADO', titulo2: 'DE CÁPSULA' },
+  serie: { color: '#34a853', titulo1: 'CERTIFICADO', titulo2: 'DE SERIE' },
+  rango: { color: '#9333e3', titulo1: 'CERTIFICADO', titulo2: 'DE RANGO' },
+  especial: { color: '#cf9a2e', titulo1: 'RECONOCIMIENTO', titulo2: 'ESPECIAL' },
+}
+
 // `icono` es un emoji (fallback simple); `imagenUrl` es la insignia real
 // en PNG y, si viene, se dibuja en su lugar. `motivo` es opcional — el
-// porqué que escribió la líder al otorgar una insignia especial.
-export async function generarCertificado({ nombreJoven, logro, motivo, icono = '🏆', imagenUrl }) {
+// porqué que escribió la líder al otorgar una insignia especial. `tipo`
+// decide el color y el título ('leccion' | 'serie' | 'rango' | 'especial').
+export async function generarCertificado({ nombreJoven, logro, motivo, icono = '🏆', imagenUrl, tipo = 'especial' }) {
   if (document.fonts) {
     await Promise.all([
       document.fonts.load('900 80px Montserrat'),
@@ -89,10 +108,11 @@ export async function generarCertificado({ nombreJoven, logro, motivo, icono = '
   const ctx = canvas.getContext('2d')
 
   const paper = '#F5F3EE'
-  const oro = '#cf9a2e'
   const azul = '#3a7bff'
   const rojo = '#FF3B3B'
   const bg = '#101014'
+  const tema = TEMAS_CERTIFICADO[tipo] || TEMAS_CERTIFICADO.especial
+  const acento = tema.color
 
   // Fondo con degradado radial — más escenario que rectángulo plano.
   const fondo = ctx.createRadialGradient(W / 2, H * 0.32, 100, W / 2, H * 0.4, W * 1.1)
@@ -119,7 +139,7 @@ export async function generarCertificado({ nombreJoven, logro, motivo, icono = '
   ctx.fillRect(0, H - 14, W, 14)
 
   const marco = 46
-  ctx.strokeStyle = oro
+  ctx.strokeStyle = acento
   ctx.lineWidth = 6
   dibujarRectRedondeado(ctx, marco, marco + 20, W - marco * 2, H - marco * 2 - 40, 28)
   ctx.stroke()
@@ -133,11 +153,12 @@ export async function generarCertificado({ nombreJoven, logro, motivo, icono = '
   ctx.font = '900 38px Montserrat, sans-serif'
   ctx.fillText('RADGEN EDUCATION', W / 2, 175)
 
-  // Resplandor dorado detrás de la insignia — el centro de atención de
-  // toda la imagen, pensado para ser lo primero que se ve en una historia.
+  // Resplandor del color del tema detrás de la insignia — el centro de
+  // atención de toda la imagen, pensado para ser lo primero que se ve en
+  // una historia.
   const resplandor = ctx.createRadialGradient(W / 2, 470, 30, W / 2, 470, 320)
-  resplandor.addColorStop(0, 'rgba(207,154,46,0.5)')
-  resplandor.addColorStop(1, 'rgba(207,154,46,0)')
+  resplandor.addColorStop(0, hexARgba(acento, 0.5))
+  resplandor.addColorStop(1, hexARgba(acento, 0))
   ctx.fillStyle = resplandor
   ctx.fillRect(W / 2 - 320, 190, 640, 640)
 
@@ -155,13 +176,13 @@ export async function generarCertificado({ nombreJoven, logro, motivo, icono = '
     ctx.fillText(icono, W / 2, 560)
   }
 
-  ctx.fillStyle = oro
+  ctx.fillStyle = acento
   ctx.font = '900 66px Montserrat, sans-serif'
-  ctx.fillText('CERTIFICADO', W / 2, 790)
+  ctx.fillText(tema.titulo1, W / 2, 790)
   ctx.font = '900 44px Montserrat, sans-serif'
-  ctx.fillText('DE LOGRO', W / 2, 845)
+  ctx.fillText(tema.titulo2, W / 2, 845)
 
-  ctx.strokeStyle = oro
+  ctx.strokeStyle = acento
   ctx.lineWidth = 3
   ctx.beginPath()
   ctx.moveTo(W / 2 - 90, 875)
@@ -175,7 +196,7 @@ export async function generarCertificado({ nombreJoven, logro, motivo, icono = '
   ctx.font = '900 76px Montserrat, sans-serif'
   ctx.fillText(nombreJoven, W / 2, 1040)
 
-  ctx.fillStyle = oro
+  ctx.fillStyle = acento
   ctx.font = '800 42px Montserrat, sans-serif'
   let cursorY = envolverTextoCentrado(ctx, logro, W / 2, 1120, W - 220, 50, 2)
 

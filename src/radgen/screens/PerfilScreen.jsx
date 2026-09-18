@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { actualizarPerfil, getInsigniasDe, getRachaSemanas } from '../store'
+import { actualizarPerfil, getInsigniasDe, getRachaSemanas, getInsigniasManualesDe } from '../store'
 import { recortarYComprimir } from '../utils/imagenPerfil'
 import { sonidosActivos, setSonidosActivos, sonidoCompletar } from '../utils/sonidos'
 import { notificacionesSoportadas, permisoNotificaciones, pedirPermisoNotificaciones } from '../utils/notificaciones'
@@ -49,12 +49,19 @@ export default function PerfilScreen({ usuario, onActualizar }) {
   const [racha, setRacha] = useState(0)
   const [sonidos, setSonidos] = useState(sonidosActivos())
   const [permisoAvisos, setPermisoAvisos] = useState(permisoNotificaciones())
+  const [insigniasEspeciales, setInsigniasEspeciales] = useState([])
 
   useEffect(() => {
-    Promise.all([getInsigniasDe(usuario.uid), getRachaSemanas(usuario.uid)]).then(([insignias, r]) => {
-      setMarco(insignias.nivelActual?.id || null)
-      setRacha(r)
-    })
+    Promise.all([getInsigniasDe(usuario.uid), getRachaSemanas(usuario.uid), getInsigniasManualesDe(usuario.uid)]).then(
+      ([insignias, r, manuales]) => {
+        setMarco(insignias.nivelActual?.id || null)
+        setRacha(r)
+        const especial = manuales.find((m) => m.id === 'especial')
+        setInsigniasEspeciales(
+          especial ? especial.registros.map((r) => ({ ...r, nombre: especial.nombre, imagen: especial.imagen })) : [],
+        )
+      },
+    )
   }, [usuario.uid])
 
   async function elegirFoto(e) {
@@ -241,6 +248,26 @@ export default function PerfilScreen({ usuario, onActualizar }) {
           </div>
         )}
       </div>
+
+      {insigniasEspeciales.length > 0 && (
+        <div className="re-card">
+          <h2 className="re-subtitulo">Insignias especiales</h2>
+          <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
+            Estas se ven también en tu perfil público.
+          </p>
+          <div className="re-medallas-grid">
+            {insigniasEspeciales.map((r) => (
+              <div key={r.id} className="re-medalla">
+                <div className="re-medalla__icono">
+                  <img src={r.imagen} alt="" className="re-medalla__imagen" />
+                </div>
+                <p className="re-medalla__nombre">{r.nombre}</p>
+                {r.motivo && <p className="re-medalla__progreso">"{r.motivo}"</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {usuario.insigniaDestacada && (
         <div className="re-card" style={{ textAlign: 'center' }}>
