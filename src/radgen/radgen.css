@@ -2293,8 +2293,70 @@
 .re-bloque {
   border-radius: 10px;
   border: 2px solid rgba(15, 15, 18, 0.15);
+  border-left: 5px solid rgba(15, 15, 18, 0.15);
   padding: 0.9rem 1rem 1rem;
   margin-bottom: 14px;
+  background: var(--rg-paper);
+  transition: opacity 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+}
+
+/* Un color por tipo de bloque — para distinguirlos de un vistazo sin tener
+   que leer la etiqueta de cada uno. */
+.re-bloque--versiculo {
+  border-left-color: var(--rg-blue);
+  background: rgba(58, 123, 255, 0.06);
+}
+
+.re-bloque--texto {
+  border-left-color: #e3a234;
+  background: rgba(227, 162, 52, 0.08);
+}
+
+.re-bloque--punto {
+  border-left-color: #34a853;
+  background: rgba(52, 168, 83, 0.07);
+}
+
+.re-bloque--reto {
+  border-left-color: var(--rg-red);
+  background: rgba(255, 59, 59, 0.06);
+}
+
+.re-bloque--arrastrando {
+  opacity: 0.98;
+  box-shadow: 0 16px 30px rgba(15, 15, 18, 0.35);
+  border-color: var(--rg-blue);
+  /* El transform (translateY para seguir al puntero + el levantado) se
+     aplica inline desde JS, porque translateY cambia en cada movimiento. */
+  position: relative;
+  z-index: 5;
+  cursor: grabbing;
+}
+
+.re-bloque__agarradera {
+  border: none;
+  background: none;
+  cursor: grab;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 2px 4px;
+  opacity: 0.5;
+  touch-action: none;
+  color: var(--rg-ink);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.re-bloque__agarradera:hover {
+  opacity: 0.9;
+}
+
+.re-bloque__agarradera:active {
+  cursor: grabbing;
+}
+
+.re-bloque--arrastrando .re-bloque__agarradera {
+  opacity: 1;
+  transform: scale(1.2);
 }
 
 .re-bloque__barra {
@@ -2351,6 +2413,30 @@
 .re-formato-ayuda {
   font-size: 0.68rem;
   opacity: 0.55;
+}
+
+/* ===== Checklist antes de guardar una lección ===== */
+
+.re-checklist-leccion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 1.2rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.re-checklist-leccion .ok {
+  color: var(--rg-blue-light);
+}
+
+.re-checklist-leccion .falta {
+  color: var(--rg-red);
+}
+
+.re-checklist-leccion .opcional {
+  opacity: 0.55;
+  font-weight: 600;
 }
 
 .re-tarea__check {

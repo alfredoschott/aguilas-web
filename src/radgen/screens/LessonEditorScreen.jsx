@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getSeries, getLeccionPorId, crearLeccion, actualizarLeccion, slugificar, obtenerBloques } from '../store'
 import { extraerYoutubeId } from '../utils/youtube'
 import { subirImagenLeccion, borrarImagenLeccion } from '../utils/imagenLeccion'
+import { leerBorradorLeccion, guardarBorradorLeccion, limpiarBorradorLeccion } from '../utils/borradorLeccion'
+import useArrastrarBloques from '../hooks/useArrastrarBloques'
 import Sky from '../components/Sky'
 import CampoTextoFormateado from '../components/CampoTextoFormateado'
+import LeccionContenidoLectura from '../components/LeccionContenidoLectura'
+import Toast from '../components/Toast'
 
 const PREGUNTA_VACIA = () => ({ pregunta: '', opciones: ['', '', '', ''], correcta: 0 })
 
@@ -17,14 +21,27 @@ const TIPOS_BLOQUE = [
   ['reto', '🎯 Reto'],
 ]
 
+function idBloque() {
+  return `b${Date.now()}${Math.random().toString(36).slice(2, 7)}`
+}
+
 function bloqueVacio(tipo) {
-  const base = { id: `b${Date.now()}${Math.random().toString(36).slice(2, 7)}`, tipo }
+  const base = { id: idBloque(), tipo }
   return tipo === 'versiculo' ? { ...base, referencia: '', texto: '' } : { ...base, texto: '' }
+}
+
+// Estructura típica de una cápsula — para no partir de una pantalla en
+// blanco cada vez: un versículo, algo de contexto, un par de puntos clave y
+// un reto, todo vacío y listo para llenarse.
+function plantillaTipica() {
+  return [bloqueVacio('versiculo'), bloqueVacio('texto'), bloqueVacio('punto'), bloqueVacio('punto'), bloqueVacio('reto')]
 }
 
 export default function LessonEditorScreen() {
   const { leccionId } = useParams()
   const navigate = useNavigate()
+  const claveBorrador = leccionId || 'nueva'
+
   const [cargando, setCargando] = useState(true)
   const [existente, setExistente] = useState(null)
   const [series, setSeries] = useState([])
@@ -42,6 +59,21 @@ export default function LessonEditorScreen() {
   const [comoBorrador, setComoBorrador] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [guardando, setGuardando] = useState(false)
+  const [mostrarPreview, setMostrarPreview] = useState(false)
+  const [bannerBorrador, setBannerBorrador] = useState(null)
+
+  const [bloqueEliminado, setBloqueEliminado] = useState(null)
+  const deshacerTimeoutRef = useRef(null)
+
+  const {
+    arrastrandoId,
+    offsetY: offsetYArrastre,
+    registrarRef,
+    iniciar: iniciarArrastre,
+    mover: moverArrastre,
+    terminar: terminarArrastre,
+    calcularDesplazamiento,
+  } = useArrastrarBloques(bloques, setBloques)
 
   useEffect(() => {
     Promise.all([leccionId ? getLeccionPorId(leccionId) : Promise.resolve(null), getSeries()]).then(([d, s]) => {
@@ -56,22 +88,82 @@ export default function LessonEditorScreen() {
       setQuiz(d?.quiz?.length ? d.quiz : [])
       setBloques(d ? obtenerBloques(d) : [])
       setCargando(false)
+
+      const borrador = leerBorradorLeccion(claveBorrador)
+      if (borrador && (borrador.titulo?.trim() || borrador.bloques?.length > 0)) {
+        setBannerBorrador(borrador)
+      }
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leccionId])
 
+  // Autoguarda todo el formulario mientras se escribe, para no perder una
+  // lección larga si se cierra la pestaña a medio hacer. Se detiene
+  // mientras hay un borrador anterior sin resolver (restaurar/descartar),
+  // para no pisarlo con el estado recién cargado antes de que decidan.
+  useEffect(() => {
+    if (cargando || bannerBorrador) return
+    guardarBorradorLeccion(claveBorrador, {
+      modoSerie, serieId, serieNueva, titulo, icono, youtubeInput, imagen, quiz, bloques, comoBorrador,
+    })
+  }, [cargando, bannerBorrador, claveBorrador, modoSerie, serieId, serieNueva, titulo, icono, youtubeInput, imagen, quiz, bloques, comoBorrador])
+
   const usaSerieNueva = modoSerie === 'nueva' || series.length === 0
+
+  function restaurarBorrador() {
+    const d = bannerBorrador
+    if (!d) return
+    setModoSerie(d.modoSerie || 'existente')
+    setSerieId(d.serieId || '')
+    setSerieNueva(d.serieNueva || '')
+    setTitulo(d.titulo || '')
+    setIcono(d.icono || '📖')
+    setYoutubeInput(d.youtubeInput || '')
+    setImagen(d.imagen || '')
+    setQuiz(d.quiz || [])
+    setBloques(d.bloques || [])
+    setComoBorrador(!!d.comoBorrador)
+    setBannerBorrador(null)
+  }
+
+  function descartarBorrador() {
+    limpiarBorradorLeccion(claveBorrador)
+    setBannerBorrador(null)
+  }
 
   function agregarBloque(tipo) {
     setBloques((prev) => [...prev, bloqueVacio(tipo)])
   }
+
+  function usarPlantilla() {
+    setBloques(plantillaTipica())
+  }
+
   function quitarBloque(id) {
-    setBloques((prev) => prev.filter((b) => b.id !== id))
+    setBloques((prev) => {
+      const i = prev.findIndex((b) => b.id === id)
+      if (i === -1) return prev
+      if (deshacerTimeoutRef.current) clearTimeout(deshacerTimeoutRef.current)
+      setBloqueEliminado({ bloque: prev[i], indice: i })
+      deshacerTimeoutRef.current = setTimeout(() => setBloqueEliminado(null), 6000)
+      return prev.filter((b) => b.id !== id)
+    })
+  }
+  function deshacerEliminarBloque() {
+    if (!bloqueEliminado) return
+    clearTimeout(deshacerTimeoutRef.current)
+    setBloques((prev) => {
+      const copia = [...prev]
+      copia.splice(Math.min(bloqueEliminado.indice, copia.length), 0, bloqueEliminado.bloque)
+      return copia
+    })
+    setBloqueEliminado(null)
   }
   function duplicarBloque(id) {
     setBloques((prev) => {
       const i = prev.findIndex((b) => b.id === id)
       if (i === -1) return prev
-      const copia = { ...prev[i], id: `b${Date.now()}${Math.random().toString(36).slice(2, 7)}` }
+      const copia = { ...prev[i], id: idBloque() }
       return [...prev.slice(0, i + 1), copia, ...prev.slice(i + 1)]
     })
   }
@@ -160,6 +252,7 @@ export default function LessonEditorScreen() {
       } else {
         await crearLeccion(payload)
       }
+      limpiarBorradorLeccion(claveBorrador)
       setMensaje('Guardado.')
       setTimeout(() => navigate('/radgen/education/lider', { state: { tab: 'cursos' } }), 600)
     } finally {
@@ -174,6 +267,26 @@ export default function LessonEditorScreen() {
       </div>
     )
   }
+
+  const youtubeIdVivo = extraerYoutubeId(youtubeInput)
+  const leccionPreview = {
+    titulo: titulo.trim() || 'Sin título todavía',
+    icono: icono.trim() || '📖',
+    imagen: imagen.trim() || null,
+    youtubeId: youtubeIdVivo || null,
+    contenido: bloques,
+    quiz: quiz.filter((p) => p.pregunta.trim()),
+  }
+
+  const chequeos = [
+    { ok: titulo.trim().length > 0, texto: 'Título' },
+    { ok: bloques.length > 0, texto: 'Al menos un bloque de contenido' },
+  ]
+  const opcionales = [
+    { ok: !!youtubeIdVivo, texto: 'Video' },
+    { ok: quiz.some((p) => p.pregunta.trim()), texto: 'Quiz' },
+    { ok: !!imagen.trim(), texto: 'Imagen destacada' },
+  ]
 
   return (
     <div className="re-shell re-shell--ancho">
@@ -195,6 +308,16 @@ export default function LessonEditorScreen() {
       </div>
       {existente?.estado === 'borrador' && (
         <p className="re-eyebrow" style={{ marginTop: 12, marginBottom: '1rem' }}>📝 Borrador — publícala desde Cursos cuando esté lista</p>
+      )}
+
+      {bannerBorrador && (
+        <div className="re-vista-previa-banner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <span>💾 Tienes cambios sin guardar de una sesión anterior en esta lección.</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" className="re-btn re-btn--sm" onClick={restaurarBorrador}>Restaurar</button>
+            <button type="button" className="re-vinculo" onClick={descartarBorrador}>Descartar</button>
+          </div>
+        </div>
       )}
 
       <div className="re-card">
@@ -306,16 +429,47 @@ export default function LessonEditorScreen() {
       </div>
 
       <div className="re-card">
-        <h2 className="re-subtitulo">Contenido de la lección</h2>
-        <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <h2 className="re-subtitulo" style={{ margin: 0 }}>Contenido de la lección</h2>
+          <button type="button" className="re-btn re-btn--sm" onClick={() => setMostrarPreview((v) => !v)}>
+            {mostrarPreview ? 'Ocultar vista previa' : '👁 Vista previa en vivo'}
+          </button>
+        </div>
+        <p style={{ marginTop: 10, marginBottom: 16, opacity: 0.75 }}>
           Arma la lección con los bloques que quieras, en el orden que quieras — cuantos versículos, textos, puntos
-          o retos necesites.
+          o retos necesites. Arrastra el ⠿ para reordenar, o usa las flechas.
         </p>
 
-        {bloques.map((b, i) => (
-          <div key={b.id} className="re-bloque">
+        {bloques.map((b, i) => {
+          const esArrastrado = arrastrandoId === b.id
+          const desplazamiento = calcularDesplazamiento(b.id, i)
+          const estiloArrastre = esArrastrado
+            ? { transform: `translateY(${offsetYArrastre}px) scale(1.025) rotate(-0.6deg)`, transition: 'none' }
+            : desplazamiento
+              ? { transform: `translateY(${desplazamiento}px)` }
+              : undefined
+          return (
+          <div
+            key={b.id}
+            ref={(el) => registrarRef(b.id, el)}
+            className={`re-bloque re-bloque--${b.tipo} ${esArrastrado ? 're-bloque--arrastrando' : ''}`}
+            style={estiloArrastre}
+          >
             <div className="re-bloque__barra">
-              <span className="re-bloque__tipo">{TIPOS_BLOQUE.find(([t]) => t === b.tipo)?.[1] || b.tipo}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  type="button"
+                  className="re-bloque__agarradera"
+                  title="Arrastrar para reordenar"
+                  onPointerDown={(e) => iniciarArrastre(e, b.id)}
+                  onPointerMove={moverArrastre}
+                  onPointerUp={terminarArrastre}
+                  onPointerCancel={terminarArrastre}
+                >
+                  ⠿
+                </button>
+                <span className="re-bloque__tipo">{TIPOS_BLOQUE.find(([t]) => t === b.tipo)?.[1] || b.tipo}</span>
+              </div>
               <div className="re-bloque__acciones">
                 <button type="button" className="re-vinculo re-vinculo--icono" disabled={i === 0} onClick={() => moverBloque(b.id, -1)}>↑</button>
                 <button type="button" className="re-vinculo re-vinculo--icono" disabled={i === bloques.length - 1} onClick={() => moverBloque(b.id, 1)}>↓</button>
@@ -365,10 +519,18 @@ export default function LessonEditorScreen() {
               />
             )}
           </div>
-        ))}
+          )
+        })}
 
         {bloques.length === 0 && (
-          <p style={{ opacity: 0.6, marginBottom: 16 }}>Todavía no agregas contenido — usa los botones de abajo.</p>
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ opacity: 0.6, marginBottom: 10 }}>Todavía no agregas contenido — usa los botones de abajo.</p>
+            {!existente && (
+              <button type="button" className="re-btn re-btn--sm" onClick={usarPlantilla}>
+                ✨ Empezar con estructura típica
+              </button>
+            )}
+          </div>
         )}
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: bloques.length ? 16 : 0 }}>
@@ -379,6 +541,16 @@ export default function LessonEditorScreen() {
           ))}
         </div>
       </div>
+
+      {mostrarPreview && (
+        <div className="re-card">
+          <div className="re-vista-previa-banner" style={{ marginBottom: 16 }}>
+            👁 Así se ve mientras escribes — se actualiza sola.
+          </div>
+          <h2 className="re-subtitulo">{leccionPreview.icono} {leccionPreview.titulo}</h2>
+          <LeccionContenidoLectura leccion={leccionPreview} />
+        </div>
+      )}
 
       <div className="re-card">
         <h2 className="re-subtitulo">Quiz (opcional)</h2>
@@ -430,6 +602,19 @@ export default function LessonEditorScreen() {
         </label>
       )}
 
+      <div className="re-checklist-leccion">
+        {chequeos.map((c) => (
+          <span key={c.texto} className={c.ok ? 'ok' : 'falta'}>
+            {c.ok ? '✅' : '⚠️'} {c.texto}
+          </span>
+        ))}
+        {opcionales.map((c) => (
+          <span key={c.texto} className={c.ok ? 'ok' : 'opcional'}>
+            {c.ok ? '✅' : 'ℹ️'} {c.texto}{!c.ok ? ' (opcional)' : ''}
+          </span>
+        ))}
+      </div>
+
       <button
         className="re-btn re-btn--lleno re-btn--bloque"
         onClick={guardar}
@@ -438,6 +623,8 @@ export default function LessonEditorScreen() {
         {guardando ? 'Guardando…' : existente ? 'Guardar cambios' : comoBorrador ? 'Guardar borrador' : 'Crear lección'}
       </button>
       {mensaje && <p style={{ textAlign: 'center', marginTop: 10, fontWeight: 700 }}>{mensaje}</p>}
+
+      <Toast mensaje={bloqueEliminado ? 'Bloque eliminado.' : ''} onDeshacer={deshacerEliminarBloque} />
     </div>
   )
 }
