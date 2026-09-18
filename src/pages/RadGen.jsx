@@ -636,7 +636,7 @@ function RadGen() {
             <ArrowLeft size={15} strokeWidth={2.5} />
             <span>Águilas CFC</span>
           </Link>
-          <a href="#registro" className="btn btn-blue">Únete</a>
+          <Link to="/radgen/education" className="btn btn-blue">Education</Link>
         </div>
       </nav>
 
