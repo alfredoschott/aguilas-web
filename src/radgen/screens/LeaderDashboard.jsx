@@ -15,7 +15,7 @@ import {
   asignarSerieCompleta,
   getTablaEstado,
   asignarLeccion,
-  getRankingCampamento,
+  getRanking,
   getRequisitos,
   toggleRequisito,
   getInsigniasDe,
@@ -35,10 +35,22 @@ import {
   reaccionarActividad,
   getXpConfig,
   setXpConfig,
-  getExperienciaRanking,
+  getPausasCalendario,
+  alternarPausaCalendario,
+  calendarioEnPausa,
+  getEquipos,
+  guardarEquipos,
+  calcularRankingEquipos,
+  crearReunion,
+  cerrarReunion,
+  getReuniones,
+  observarAsistenciasDeReunion,
+  quitarAsistencia,
 } from '../store'
+import QRCode from 'qrcode'
 import Sky from '../components/Sky'
 import Avatar from '../components/Avatar'
+import { PodioRanking, TablaRanking, RankingEquipos } from '../components/Ranking'
 import Toast from '../components/Toast'
 import { exportarEstadoCsv } from '../utils/exportCsv'
 import { subirImagenSerie } from '../utils/imagenLeccion'
@@ -52,8 +64,16 @@ const TABS = [
   ['elegibilidad', 'Elegibilidad'],
   ['notas', 'Notas y preguntas'],
   ['ranking', 'Ranking'],
+  ['equipos', 'Equipos'],
+  ['asistencia', 'Asistencia'],
   ['experiencia', 'Experiencia'],
 ]
+
+const DIAS_COMO_NUEVO = 14
+
+function esNuevo(joven) {
+  return joven.creadoEn && Date.now() - new Date(joven.creadoEn).getTime() < DIAS_COMO_NUEVO * 24 * 60 * 60 * 1000
+}
 
 const COLORES_SERIE = [
   { valor: null, nombre: 'Sin color' },
@@ -508,29 +528,50 @@ function PanelAsignacionPersonal({ usuario, jovenes }) {
   )
 }
 
+function haceCuanto(fechaIso) {
+  if (!fechaIso) return ''
+  const dias = Math.floor((Date.now() - new Date(fechaIso).getTime()) / (24 * 60 * 60 * 1000))
+  if (dias <= 0) return 'hoy'
+  if (dias === 1) return 'ayer'
+  if (dias < 7) return `hace ${dias} días`
+  const semanas = Math.floor(dias / 7)
+  if (semanas < 5) return `hace ${semanas} semana${semanas === 1 ? '' : 's'}`
+  return new Date(fechaIso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+}
+
 // Puramente presentacional — recibe ya calculados los datos del joven
 // (vienen de `ranking` y `tabla`, que el panel padre ya cargó una sola vez).
-function TarjetaPersona({ joven, totalCompletadas, totalAsignaciones, nivelActual, racha, pendientes }) {
+function TarjetaPersona({ joven, totalCompletadas, totalAsignaciones, nivelActual, racha, pendientes, xpTotal }) {
   return (
-    <Link to={`/radgen/education/lider/joven/${joven.uid}`} className="re-persona-card">
+    <Link to={`/radgen/education/lider/joven/${joven.uid}`} className={`re-persona-card ${totalAsignaciones === 0 ? 're-persona-card--sin-asignar' : ''}`}>
       <div className="re-persona-card__cabecera">
         <div className="re-persona-card__identidad">
-          <Avatar nombre={joven.nombre} foto={joven.fotoPerfil} uid={joven.uid} size={40} />
-          <p className="re-persona-card__nombre">{joven.nombre}</p>
+          <Avatar nombre={joven.nombre} foto={joven.fotoPerfil} uid={joven.uid} size={40} colorAcento={joven.colorAcento} />
+          <div>
+            <p className="re-persona-card__nombre">{joven.nombre}</p>
+            {joven.creadoEn && <p className="re-persona-card__unido">Se unió {haceCuanto(joven.creadoEn)}</p>}
+          </div>
         </div>
         <span className="re-leccion-item__flecha" aria-hidden="true">→</span>
       </div>
 
       <p className="re-persona-card__resumen">
-        {totalCompletadas} de {totalAsignaciones} cápsula{totalAsignaciones === 1 ? '' : 's'} completada{totalCompletadas === 1 ? '' : 's'}
+        {totalAsignaciones === 0
+          ? 'Todavía no tiene cápsulas asignadas'
+          : `${totalCompletadas} de ${totalAsignaciones} cápsula${totalAsignaciones === 1 ? '' : 's'} completada${totalCompletadas === 1 ? '' : 's'}`}
       </p>
 
+      {totalAsignaciones > 0 && (
+        <div className="re-barra re-barra--mini">
+          <div className="re-barra__relleno" style={{ width: `${Math.round((totalCompletadas / totalAsignaciones) * 100)}%` }} />
+        </div>
+      )}
+
       <div className="re-persona-card__chips">
-        {nivelActual ? (
-          <span className="re-badge re-badge--completado">{nivelActual.icono} {nivelActual.nombre}</span>
-        ) : (
-          <span className="re-badge re-badge--pendiente">Sin rango aún</span>
-        )}
+        {esNuevo(joven) && <span className="re-badge re-badge--nuevo">🆕 Nuevo</span>}
+        {totalAsignaciones === 0 && <span className="re-badge re-badge--alerta">Sin asignar</span>}
+        {nivelActual && <span className="re-badge re-badge--completado">{nivelActual.icono} {nivelActual.nombre}</span>}
+        {xpTotal > 0 && <span className="re-badge re-badge--completado">⚡ {xpTotal} XP</span>}
         {racha > 0 && <span className="re-badge re-badge--completado">🔥 {racha}</span>}
         {pendientes > 0 && <span className="re-badge re-badge--pendiente">{pendientes} pendiente{pendientes === 1 ? '' : 's'}</span>}
       </div>
@@ -538,37 +579,122 @@ function TarjetaPersona({ joven, totalCompletadas, totalAsignaciones, nivelActua
   )
 }
 
+const FILTROS_SEGUIMIENTO = [
+  ['todos', 'Todos'],
+  ['nuevos', '🆕 Nuevos'],
+  ['sin-asignar', 'Sin asignar'],
+  ['con-pendientes', 'Con pendientes'],
+]
+
 function PanelSeguimiento({ jovenes, tabla, ranking }) {
+  const [filtro, setFiltro] = useState('todos')
+
+  const datos = jovenes
+    .map((j) => {
+      const deEsteJoven = tabla.filter((f) => f.asignadoA === j.uid)
+      const filaRanking = ranking.find((r) => r.joven.uid === j.uid)
+      return {
+        joven: j,
+        totalAsignaciones: deEsteJoven.length,
+        pendientes: deEsteJoven.filter((f) => f.estado !== 'completado').length,
+        filaRanking,
+      }
+    })
+    .sort((a, b) => (b.joven.creadoEn || '').localeCompare(a.joven.creadoEn || ''))
+
+  const nuevos = datos.filter((d) => esNuevo(d.joven))
+  const sinAsignar = datos.filter((d) => d.totalAsignaciones === 0)
+
+  const visibles = datos.filter((d) => {
+    if (filtro === 'nuevos') return esNuevo(d.joven)
+    if (filtro === 'sin-asignar') return d.totalAsignaciones === 0
+    if (filtro === 'con-pendientes') return d.pendientes > 0
+    return true
+  })
+
   return (
-    <div className="re-card re-card--rojo">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
-        <h2 className="re-subtitulo" style={{ margin: 0 }}>Estado por joven</h2>
-        <button className="re-btn re-btn--sm" onClick={() => exportarEstadoCsv(tabla)}>
-          ⬇ Exportar CSV
+    <>
+      <div className="re-resumen-grupo">
+        <div className="re-resumen-grupo__dato">
+          <span className="re-resumen-grupo__numero">{jovenes.length}</span>
+          <span className="re-resumen-grupo__etiqueta">jóvenes registrados</span>
+        </div>
+        <button type="button" className="re-resumen-grupo__dato re-resumen-grupo__dato--nuevo" onClick={() => setFiltro('nuevos')}>
+          <span className="re-resumen-grupo__numero">{nuevos.length}</span>
+          <span className="re-resumen-grupo__etiqueta">nuevos (últimos {DIAS_COMO_NUEVO} días)</span>
         </button>
+        <button type="button" className="re-resumen-grupo__dato re-resumen-grupo__dato--alerta" onClick={() => setFiltro('sin-asignar')}>
+          <span className="re-resumen-grupo__numero">{sinAsignar.length}</span>
+          <span className="re-resumen-grupo__etiqueta">sin ninguna cápsula asignada</span>
+        </button>
+        <div className="re-resumen-grupo__dato">
+          <span className="re-resumen-grupo__numero">{jovenes.length - sinAsignar.length}</span>
+          <span className="re-resumen-grupo__etiqueta">ya con cápsulas</span>
+        </div>
       </div>
 
-      <div className="re-personas-grid">
-        {jovenes.map((j) => {
-          const deEsteJoven = tabla.filter((f) => f.asignadoA === j.uid)
-          const filaRanking = ranking.find((r) => r.joven.uid === j.uid)
-          const pendientes = deEsteJoven.filter((f) => f.estado !== 'completado').length
-          return (
+      {nuevos.length > 0 && (
+        <div className="re-card re-card--nuevos">
+          <h2 className="re-subtitulo">🆕 Se unieron recientemente</h2>
+          <div className="re-nuevos-lista">
+            {nuevos.map((d) => (
+              <Link key={d.joven.uid} to={`/radgen/education/lider/joven/${d.joven.uid}`} className="re-nuevo-item">
+                <Avatar nombre={d.joven.nombre} foto={d.joven.fotoPerfil} uid={d.joven.uid} size={36} colorAcento={d.joven.colorAcento} />
+                <span className="re-nuevo-item__texto">
+                  <strong>{d.joven.nombre}</strong>
+                  <small>Se unió {haceCuanto(d.joven.creadoEn)}</small>
+                </span>
+                {d.totalAsignaciones === 0 ? (
+                  <span className="re-badge re-badge--alerta">Sin asignar</span>
+                ) : (
+                  <span className="re-badge re-badge--completado">✓ {d.totalAsignaciones} asignada{d.totalAsignaciones === 1 ? '' : 's'}</span>
+                )}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="re-card re-card--rojo">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+          <h2 className="re-subtitulo" style={{ margin: 0 }}>Estado por joven</h2>
+          <button className="re-btn re-btn--sm" onClick={() => exportarEstadoCsv(tabla)}>
+            ⬇ Exportar CSV
+          </button>
+        </div>
+
+        <div className="re-filtros">
+          {FILTROS_SEGUIMIENTO.map(([valor, etiqueta]) => (
+            <button
+              key={valor}
+              type="button"
+              className={`re-check-pill ${filtro === valor ? 'activo' : ''}`}
+              onClick={() => setFiltro(valor)}
+            >
+              {etiqueta}
+            </button>
+          ))}
+        </div>
+
+        <div className="re-personas-grid">
+          {visibles.map((d) => (
             <TarjetaPersona
-              key={j.uid}
-              joven={j}
-              totalCompletadas={filaRanking?.totalCompletadas || 0}
-              totalAsignaciones={deEsteJoven.length}
-              nivelActual={filaRanking?.nivelActual || null}
-              racha={filaRanking?.racha || 0}
-              pendientes={pendientes}
+              key={d.joven.uid}
+              joven={d.joven}
+              totalCompletadas={d.filaRanking?.totalCompletadas || 0}
+              totalAsignaciones={d.totalAsignaciones}
+              nivelActual={d.filaRanking?.nivelActual || null}
+              racha={d.filaRanking?.racha || 0}
+              xpTotal={d.filaRanking?.xpTotal || 0}
+              pendientes={d.pendientes}
             />
-          )
-        })}
-      </div>
+          ))}
+        </div>
 
-      {jovenes.length === 0 && <p style={{ opacity: 0.6 }}>Todavía no hay jóvenes registrados.</p>}
-    </div>
+        {jovenes.length === 0 && <p style={{ opacity: 0.6 }}>Todavía no hay jóvenes registrados.</p>}
+        {jovenes.length > 0 && visibles.length === 0 && <p style={{ opacity: 0.6 }}>Nadie en este filtro. 🎉</p>}
+      </div>
+    </>
   )
 }
 
@@ -797,15 +923,20 @@ function PanelNotasYPreguntas({ usuario, jovenes, pendientes, refrescarPendiente
   )
 }
 
+const rutaPerfilLider = (uid) => `/radgen/education/lider/joven/${uid}`
+
 function PanelRanking({ ranking, mostrarRanking, cambiarVisibilidadRanking }) {
   return (
-    <div className="re-card re-card--rojo">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-        <h2 className="re-subtitulo" style={{ margin: 0 }}>Ranking para el campamento</h2>
+    <div className="re-card re-card--ranking">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
+        <h2 className="re-subtitulo" style={{ margin: 0 }}>Ranking del grupo</h2>
         <Link to="/radgen/education/proyector" target="_blank" className="re-btn re-btn--sm">
           🖥️ Modo proyector
         </Link>
       </div>
+      <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
+        Un solo ranking: ordenado por experiencia (XP) y, si empatan, por insignias totales.
+      </p>
 
       <button
         type="button"
@@ -817,57 +948,283 @@ function PanelRanking({ ranking, mostrarRanking, cambiarVisibilidadRanking }) {
         <span>{mostrarRanking ? 'Los jóvenes SÍ ven este ranking' : 'Los jóvenes NO ven este ranking'}</span>
       </button>
 
-      <div className="re-tabla-wrap">
-        <table className="re-tabla">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Joven</th>
-              <th>Cápsulas completadas</th>
-              <th>Racha</th>
-              <th>Rango</th>
-              <th>Insignias totales</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ranking.map((fila, i) => (
-              <tr key={fila.joven.uid}>
-                <td>{i + 1}</td>
-                <td>
-                  <Link
-                    to={`/radgen/education/lider/joven/${fila.joven.uid}`}
-                    className="re-vinculo re-vinculo--nombre"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
-                  >
-                    <Avatar nombre={fila.joven.nombre} foto={fila.joven.fotoPerfil} uid={fila.joven.uid} size={26} />
-                    {fila.joven.nombre}
-                  </Link>
-                </td>
-                <td>{fila.totalCompletadas}</td>
-                <td>{fila.racha > 0 ? `🔥 ${fila.racha}` : '—'}</td>
-                <td>{fila.nivelActual ? `${fila.nivelActual.icono} ${fila.nivelActual.nombre}` : '—'}</td>
-                <td>{fila.insigniasTotal}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {ranking.length === 0 ? (
+        <p style={{ opacity: 0.6 }}>Todavía no hay jóvenes registrados.</p>
+      ) : (
+        <>
+          <PodioRanking ranking={ranking} rutaPerfil={rutaPerfilLider} />
+          <TablaRanking ranking={ranking} rutaPerfil={rutaPerfilLider} detallado />
+        </>
+      )}
     </div>
   )
 }
 
+const COLORES_EQUIPO = ['#3a7bff', '#FF3B3B', '#e3a234', '#34a853', '#9333e3', '#14b8a6']
+
+function PanelEquipos({ jovenes, ranking, equipos, setEquipos }) {
+  const [nombreNuevo, setNombreNuevo] = useState('')
+  const [guardando, setGuardando] = useState(false)
+
+  async function guardar(lista) {
+    setGuardando(true)
+    try {
+      setEquipos(await guardarEquipos(lista))
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  function crear() {
+    if (!nombreNuevo.trim()) return
+    const nuevo = {
+      id: `equipo-${Date.now()}`,
+      nombre: nombreNuevo.trim(),
+      color: COLORES_EQUIPO[equipos.length % COLORES_EQUIPO.length],
+      miembros: [],
+    }
+    setNombreNuevo('')
+    guardar([...equipos, nuevo])
+  }
+
+  // Un joven solo puede estar en un equipo — moverlo lo saca del anterior.
+  function moverJoven(uid, equipoId) {
+    guardar(
+      equipos.map((e) => {
+        const sinEl = (e.miembros || []).filter((m) => m !== uid)
+        return e.id === equipoId ? { ...e, miembros: [...sinEl, uid] } : { ...e, miembros: sinEl }
+      }),
+    )
+  }
+
+  function eliminar(equipoId) {
+    guardar(equipos.filter((e) => e.id !== equipoId))
+  }
+
+  const equipoDe = (uid) => equipos.find((e) => e.miembros?.includes(uid))?.id || ''
+  const rankingEquipos = calcularRankingEquipos(equipos, ranking)
+
+  return (
+    <>
+      {equipos.length > 0 && (
+        <div className="re-card re-card--ranking">
+          <h2 className="re-subtitulo">Competencia por equipos</h2>
+          <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
+            Se ordena por XP promedio por integrante, para que un equipo más grande no gane solo por tener más gente.
+          </p>
+          <RankingEquipos equipos={rankingEquipos} />
+        </div>
+      )}
+
+      <div className="re-card">
+        <h2 className="re-subtitulo">Armar equipos</h2>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
+          <input
+            className="re-input"
+            style={{ marginBottom: 0, maxWidth: 280 }}
+            placeholder="Nombre del equipo (ej. Leones)"
+            value={nombreNuevo}
+            onChange={(e) => setNombreNuevo(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && crear()}
+          />
+          <button className="re-btn re-btn--lleno" onClick={crear} disabled={!nombreNuevo.trim() || guardando}>
+            + Crear equipo
+          </button>
+        </div>
+
+        {equipos.length > 0 && (
+          <div className="re-equipos-chips">
+            {equipos.map((e) => (
+              <span key={e.id} className="re-equipo-chip" style={{ '--equipo-color': e.color }}>
+                {e.nombre} · {e.miembros?.length || 0}
+                <button type="button" onClick={() => eliminar(e.id)} title="Eliminar equipo" disabled={guardando}>✕</button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {equipos.length === 0 ? (
+          <p style={{ opacity: 0.6 }}>Crea al menos un equipo para empezar a repartir jóvenes.</p>
+        ) : (
+          <div className="re-equipos-asignacion">
+            {jovenes.map((j) => (
+              <div key={j.uid} className="re-equipos-asignacion__fila">
+                <Avatar nombre={j.nombre} foto={j.fotoPerfil} uid={j.uid} size={30} colorAcento={j.colorAcento} />
+                <span className="re-equipos-asignacion__nombre">{j.nombre}</span>
+                <select
+                  className="re-input"
+                  style={{ marginBottom: 0, maxWidth: 200 }}
+                  value={equipoDe(j.uid)}
+                  onChange={(e) => moverJoven(j.uid, e.target.value)}
+                  disabled={guardando}
+                >
+                  <option value="">Sin equipo</option>
+                  {equipos.map((e) => (
+                    <option key={e.id} value={e.id}>{e.nombre}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
+function QrReunion({ codigo, grande }) {
+  const [src, setSrc] = useState('')
+  useEffect(() => {
+    const url = `${window.location.origin}/radgen/education/asistencia/${codigo}`
+    QRCode.toDataURL(url, { width: grande ? 720 : 320, margin: 1, color: { dark: '#0F0F12', light: '#FFFFFF' } }).then(setSrc)
+  }, [codigo, grande])
+  return src ? <img src={src} alt={`Código QR de asistencia ${codigo}`} className={grande ? 're-qr re-qr--grande' : 're-qr'} /> : null
+}
+
+function PanelAsistencia({ usuario, jovenes }) {
+  const [reuniones, setReuniones] = useState([])
+  const [titulo, setTitulo] = useState('')
+  const [creando, setCreando] = useState(false)
+  const [asistentes, setAsistentes] = useState([])
+  const [proyectando, setProyectando] = useState(false)
+  const [errorReunion, setErrorReunion] = useState('')
+
+  const activa = reuniones.find((r) => r.activa)
+
+  useEffect(() => {
+    getReuniones().then(setReuniones)
+  }, [])
+
+  useEffect(() => {
+    if (!activa) return undefined
+    return observarAsistenciasDeReunion(activa.codigo, setAsistentes)
+  }, [activa])
+
+  async function crear() {
+    setCreando(true)
+    setErrorReunion('')
+    try {
+      await crearReunion({ titulo, liderUid: usuario.uid })
+      setTitulo('')
+      setReuniones(await getReuniones())
+    } catch {
+      setErrorReunion('No se pudo abrir la asistencia. Revisa que las reglas de Firestore estén actualizadas.')
+    } finally {
+      setCreando(false)
+    }
+  }
+
+  async function cerrar() {
+    await cerrarReunion(activa.codigo)
+    setProyectando(false)
+    setReuniones(await getReuniones())
+  }
+
+  const jovenPorUid = new Map(jovenes.map((j) => [j.uid, j]))
+
+  return (
+    <>
+      {!activa ? (
+        <div className="re-card">
+          <h2 className="re-subtitulo">📍 Tomar asistencia</h2>
+          <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
+            Opcional: abre la asistencia al empezar la reunión y aparece un código QR que los jóvenes pueden escanear con
+            la cámara de su celular (o escribir el código en su pantalla de lecciones). No es obligatorio — solo les da
+            un poquito de XP extra por venir.
+          </p>
+          <input
+            className="re-input"
+            placeholder="Nombre de la reunión (opcional)"
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+          />
+          <button className="re-btn re-btn--lleno" onClick={crear} disabled={creando}>
+            {creando ? 'Abriendo…' : 'Abrir asistencia de hoy'}
+          </button>
+          {errorReunion && <p className="re-duelo-error">{errorReunion}</p>}
+        </div>
+      ) : (
+        <div className="re-card re-card--asistencia">
+          <div className="re-asistencia">
+            <div className="re-asistencia__qr">
+              <QrReunion codigo={activa.codigo} />
+              <p className="re-asistencia__codigo">{activa.codigo}</p>
+            </div>
+            <div className="re-asistencia__info">
+              <p className="re-asistencia__etiqueta">🟢 Asistencia abierta</p>
+              <h2 className="re-subtitulo" style={{ marginTop: 4 }}>{activa.titulo}</h2>
+              <p className="re-asistencia__contador">
+                <strong>{asistentes.length}</strong> de {jovenes.length} ya registraron su asistencia
+              </p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button className="re-btn re-btn--lleno re-btn--sm" onClick={() => setProyectando(true)}>🖥️ Mostrar en grande</button>
+                <button className="re-btn re-btn--sm" onClick={cerrar}>Cerrar asistencia</button>
+              </div>
+            </div>
+          </div>
+
+          <div className="re-asistentes">
+            {asistentes
+              .slice()
+              .sort((a, b) => a.fecha.localeCompare(b.fecha))
+              .map((a) => {
+                const j = jovenPorUid.get(a.jovenUid)
+                return (
+                  <div key={a.id} className="re-asistentes__item">
+                    <Avatar nombre={j?.nombre} foto={j?.fotoPerfil} uid={a.jovenUid} size={28} colorAcento={j?.colorAcento} />
+                    <span>{j?.nombre || 'Joven'}</span>
+                    <button type="button" className="re-vinculo re-vinculo--peligro" onClick={() => quitarAsistencia(a.id)} title="Quitar">✕</button>
+                  </div>
+                )
+              })}
+            {asistentes.length === 0 && <p style={{ opacity: 0.6, margin: 0 }}>Esperando al primero… 👀</p>}
+          </div>
+        </div>
+      )}
+
+      {proyectando && activa && (
+        <div className="re-qr-proyeccion" role="dialog" aria-modal="true" onClick={() => setProyectando(false)}>
+          <p className="re-qr-proyeccion__titulo">Escanea para registrar tu asistencia</p>
+          <QrReunion codigo={activa.codigo} grande />
+          <p className="re-qr-proyeccion__codigo">{activa.codigo}</p>
+          <p className="re-qr-proyeccion__contador">{asistentes.length} registrado{asistentes.length === 1 ? '' : 's'}</p>
+        </div>
+      )}
+
+      {reuniones.filter((r) => !r.activa).length > 0 && (
+        <div className="re-card">
+          <h2 className="re-subtitulo">Reuniones anteriores</h2>
+          {reuniones
+            .filter((r) => !r.activa)
+            .slice(0, 10)
+            .map((r) => (
+              <div key={r.codigo} className="re-reunion-pasada">
+                <span>{r.titulo}</span>
+                <span style={{ opacity: 0.6 }}>{new Date(r.fecha).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              </div>
+            ))}
+        </div>
+      )}
+    </>
+  )
+}
+
 const CAMPOS_XP = [
-  ['porLeccionCompletada', 'Por cápsula completada'],
-  ['porQuizCorrecta', 'Por respuesta correcta del quiz'],
-  ['porRachaSemana', 'Por cada semana de racha'],
+  ['porLeccionCompletada', 'Por cápsula completada (a tiempo)'],
+  ['porQuizCorrecta', 'Por respuesta correcta del quiz (a tiempo)'],
+  ['porRachaSemana', 'Por cada semana con al menos una cápsula'],
   ['porInsigniaManual', 'Por cada insignia especial otorgada'],
+  ['porAsistencia', 'Extra por registrar asistencia con QR (opcional)'],
+  ['porVersiculoMemorizado', 'Por memorizar el versículo de una cápsula'],
+  ['porDueloGanado', 'Por duelo ganado (máx. 3 por semana)'],
   ['xpPorNivel', 'XP necesaria para subir de nivel'],
 ]
 
-function PanelExperiencia({ xpConfig, guardarXpConfig, expRanking }) {
+function PanelExperiencia({ xpConfig, guardarXpConfig, pausas, cambiarPausa }) {
   const [valores, setValores] = useState(xpConfig)
   const [guardando, setGuardando] = useState(false)
   const [mensaje, setMensaje] = useState('')
+  const enPausa = calendarioEnPausa(pausas)
 
   function cambiarValor(campo, valor) {
     setValores((prev) => ({ ...prev, [campo]: Math.max(0, Number(valor) || 0) }))
@@ -886,68 +1243,47 @@ function PanelExperiencia({ xpConfig, guardarXpConfig, expRanking }) {
 
   return (
     <>
+      <div className={`re-card ${enPausa ? 're-card--pausa' : ''}`}>
+        <h2 className="re-subtitulo">{enPausa ? '⏸ Calendario en pausa' : '📅 Calendario de cápsulas'}</h2>
+        <p style={{ marginTop: 0, marginBottom: 12, opacity: 0.8 }}>
+          Cada cápsula tiene su semana. Si se hace tarde vale menos: <strong>100%</strong> en su semana,{' '}
+          <strong>75%</strong> una semana tarde, <strong>50%</strong> dos semanas tarde y <strong>25%</strong> después.
+          Aplica a los puntos de la cápsula y del quiz.
+        </p>
+        <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.8 }}>
+          {enPausa
+            ? 'Mientras esté en pausa, el tiempo no corre para nadie: ninguna cápsula pierde valor.'
+            : '¿Semana sin reunión, vacaciones o campamento? Pausa el calendario y nadie pierde puntos por esos días.'}
+        </p>
+        <button className={`re-btn ${enPausa ? 're-btn--lleno' : ''}`} onClick={cambiarPausa}>
+          {enPausa ? '▶ Reanudar calendario' : '⏸ Pausar calendario'}
+        </button>
+      </div>
+
       <div className="re-card">
         <h2 className="re-subtitulo">Cuánto vale cada cosa</h2>
         <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
           Ajusta cuánta experiencia (XP) da cada acción. Se recalcula sola para todos, sin perder historial.
         </p>
-        {CAMPOS_XP.map(([campo, etiqueta]) => (
-          <div key={campo} style={{ marginBottom: 14 }}>
-            <label className="re-label">{etiqueta}</label>
-            <input
-              type="number"
-              min="0"
-              className="re-input"
-              style={{ maxWidth: 160, marginBottom: 0 }}
-              value={valores[campo]}
-              onChange={(e) => cambiarValor(campo, e.target.value)}
-            />
-          </div>
-        ))}
-        <button className="re-btn re-btn--lleno" onClick={guardar} disabled={guardando}>
+        <div className="re-xp-campos">
+          {CAMPOS_XP.map(([campo, etiqueta]) => (
+            <div key={campo}>
+              <label className="re-label">{etiqueta}</label>
+              <input
+                type="number"
+                min="0"
+                className="re-input"
+                style={{ maxWidth: 160, marginBottom: 0 }}
+                value={valores[campo]}
+                onChange={(e) => cambiarValor(campo, e.target.value)}
+              />
+            </div>
+          ))}
+        </div>
+        <button className="re-btn re-btn--lleno" onClick={guardar} disabled={guardando} style={{ marginTop: 18 }}>
           {guardando ? 'Guardando…' : 'Guardar valores'}
         </button>
         {mensaje && <span style={{ marginLeft: 12, fontWeight: 700 }}>{mensaje}</span>}
-      </div>
-
-      <div className="re-card re-card--rojo">
-        <h2 className="re-subtitulo">Ranking por experiencia</h2>
-        <div className="re-tabla-wrap">
-          <table className="re-tabla">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Joven</th>
-                <th>Nivel</th>
-                <th>XP total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {expRanking.map((fila, i) => (
-                <tr key={fila.joven.uid}>
-                  <td>{i + 1}</td>
-                  <td>
-                    <Link
-                      to={`/radgen/education/lider/joven/${fila.joven.uid}`}
-                      className="re-vinculo re-vinculo--nombre"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
-                    >
-                      <Avatar nombre={fila.joven.nombre} foto={fila.joven.fotoPerfil} uid={fila.joven.uid} size={26} />
-                      {fila.joven.nombre}
-                    </Link>
-                  </td>
-                  <td>{fila.experiencia.nivel}</td>
-                  <td>{fila.experiencia.xpTotal}</td>
-                </tr>
-              ))}
-              {expRanking.length === 0 && (
-                <tr>
-                  <td colSpan={4}>Todavía no hay jóvenes registrados.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
       </div>
     </>
   )
@@ -1030,7 +1366,8 @@ export default function LeaderDashboard({ usuario }) {
   const [preRegistro, setPreRegistro] = useState(true)
   const [actividad, setActividad] = useState([])
   const [xpConfig, setXpConfigState] = useState(null)
-  const [expRanking, setExpRanking] = useState([])
+  const [pausas, setPausas] = useState([])
+  const [equipos, setEquipos] = useState([])
 
   useEffect(() => {
     const unsub = observarModoPreRegistro(setPreRegistro)
@@ -1054,14 +1391,15 @@ export default function LeaderDashboard({ usuario }) {
       getLeccionesActivas(),
       getSeries(),
       getTablaEstado(),
-      getRankingCampamento(),
+      getRanking(),
       getRequisitos(),
       getMostrarElegibilidadAJovenes(),
       getMostrarRankingAJovenes(),
       getComentariosPendientes(),
       getXpConfig(),
-      getExperienciaRanking(),
-    ]).then(async ([js, ls, la, se, tb, rk, rq, me, mr, pd, xc, er]) => {
+      getPausasCalendario(),
+      getEquipos(),
+    ]).then(async ([js, ls, la, se, tb, rk, rq, me, mr, pd, xc, pa, eq]) => {
       setJovenes(js)
       setLecciones(ls)
       setLeccionesActivas(la)
@@ -1073,7 +1411,8 @@ export default function LeaderDashboard({ usuario }) {
       setMostrarRanking(mr)
       setPendientes(pd)
       setXpConfigState(xc)
-      setExpRanking(er)
+      setPausas(pa)
+      setEquipos(eq)
       const elegibilidad = await Promise.all(js.map(async (j) => ({ joven: j, insignias: await getInsigniasDe(j.uid) })))
       setElegibilidadPorJoven(elegibilidad)
       setCargando(false)
@@ -1086,7 +1425,7 @@ export default function LeaderDashboard({ usuario }) {
   }
 
   async function refrescar() {
-    const [tb, rk, ac] = await Promise.all([getTablaEstado(), getRankingCampamento(), getActividadReciente()])
+    const [tb, rk, ac] = await Promise.all([getTablaEstado(), getRanking(), getActividadReciente()])
     setTabla(tb)
     setRanking(rk)
     setActividad(ac)
@@ -1113,7 +1452,12 @@ export default function LeaderDashboard({ usuario }) {
 
   async function guardarXpConfig(nuevoConfig) {
     setXpConfigState(await setXpConfig(nuevoConfig))
-    setExpRanking(await getExperienciaRanking())
+    setRanking(await getRanking())
+  }
+
+  async function cambiarPausa() {
+    setPausas(await alternarPausaCalendario())
+    setRanking(await getRanking())
   }
 
   async function refrescarPendientes() {
@@ -1222,8 +1566,12 @@ export default function LeaderDashboard({ usuario }) {
         />
       )}
 
+      {tab === 'equipos' && <PanelEquipos jovenes={jovenes} ranking={ranking} equipos={equipos} setEquipos={setEquipos} />}
+
+      {tab === 'asistencia' && <PanelAsistencia usuario={usuario} jovenes={jovenes} />}
+
       {tab === 'experiencia' && xpConfig && (
-        <PanelExperiencia xpConfig={xpConfig} guardarXpConfig={guardarXpConfig} expRanking={expRanking} />
+        <PanelExperiencia xpConfig={xpConfig} guardarXpConfig={guardarXpConfig} pausas={pausas} cambiarPausa={cambiarPausa} />
       )}
     </div>
   )

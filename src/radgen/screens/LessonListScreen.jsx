@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   getAsignacionesDe,
   getTareasDe,
@@ -8,12 +8,21 @@ import {
   obtenerBloques,
   getRachaEnPeligro,
   getLideresRadgen,
+  getLecciones,
+  getPausasCalendario,
+  calcularValorCapsulas,
+  calendarioEnPausa,
+  getDuelosDe,
+  ganadorDeDuelo,
+  getJovenes,
+  registrarAsistencia,
 } from '../store'
 import Sky from '../components/Sky'
 import TareaPersonal from '../components/TareaPersonal'
 import Avatar from '../components/Avatar'
 import { mostrarNotificacion } from '../utils/notificaciones'
 import { textoPlano } from '../utils/formatoTexto'
+import { HORA_MS, textoTiempoRestante, nivelUrgencia } from '../utils/tiempo'
 
 function inicioSemanaLocal(fecha) {
   const d = new Date(fecha)
@@ -119,7 +128,21 @@ function RetoPendiente({ asignacion }) {
   )
 }
 
-function NodoCamino({ nodo, offsetDir, esSiguiente, opacado, delay }) {
+// Chip bajo cada cápsula pendiente: cuánto vale ahora y cuánto le queda a
+// ese valor — lo que hace que valga la pena hacerla hoy y no "luego".
+function ChipValor({ valor }) {
+  if (!valor) return null
+  const porcentaje = Math.round(valor.factor * 100)
+  if (valor.enPausa) return <span className="re-chip-valor re-chip-valor--pausa">⏸ {porcentaje}%</span>
+  if (valor.msParaBajar === null) return <span className="re-chip-valor re-chip-valor--urgente">{porcentaje}%</span>
+  return (
+    <span className={`re-chip-valor re-chip-valor--${nivelUrgencia(valor.msParaBajar)}`}>
+      ⚡ {porcentaje}% · {textoTiempoRestante(valor.msParaBajar)}
+    </span>
+  )
+}
+
+function NodoCamino({ nodo, offsetDir, esSiguiente, opacado, delay, valor }) {
   const { leccion, asignacion, estado } = nodo
   const claseEstado = `re-nodo--${estado}${esSiguiente ? ' re-nodo--siguiente' : ''}`
 
@@ -130,6 +153,7 @@ function NodoCamino({ nodo, offsetDir, esSiguiente, opacado, delay }) {
         {estado === 'completada' && <span className="re-nodo__check" aria-hidden="true">✓</span>}
       </div>
       <p className="re-camino__titulo">{leccion.titulo}</p>
+      {estado === 'disponible' && <ChipValor valor={valor} />}
       {esSiguiente && <span className="re-camino__etiqueta">EMPEZAR</span>}
     </>
   )
@@ -159,7 +183,14 @@ export default function LessonListScreen({ usuario }) {
   const [leccionesActivas, setLeccionesActivas] = useState([])
   const [rachaPeligro, setRachaPeligro] = useState({ enPeligro: false, rachaPrevia: 0 })
   const [lideres, setLideres] = useState([])
+  const [todasLecciones, setTodasLecciones] = useState([])
+  const [pausas, setPausas] = useState([])
+  const [duelos, setDuelos] = useState([])
+  const [jovenes, setJovenes] = useState([])
+  const [codigoAsistencia, setCodigoAsistencia] = useState('')
+  const [mensajeAsistencia, setMensajeAsistencia] = useState(null)
   const [cargando, setCargando] = useState(true)
+  const navigate = useNavigate()
 
   useEffect(() => {
     Promise.all([
@@ -168,14 +199,34 @@ export default function LessonListScreen({ usuario }) {
       getLeccionesActivas(),
       getRachaEnPeligro(usuario.uid),
       getLideresRadgen(),
-    ]).then(([t, a, l, rp, lid]) => {
+      getLecciones(),
+      getPausasCalendario(),
+      getDuelosDe(usuario.uid),
+      getJovenes(),
+    ]).then(([t, a, l, rp, lid, tl, pa, du, js]) => {
       setTareas(t)
       setAsignaciones(a)
       setLeccionesActivas(l)
       setRachaPeligro(rp)
       setLideres(lid)
+      setTodasLecciones(tl)
+      setPausas(pa)
+      const ahora = Date.now()
+      setDuelos(du.map((d) => ({ ...d, reciente: ahora - new Date(d.fecha).getTime() < 7 * 24 * HORA_MS })))
+      setJovenes(js)
       setCargando(false)
-      if (rp.enPeligro) {
+
+      const valores = calcularValorCapsulas(a, tl, pa)
+      const porVencer = a.find((x) => {
+        const v = valores.get(x.id)
+        return x.estado !== 'completado' && v && !v.enPausa && v.msParaBajar !== null && v.msParaBajar < 24 * HORA_MS
+      })
+      if (porVencer) {
+        mostrarNotificacion('capsula-por-bajar', '⚡ Tu cápsula está por bajar de valor', {
+          body: `"${porVencer.leccion?.titulo}" vale más si la haces hoy.`,
+        })
+      }
+      if (rp.enPeligro && a.some((x) => x.estado !== 'completado')) {
         mostrarNotificacion(
           'racha-peligro',
           '🔥 Tu racha está en riesgo',
@@ -212,6 +263,32 @@ export default function LessonListScreen({ usuario }) {
   }, [camino])
 
   const terminoBusqueda = busqueda.trim().toLowerCase()
+
+  const valores = useMemo(() => calcularValorCapsulas(asignaciones, todasLecciones, pausas), [asignaciones, todasLecciones, pausas])
+  const enPausa = calendarioEnPausa(pausas)
+
+  const capsulaUrgente = useMemo(() => {
+    let mejor = null
+    asignaciones.forEach((a) => {
+      if (a.estado === 'completado') return
+      const v = valores.get(a.id)
+      if (!v || v.enPausa || v.msParaBajar === null) return
+      if (!mejor || v.msParaBajar < mejor.valor.msParaBajar) mejor = { asignacion: a, valor: v }
+    })
+    return mejor && mejor.valor.msParaBajar < 2 * 24 * HORA_MS ? mejor : null
+  }, [asignaciones, valores])
+
+  const nombrePorUid = useMemo(() => new Map(jovenes.map((j) => [j.uid, j.apodo || j.nombre])), [jovenes])
+  const duelosPorJugar = duelos.filter((d) => !d.respuestas?.[usuario.uid])
+  const duelosConResultado = duelos.filter((d) => d.reciente && Object.keys(d.respuestas || {}).length === 2).slice(0, 3)
+
+  async function enviarAsistencia(e) {
+    e.preventDefault()
+    if (!codigoAsistencia.trim()) return
+    const r = await registrarAsistencia({ codigo: codigoAsistencia, jovenUid: usuario.uid })
+    if (r.ok) navigate(`/radgen/education/asistencia/${codigoAsistencia.trim().toUpperCase()}`)
+    else setMensajeAsistencia(r.error)
+  }
 
   const mensajeSky =
     asignaciones.length === 0
@@ -261,7 +338,7 @@ export default function LessonListScreen({ usuario }) {
         <p style={{ fontWeight: 800, color: 'var(--rg-blue-light)', marginBottom: '1.5rem' }}>{mensajeMotivacional}</p>
       )}
 
-      {rachaPeligro.enPeligro && (
+      {rachaPeligro.enPeligro && pendientes > 0 && (
         <div className="re-racha-peligro">
           <span className="re-racha-peligro__icono" aria-hidden="true">🔥</span>
           <div>
@@ -272,6 +349,77 @@ export default function LessonListScreen({ usuario }) {
           </div>
         </div>
       )}
+
+      {enPausa && (
+        <div className="re-aviso re-aviso--pausa">
+          ⏸ <span>El calendario está en pausa — ninguna cápsula pierde valor mientras tanto.</span>
+        </div>
+      )}
+
+      {capsulaUrgente && (
+        <Link to={`/radgen/education/leccion/${capsulaUrgente.asignacion.id}`} className="re-aviso re-aviso--urgente">
+          <span className="re-aviso__icono">⚡</span>
+          <span>
+            <strong>{capsulaUrgente.asignacion.leccion?.titulo}</strong> baja al{' '}
+            {Math.round(
+              (capsulaUrgente.valor.factor === 1 ? 0.75 : capsulaUrgente.valor.factor === 0.75 ? 0.5 : 0.25) * 100,
+            )}
+            % en {textoTiempoRestante(capsulaUrgente.valor.msParaBajar)}. ¡Hazla hoy y gana todos sus puntos!
+          </span>
+          <span className="re-aviso__flecha">→</span>
+        </Link>
+      )}
+
+      {duelosPorJugar.map((d) => {
+        const rivalUid = d.retadorUid === usuario.uid ? d.retadoUid : d.retadorUid
+        const meRetaron = d.retadoUid === usuario.uid
+        return (
+          <Link key={d.id} to={`/radgen/education/duelo/${d.id}`} className="re-aviso re-aviso--duelo">
+            <span className="re-aviso__icono">⚔️</span>
+            <span>
+              {meRetaron ? (
+                <><strong>{nombrePorUid.get(rivalUid) || 'Alguien'}</strong> te retó a un duelo. ¡Acepta!</>
+              ) : (
+                <>Tu duelo contra <strong>{nombrePorUid.get(rivalUid) || 'tu rival'}</strong> está listo para jugar.</>
+              )}
+            </span>
+            <span className="re-aviso__flecha">→</span>
+          </Link>
+        )
+      })}
+
+      {duelosConResultado.map((d) => {
+        const rivalUid = d.retadorUid === usuario.uid ? d.retadoUid : d.retadorUid
+        const ganador = ganadorDeDuelo(d)
+        return (
+          <Link key={d.id} to={`/radgen/education/duelo/${d.id}`} className="re-aviso re-aviso--resultado">
+            <span className="re-aviso__icono">{ganador === usuario.uid ? '🏆' : ganador ? '⚔️' : '🤝'}</span>
+            <span>
+              Duelo vs <strong>{nombrePorUid.get(rivalUid) || 'rival'}</strong>:{' '}
+              {ganador === usuario.uid ? '¡ganaste!' : ganador ? 'perdiste — ¿revancha?' : 'empate'}
+            </span>
+            <span className="re-aviso__flecha">→</span>
+          </Link>
+        )
+      })}
+
+      <form className="re-asistencia-codigo" onSubmit={enviarAsistencia}>
+        <span className="re-asistencia-codigo__icono">📍</span>
+        <input
+          className="re-input"
+          placeholder="Código de la reunión (opcional)"
+          value={codigoAsistencia}
+          onChange={(e) => {
+            setCodigoAsistencia(e.target.value.toUpperCase())
+            setMensajeAsistencia(null)
+          }}
+          maxLength={8}
+        />
+        <button type="submit" className="re-btn re-btn--sm re-btn--lleno" disabled={!codigoAsistencia.trim()}>
+          Registrar
+        </button>
+      </form>
+      {mensajeAsistencia && <p className="re-duelo-error" style={{ marginTop: -8 }}>{mensajeAsistencia}</p>}
 
       {retosPendientes.length > 0 && (
         <div className="re-retos-card">
@@ -341,6 +489,7 @@ export default function LessonListScreen({ usuario }) {
                     esSiguiente={nodo.leccion.id === siguienteLeccionId}
                     opacado={opacado}
                     delay={i * 0.05}
+                    valor={nodo.asignacion ? valores.get(nodo.asignacion.id) : null}
                   />
                 )
               })}

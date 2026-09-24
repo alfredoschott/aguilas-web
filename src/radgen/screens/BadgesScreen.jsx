@@ -1,22 +1,30 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import {
   getInsigniasDe,
   getMostrarElegibilidadAJovenes,
   getRachaSemanas,
   getHistorialSemanas,
   getMostrarRankingAJovenes,
-  getRankingCampamento,
+  getRanking,
   getInsigniasManualesDe,
   getExperienciaDe,
   actualizarPerfil,
+  getEquipos,
+  calcularRankingEquipos,
+  getResumenSerie,
+  MARCOS_AVATAR,
 } from '../store'
+import { Link } from 'react-router-dom'
 import Sky from '../components/Sky'
+import { PodioRanking, TablaRanking, RankingEquipos } from '../components/Ranking'
 import Avatar from '../components/Avatar'
+import TarjetaExperiencia from '../components/TarjetaExperiencia'
 import RachaBadge from '../components/RachaBadge'
 import { generarCertificado, compartirCertificado } from '../utils/certificado'
+import { generarWrappedSerie } from '../utils/wrapped'
+import { compartirImagen } from '../utils/shareCard'
 
-function Medalla({ nombre, icono, imagen, desbloqueada, progreso, variante, delay = 0, onDescargarCertificado, destacada, onDestacar }) {
+function Medalla({ nombre, icono, imagen, desbloqueada, progreso, variante, delay = 0, onDescargarCertificado, destacada, onDestacar, onResumen }) {
   return (
     <div
       className={`re-medalla ${variante ? `re-medalla--${variante}` : ''} ${desbloqueada ? '' : 're-medalla--bloqueada'}`}
@@ -30,6 +38,11 @@ function Medalla({ nombre, icono, imagen, desbloqueada, progreso, variante, dela
       {desbloqueada && onDescargarCertificado && (
         <button type="button" className="re-medalla__certificado" onClick={onDescargarCertificado}>
           🎓 Certificado
+        </button>
+      )}
+      {desbloqueada && onResumen && (
+        <button type="button" className="re-medalla__certificado re-medalla__resumen" onClick={onResumen}>
+          🎬 Resumen
         </button>
       )}
       {desbloqueada && onDestacar && (
@@ -159,26 +172,36 @@ function HeroRango({ insignias, racha, onDescargarCertificado, destacada, onDest
   )
 }
 
-// Nivel de experiencia — separado del rango (que depende solo de cápsulas
-// completadas). La XP suma cápsulas, aciertos de quiz, racha e insignias
-// especiales, con valores que la líder puede ajustar desde su panel.
-function TarjetaExperiencia({ experiencia }) {
-  const porcentaje = Math.round((experiencia.xpEnNivelActual / experiencia.xpPorNivel) * 100)
+function TarjetaMarcos({ nivel, usuario }) {
+  const siguiente = MARCOS_AVATAR.find((m) => m.nivel > nivel)
   return (
-    <div className="re-card re-card--xp">
+    <div className="re-card">
       <div className="re-seccion-header">
-        <h2 className="re-subtitulo" style={{ margin: 0 }}>Nivel {experiencia.nivel}</h2>
-        <span className="re-seccion-header__contador">{experiencia.xpTotal} XP</span>
+        <h2 className="re-subtitulo" style={{ margin: 0 }}>Marcos de avatar</h2>
+        <span className="re-seccion-header__contador">
+          {MARCOS_AVATAR.filter((m) => m.nivel <= nivel).length}/{MARCOS_AVATAR.length}
+        </span>
       </div>
-      <div className="re-barra">
-        <div className="re-barra__relleno" style={{ width: `${porcentaje}%` }} />
-      </div>
-      <p style={{ margin: '4px 0 0', fontSize: '0.8rem', opacity: 0.7 }}>
-        {experiencia.xpEnNivelActual} / {experiencia.xpPorNivel} XP para el nivel {experiencia.nivel + 1}
+      <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
+        Se desbloquean subiendo de nivel. Elige el tuyo en <Link to="/radgen/education/perfil" className="re-vinculo">tu perfil</Link>.
+        {siguiente && ` Siguiente: ${siguiente.nombre} en el nivel ${siguiente.nivel}.`}
       </p>
+      <div className="re-marcos-grid">
+        {MARCOS_AVATAR.map((m) => {
+          const desbloqueado = m.nivel <= nivel
+          return (
+            <div key={m.id} className={`re-marco-opcion ${desbloqueado ? '' : 're-marco-opcion--bloqueado'} ${usuario.marcoAvatar === m.id ? 'activo' : ''}`}>
+              <Avatar nombre={usuario.nombre} foto={usuario.fotoPerfil} uid={usuario.uid} size={46} marco={m.id} colorAcento={usuario.colorAcento} />
+              <span className="re-marco-opcion__nombre">{desbloqueado ? m.nombre : `🔒 Nivel ${m.nivel}`}</span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
+
+const rutaPerfilJoven = (uid) => `/radgen/education/joven/${uid}`
 
 function CabeceraSeccion({ titulo, contador }) {
   return (
@@ -199,6 +222,7 @@ export default function BadgesScreen({ usuario, onActualizar }) {
   const [insigniasManuales, setInsigniasManuales] = useState([])
   const [experiencia, setExperiencia] = useState(null)
   const [expandidas, setExpandidas] = useState(new Set())
+  const [equipos, setEquipos] = useState([])
 
   function alternarExpandida(id) {
     setExpandidas((prev) => {
@@ -226,7 +250,12 @@ export default function BadgesScreen({ usuario, onActualizar }) {
       setMostrarRanking(mr)
       setInsigniasManuales(im)
       setExperiencia(exp)
-      if (mr) getRankingCampamento().then(setRanking)
+      if (mr) {
+        Promise.all([getRanking(), getEquipos()]).then(([rk, eq]) => {
+          setRanking(rk)
+          setEquipos(calcularRankingEquipos(eq, rk))
+        })
+      }
     })
   }, [usuario.uid])
 
@@ -276,6 +305,18 @@ export default function BadgesScreen({ usuario, onActualizar }) {
       nombreArchivo: `certificado-serie-${nombreSerie.toLowerCase().replace(/\s+/g, '-')}.png`,
       titulo: '¡Serie completa en RadGen Education!',
       texto: `Terminé la serie "${nombreSerie}" en RadGen Education 🙌`,
+    })
+  }
+
+  async function verResumenSerie(serieBadge) {
+    const resumen = await getResumenSerie(usuario.uid, serieBadge.id.replace(/^serie-/, ''))
+    if (!resumen) return
+    const dataUrl = await generarWrappedSerie({ nombreJoven: usuario.nombre, resumen })
+    await compartirImagen({
+      dataUrl,
+      nombreArchivo: `resumen-${serieBadge.id}.png`,
+      titulo: `Mi resumen de ${resumen.serieTitulo}`,
+      texto: `Terminé "${resumen.serieTitulo}" en RadGen Education 🙌`,
     })
   }
 
@@ -472,12 +513,15 @@ export default function BadgesScreen({ usuario, onActualizar }) {
               variante="serie"
               delay={i * 0.06}
               onDescargarCertificado={b.desbloqueada ? () => descargarCertificadoSerie(b.nombre) : undefined}
+              onResumen={b.desbloqueada ? () => verResumenSerie(b) : undefined}
               destacada={usuario.insigniaDestacada?.id === b.id}
               onDestacar={b.desbloqueada ? () => destacar({ id: b.id, nombre: b.nombre, icono: b.icono }) : undefined}
             />
           ))}
         </div>
       </div>
+
+      {experiencia && <TarjetaMarcos nivel={experiencia.nivel} usuario={usuario} />}
 
       {mostrarElegibilidad && (
         <>
@@ -494,50 +538,19 @@ export default function BadgesScreen({ usuario, onActualizar }) {
           <h2 className="re-subtitulo" style={{ color: 'var(--rg-paper)', margin: '2rem 0 1rem' }}>
             Ranking del grupo
           </h2>
-          <div className="re-card">
-            <div className="re-tabla-wrap">
-              <table className="re-tabla">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Joven</th>
-                    <th>Cápsulas</th>
-                    <th>Racha</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ranking.map((fila, i) => (
-                    <tr
-                      key={fila.joven.uid}
-                      className={fila.joven.uid === usuario.uid ? 're-fila-actual' : undefined}
-                    >
-                      <td className="re-tabla__posicion">{i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</td>
-                      <td>
-                        <Link
-                          to={`/radgen/education/joven/${fila.joven.uid}`}
-                          className="re-vinculo re-vinculo--nombre"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
-                        >
-                          <Avatar
-                            nombre={fila.joven.nombre}
-                            foto={fila.joven.fotoPerfil}
-                            uid={fila.joven.uid}
-                            size={26}
-                            marco={fila.nivelActual?.id}
-                            racha={fila.racha}
-                            colorAcento={fila.joven.colorAcento}
-                          />
-                          {fila.joven.apodo || fila.joven.nombre}
-                        </Link>
-                      </td>
-                      <td>{fila.totalCompletadas}</td>
-                      <td>{fila.racha > 0 ? `🔥 ${fila.racha}` : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="re-card re-card--ranking">
+            <p style={{ marginTop: 0, marginBottom: 12, opacity: 0.75 }}>
+              Ordenado por experiencia (XP) y, si hay empate, por insignias totales.
+            </p>
+            <PodioRanking ranking={ranking} rutaPerfil={rutaPerfilJoven} uidActual={usuario.uid} />
+            <TablaRanking ranking={ranking} rutaPerfil={rutaPerfilJoven} uidActual={usuario.uid} />
           </div>
+          {equipos.length > 0 && (
+            <div className="re-card re-card--ranking">
+              <h2 className="re-subtitulo">Equipos</h2>
+              <RankingEquipos equipos={equipos} />
+            </div>
+          )}
         </>
       )}
     </div>

@@ -14,6 +14,8 @@ import SeriePreviewScreen from './screens/SeriePreviewScreen'
 import PerfilScreen from './screens/PerfilScreen'
 import PerfilPublicoScreen from './screens/PerfilPublicoScreen'
 import PreRegistroScreen from './screens/PreRegistroScreen'
+import AsistenciaScreen from './screens/AsistenciaScreen'
+import DueloScreen from './screens/DueloScreen'
 import TopBar from './components/TopBar'
 import Sky from './components/Sky'
 import './radgen.css'
@@ -96,6 +98,11 @@ export default function RadgenEducationApp() {
             path="/joven/:uid"
             element={requiereCurriculoActivo(<PerfilPublicoScreen usuario={usuario} />)}
           />
+          <Route
+            path="/duelo/:dueloId"
+            element={requiereCurriculoActivo(<DueloScreen usuario={usuario} />)}
+          />
+          <Route path="/asistencia/:codigo" element={<AsistenciaScreen usuario={usuario} />} />
           <Route
             path="/pre-registro"
             element={requiereSesion('joven', <PreRegistroScreen usuario={usuario} />)}

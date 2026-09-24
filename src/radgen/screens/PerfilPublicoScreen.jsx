@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getPerfilPublico } from '../store'
+import { getPerfilPublico, crearDuelo } from '../store'
 import Avatar from '../components/Avatar'
 import Sky from '../components/Sky'
 
@@ -12,6 +12,8 @@ export default function PerfilPublicoScreen({ usuario }) {
   const navigate = useNavigate()
   const [perfil, setPerfil] = useState(undefined) // undefined = cargando
   const [error, setError] = useState(false)
+  const [retando, setRetando] = useState(false)
+  const [errorDuelo, setErrorDuelo] = useState('')
 
   useEffect(() => {
     getPerfilPublico(uid)
@@ -47,6 +49,19 @@ export default function PerfilPublicoScreen({ usuario }) {
 
   const { joven, nivelActual, racha, insigniasEspeciales } = perfil
   const esMiPropioPerfil = uid === usuario.uid
+  const puedeRetar = !esMiPropioPerfil && usuario.rol === 'joven' && joven.rol === 'joven'
+
+  async function retar() {
+    setRetando(true)
+    setErrorDuelo('')
+    try {
+      const r = await crearDuelo({ retadorUid: usuario.uid, retadoUid: uid })
+      if (r.ok) navigate(`/radgen/education/duelo/${r.dueloId}`)
+      else setErrorDuelo(r.error)
+    } finally {
+      setRetando(false)
+    }
+  }
 
   return (
     <div className="re-shell">
@@ -60,7 +75,7 @@ export default function PerfilPublicoScreen({ usuario }) {
           uid={joven.uid}
           foto={joven.fotoPerfil}
           size={110}
-          marco={nivelActual?.id}
+          marco={joven.marcoAvatar || nivelActual?.id}
           racha={racha}
           colorAcento={joven.colorAcento}
         />
@@ -75,6 +90,15 @@ export default function PerfilPublicoScreen({ usuario }) {
         </div>
 
         {joven.bio && <p className="re-bio-card">"{joven.bio}"</p>}
+
+        {puedeRetar && (
+          <div style={{ marginTop: 18 }}>
+            <button className="re-btn re-btn--lleno re-btn--duelo" onClick={retar} disabled={retando}>
+              {retando ? 'Armando duelo…' : `⚔️ Retar a ${joven.apodo || joven.nombre.split(' ')[0]} a un duelo`}
+            </button>
+            {errorDuelo && <p className="re-duelo-error">{errorDuelo}</p>}
+          </div>
+        )}
       </div>
 
       {joven.insigniaDestacada && (

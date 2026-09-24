@@ -1,11 +1,26 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getAsignacionesDe, marcarCompletado, getInsigniasDe, marcarRetoCumplido, obtenerBloques, agruparBloques } from '../store'
+import {
+  getAsignacionesDe,
+  marcarCompletado,
+  getInsigniasDe,
+  marcarRetoCumplido,
+  obtenerBloques,
+  agruparBloques,
+  getExperienciaDe,
+  marcarVersiculoMemorizado,
+  getXpConfig,
+  getLecciones,
+  getPausasCalendario,
+  calcularValorCapsulas,
+} from '../store'
 import Celebracion from '../components/Celebracion'
 import QuizLeccion from '../components/QuizLeccion'
 import ComentariosLeccion from '../components/ComentariosLeccion'
 import Sky from '../components/Sky'
+import MemorizarVersiculo from '../components/MemorizarVersiculo'
 import { sonidoReto } from '../utils/sonidos'
+import { textoTiempoRestante, nivelUrgencia } from '../utils/tiempo'
 import { renderTextoFormateado } from '../utils/formatoTexto'
 
 // Subir de rango es un logro distinto a desbloquear la insignia de una
@@ -22,7 +37,8 @@ function calcularNuevasInsignias(antes, despues) {
   })
   const subioDeRango =
     despues.nivelActual && despues.nivelActual.id !== antes.nivelActual?.id ? despues.nivelActual : null
-  return { nuevas, subioDeRango }
+  const serieCompletada = despues.porSerie.find((b, i) => b.desbloqueada && !antes.porSerie[i].desbloqueada) || null
+  return { nuevas, subioDeRango, serieCompletada }
 }
 
 export default function LessonDetailScreen({ usuario }) {
@@ -31,11 +47,17 @@ export default function LessonDetailScreen({ usuario }) {
   const [asignacion, setAsignacion] = useState(undefined) // undefined = cargando
   const [paso, setPaso] = useState('video') // video | quiz
   const [celebracion, setCelebracion] = useState(null)
+  const [valor, setValor] = useState(null)
+  const [xpCfg, setXpCfg] = useState(null)
 
   useEffect(() => {
-    getAsignacionesDe(usuario.uid).then((lista) => {
-      setAsignacion(lista.find((a) => a.id === asignacionId) || null)
-    })
+    Promise.all([getAsignacionesDe(usuario.uid), getLecciones(), getPausasCalendario(), getXpConfig()]).then(
+      ([lista, lecciones, pausas, cfg]) => {
+        setAsignacion(lista.find((a) => a.id === asignacionId) || null)
+        setValor(calcularValorCapsulas(lista, lecciones, pausas).get(asignacionId) || null)
+        setXpCfg(cfg)
+      },
+    )
   }, [usuario.uid, asignacionId])
 
   if (asignacion === undefined) {
@@ -62,14 +84,26 @@ export default function LessonDetailScreen({ usuario }) {
   const bloques = obtenerBloques(asignacion.leccion)
   const bloquesReto = bloques.filter((b) => b.tipo === 'reto')
   const gruposContenido = agruparBloques(bloques.filter((b) => b.tipo !== 'reto'))
+  const versiculo = bloques.find((b) => b.tipo === 'versiculo')
+
+  async function memorizado() {
+    await marcarVersiculoMemorizado(asignacion.id)
+    setAsignacion((prev) => ({ ...prev, versiculoMemorizado: true }))
+  }
 
   async function completarLeccion(quizScore) {
-    const antes = await getInsigniasDe(usuario.uid)
+    const [antes, xpAntes] = await Promise.all([getInsigniasDe(usuario.uid), getExperienciaDe(usuario.uid)])
     const { bonoXp } = await marcarCompletado(asignacion.id, quizScore)
-    const despues = await getInsigniasDe(usuario.uid)
-    const { nuevas, subioDeRango } = calcularNuevasInsignias(antes, despues)
+    const [despues, xpDespues] = await Promise.all([getInsigniasDe(usuario.uid), getExperienciaDe(usuario.uid)])
+    const { nuevas, subioDeRango, serieCompletada } = calcularNuevasInsignias(antes, despues)
 
     const detalleQuiz = quizScore ? `Acertaste ${quizScore.correctas} de ${quizScore.total} preguntas. ` : ''
+    const extra = {
+      bono: bonoXp,
+      xp: { antes: xpAntes, despues: xpDespues },
+      factor: valor?.factor ?? 1,
+      serieCompletada: serieCompletada ? { serieId: serieCompletada.id.replace(/^serie-/, ''), nombre: serieCompletada.nombre } : null,
+    }
 
     if (subioDeRango) {
       setCelebracion({
@@ -79,7 +113,7 @@ export default function LessonDetailScreen({ usuario }) {
         textoBoton: 'Ver mis insignias',
         destino: '/radgen/education/insignias',
         insignia: { nombre: subioDeRango.nombre, icono: subioDeRango.icono },
-        bono: bonoXp,
+        ...extra,
       })
     } else if (nuevas.length > 0) {
       setCelebracion({
@@ -88,7 +122,7 @@ export default function LessonDetailScreen({ usuario }) {
         textoBoton: 'Ver mis insignias',
         destino: '/radgen/education/insignias',
         insignia: nuevas[0],
-        bono: bonoXp,
+        ...extra,
       })
     } else {
       setCelebracion({
@@ -96,7 +130,7 @@ export default function LessonDetailScreen({ usuario }) {
         detalle: detalleQuiz + 'Sigue así, cada cápsula suma para tus insignias.',
         textoBoton: 'Continuar',
         destino: '/radgen/education/lecciones',
-        bono: bonoXp,
+        ...extra,
       })
     }
   }
@@ -123,6 +157,21 @@ export default function LessonDetailScreen({ usuario }) {
       </button>
 
       <h1 className="re-titulo-pagina">{asignacion.leccion?.titulo}</h1>
+
+      {!completado && valor && (
+        <div className={`re-valor-capsula re-valor-capsula--${valor.enPausa ? 'pausa' : valor.msParaBajar === null ? 'urgente' : nivelUrgencia(valor.msParaBajar)}`}>
+          <span className="re-valor-capsula__porcentaje">{Math.round(valor.factor * 100)}%</span>
+          <span className="re-valor-capsula__texto">
+            {valor.enPausa
+              ? 'Calendario en pausa: esta cápsula no pierde valor por ahora.'
+              : valor.msParaBajar === null
+                ? 'Esta cápsula ya va tarde, pero todavía suma puntos. ¡Hazla!'
+                : valor.factor === 1
+                  ? `Vale todos sus puntos por ${textoTiempoRestante(valor.msParaBajar)} más.`
+                  : `Va tarde: vale el ${Math.round(valor.factor * 100)}% y baja en ${textoTiempoRestante(valor.msParaBajar)}.`}
+          </span>
+        </div>
+      )}
 
       {paso === 'video' && (
         <>
@@ -221,7 +270,7 @@ export default function LessonDetailScreen({ usuario }) {
               </div>
             </div>
           ) : (
-            <button className="re-btn re-btn--lleno re-btn--bloque" onClick={marcarVista}>
+            <button className="re-btn re-btn--lleno re-btn--bloque re-btn--grande" onClick={marcarVista}>
               {tieneQuiz ? 'Ya vi la lección — hacer el quiz' : 'Ya vi la lección'}
             </button>
           )}
@@ -230,6 +279,16 @@ export default function LessonDetailScreen({ usuario }) {
 
       {paso === 'quiz' && (
         <QuizLeccion preguntas={asignacion.leccion.quiz} onTerminar={completarLeccion} />
+      )}
+
+      {paso === 'video' && completado && versiculo?.texto && xpCfg && (
+        <MemorizarVersiculo
+          texto={versiculo.texto}
+          referencia={versiculo.referencia}
+          yaMemorizado={!!asignacion.versiculoMemorizado}
+          xp={xpCfg.porVersiculoMemorizado}
+          onCompletar={memorizado}
+        />
       )}
 
       {paso === 'video' && completado && (
@@ -245,6 +304,10 @@ export default function LessonDetailScreen({ usuario }) {
           insignia={celebracion.insignia}
           nombreJoven={usuario.nombre}
           bono={celebracion.bono}
+          xp={celebracion.xp}
+          factor={celebracion.factor}
+          serieCompletada={celebracion.serieCompletada}
+          uid={usuario.uid}
           onCerrar={() => navigate(celebracion.destino)}
         />
       )}

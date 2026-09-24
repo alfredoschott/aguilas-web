@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { iniciarSesionConGoogle, completarRegistroJoven } from '../store'
 import Sky from '../components/Sky'
 import logo from '../../assets/radgen-education-logo.png'
+import { tomarAsistenciaPendiente } from '../utils/asistenciaPendiente'
+
+function destinoTrasEntrar(usuario) {
+  if (usuario.rol === 'lider') return '/radgen/education/lider'
+  const codigo = tomarAsistenciaPendiente()
+  return codigo ? `/radgen/education/asistencia/${codigo}` : '/radgen/education/lecciones'
+}
 
 export default function LoginScreen({ onSesion }) {
   const navigate = useNavigate()
@@ -20,7 +27,7 @@ export default function LoginScreen({ onSesion }) {
       const resultado = await iniciarSesionConGoogle(rol)
       if (resultado.ok) {
         onSesion(resultado.usuario)
-        navigate(resultado.usuario.rol === 'lider' ? '/radgen/education/lider' : '/radgen/education/lecciones')
+        navigate(destinoTrasEntrar(resultado.usuario))
         return
       }
       if (resultado.requiereCodigo) {
@@ -54,7 +61,7 @@ export default function LoginScreen({ onSesion }) {
         return
       }
       onSesion(resultado.usuario)
-      navigate('/radgen/education/lecciones')
+      navigate(destinoTrasEntrar(resultado.usuario))
     } finally {
       setCargando(false)
     }

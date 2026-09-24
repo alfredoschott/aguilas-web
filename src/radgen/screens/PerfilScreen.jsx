@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { actualizarPerfil, getInsigniasDe, getRachaSemanas, getInsigniasManualesDe } from '../store'
+import { actualizarPerfil, getInsigniasDe, getRachaSemanas, getInsigniasManualesDe, getExperienciaDe, MARCOS_AVATAR } from '../store'
 import { recortarYComprimir } from '../utils/imagenPerfil'
 import { sonidosActivos, setSonidosActivos, sonidoCompletar } from '../utils/sonidos'
 import { notificacionesSoportadas, permisoNotificaciones, pedirPermisoNotificaciones } from '../utils/notificaciones'
@@ -50,10 +50,18 @@ export default function PerfilScreen({ usuario, onActualizar }) {
   const [sonidos, setSonidos] = useState(sonidosActivos())
   const [permisoAvisos, setPermisoAvisos] = useState(permisoNotificaciones())
   const [insigniasEspeciales, setInsigniasEspeciales] = useState([])
+  const [marcoAvatar, setMarcoAvatar] = useState(usuario.marcoAvatar || null)
+  const [nivelXp, setNivelXp] = useState(null)
 
   useEffect(() => {
-    Promise.all([getInsigniasDe(usuario.uid), getRachaSemanas(usuario.uid), getInsigniasManualesDe(usuario.uid)]).then(
-      ([insignias, r, manuales]) => {
+    Promise.all([
+      getInsigniasDe(usuario.uid),
+      getRachaSemanas(usuario.uid),
+      getInsigniasManualesDe(usuario.uid),
+      usuario.rol === 'joven' ? getExperienciaDe(usuario.uid) : Promise.resolve(null),
+    ]).then(
+      ([insignias, r, manuales, exp]) => {
+        setNivelXp(exp?.nivel ?? null)
         setMarco(insignias.nivelActual?.id || null)
         setRacha(r)
         const especial = manuales.find((m) => m.id === 'especial')
@@ -62,7 +70,7 @@ export default function PerfilScreen({ usuario, onActualizar }) {
         )
       },
     )
-  }, [usuario.uid])
+  }, [usuario.uid, usuario.rol])
 
   async function elegirFoto(e) {
     const archivo = e.target.files?.[0]
@@ -92,6 +100,7 @@ export default function PerfilScreen({ usuario, onActualizar }) {
         colorAcento,
         fondoPerfil,
         skyElegido,
+        marcoAvatar,
       })
       onActualizar(actualizado)
       setMensaje('¡Perfil actualizado!')
@@ -120,7 +129,7 @@ export default function PerfilScreen({ usuario, onActualizar }) {
       </div>
 
       <div className={`re-perfil-hero ${fondoPerfil ? `re-fondo-perfil--${fondoPerfil}` : ''}`}>
-        <Avatar nombre={nombre} uid={usuario.uid} foto={foto} size={110} marco={marco} racha={racha} colorAcento={colorAcento} />
+        <Avatar nombre={nombre} uid={usuario.uid} foto={foto} size={110} marco={marcoAvatar || marco} racha={racha} colorAcento={colorAcento} />
 
         {apodo && <p className="re-perfil-apodo">{apodo}</p>}
 
@@ -200,6 +209,40 @@ export default function PerfilScreen({ usuario, onActualizar }) {
           ))}
         </div>
 
+        {nivelXp !== null && (
+          <>
+            <h2 className="re-subtitulo">Marco de tu avatar</h2>
+            <p style={{ marginTop: 0, marginBottom: 14, opacity: 0.75 }}>
+              Vas en el nivel {nivelXp}. Cada marco se desbloquea al llegar a su nivel.
+            </p>
+            <div className="re-marcos-grid" style={{ marginBottom: 20 }}>
+              <button
+                type="button"
+                className={`re-marco-opcion ${!marcoAvatar ? 'activo' : ''}`}
+                onClick={() => setMarcoAvatar(null)}
+              >
+                <Avatar nombre={nombre} foto={foto} uid={usuario.uid} size={46} marco={marco} colorAcento={colorAcento} />
+                <span className="re-marco-opcion__nombre">Por rango</span>
+              </button>
+              {MARCOS_AVATAR.map((m) => {
+                const desbloqueado = m.nivel <= nivelXp
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    className={`re-marco-opcion ${desbloqueado ? '' : 're-marco-opcion--bloqueado'} ${marcoAvatar === m.id ? 'activo' : ''}`}
+                    onClick={() => desbloqueado && setMarcoAvatar(m.id)}
+                    disabled={!desbloqueado}
+                  >
+                    <Avatar nombre={nombre} foto={foto} uid={usuario.uid} size={46} marco={m.id} colorAcento={colorAcento} />
+                    <span className="re-marco-opcion__nombre">{desbloqueado ? m.nombre : `🔒 Nivel ${m.nivel}`}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        )}
+
         <h2 className="re-subtitulo">Tu compañero Sky</h2>
         <p style={{ marginTop: 0, marginBottom: 14, opacity: 0.75 }}>
           Elige qué pose de Sky te acompaña en tus lecciones — o deja que cambie sola según tu progreso.
@@ -233,7 +276,7 @@ export default function PerfilScreen({ usuario, onActualizar }) {
         {notificacionesSoportadas() && (
           <div style={{ marginTop: 14 }}>
             {permisoAvisos === 'granted' && (
-              <p style={{ margin: 0, fontWeight: 700 }}>🔔 Avisos activados — te aviso si tu racha está en riesgo.</p>
+              <p style={{ margin: 0, fontWeight: 700 }}>🔔 Avisos activados — te aviso si tu racha está en riesgo o si una cápsula está por bajar de valor.</p>
             )}
             {permisoAvisos === 'denied' && (
               <p style={{ margin: 0, opacity: 0.7, fontSize: '0.85rem' }}>
@@ -242,7 +285,7 @@ export default function PerfilScreen({ usuario, onActualizar }) {
             )}
             {permisoAvisos === 'default' && (
               <button type="button" className="re-btn re-btn--sm" onClick={activarAvisos}>
-                🔔 Activar avisos de racha en riesgo
+                🔔 Activar avisos (racha y cápsulas por vencer)
               </button>
             )}
           </div>

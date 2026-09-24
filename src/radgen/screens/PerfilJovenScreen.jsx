@@ -21,6 +21,7 @@ import {
 import { useEffect, useState } from 'react'
 import Sky from '../components/Sky'
 import Avatar from '../components/Avatar'
+import TarjetaExperiencia from '../components/TarjetaExperiencia'
 import RachaBadge from '../components/RachaBadge'
 import TareaPersonal from '../components/TareaPersonal'
 import Toast from '../components/Toast'
@@ -176,7 +177,7 @@ export default function PerfilJovenScreen({ usuario }) {
           foto={joven.fotoPerfil}
           uid={joven.uid}
           size={56}
-          marco={insignias.nivelActual?.id}
+          marco={joven.marcoAvatar || insignias.nivelActual?.id}
           racha={racha}
           colorAcento={joven.colorAcento}
         />
@@ -195,8 +196,9 @@ export default function PerfilJovenScreen({ usuario }) {
         </div>
         <RachaBadge semanas={racha} />
         <div className="re-racha">{insignias.totalCompletadas} cápsula{insignias.totalCompletadas === 1 ? '' : 's'} completada{insignias.totalCompletadas === 1 ? '' : 's'}</div>
-        {experiencia && <div className="re-racha">Nivel {experiencia.nivel} · {experiencia.xpTotal} XP</div>}
       </div>
+
+      {experiencia && <TarjetaExperiencia experiencia={experiencia} />}
 
       <div className="re-card">
         <h2 className="re-subtitulo">Elegibilidad</h2>

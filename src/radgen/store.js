@@ -55,8 +55,31 @@ const XP_CONFIG_POR_DEFECTO = {
   porQuizCorrecta: 2,
   porRachaSemana: 5,
   porInsigniaManual: 15,
+  porAsistencia: 3,
+  porVersiculoMemorizado: 3,
+  porDueloGanado: 3,
   xpPorNivel: 50,
 }
+
+// La cápsula N de una serie "toca" en la semana N desde que ese joven
+// empezó la serie. Hacerla tarde sigue sumando, pero menos — así no da lo
+// mismo ir al día que ponerse al corriente todo de golpe al final.
+export const VALOR_POR_SEMANAS_TARDE = [1, 0.75, 0.5, 0.25]
+const DIA_MS = 24 * 60 * 60 * 1000
+const SEMANA_MS = 7 * DIA_MS
+
+// Máximo de duelos ganados que dan XP por semana — evita que dos amigos
+// se reten 50 veces seguidas solo para inflar puntos.
+const DUELOS_CON_XP_POR_SEMANA = 3
+
+// Marcos de avatar que se desbloquean con el nivel de experiencia.
+export const MARCOS_AVATAR = [
+  { id: 'fuego', nombre: 'Fuego', nivel: 2 },
+  { id: 'neon', nombre: 'Neón', nivel: 3 },
+  { id: 'oceano', nombre: 'Océano', nivel: 4 },
+  { id: 'arcoiris', nombre: 'Arcoíris', nivel: 6 },
+  { id: 'diamante', nombre: 'Diamante', nivel: 8 },
+]
 
 const CONFIG_ID = 'config'
 const CONFIG_POR_DEFECTO = {
@@ -65,6 +88,8 @@ const CONFIG_POR_DEFECTO = {
   mostrarElegibilidadAJovenes: false,
   mostrarRankingAJovenes: false,
   requisitos: { voluntariado: [], misiones: [] },
+  pausasCalendario: [],
+  equipos: [],
 }
 
 async function getConfig() {
@@ -219,6 +244,41 @@ export async function setXpConfig(nuevoConfig) {
   return combinado
 }
 
+// ===== Calendario (pausas) =====
+
+// Cada pausa es { desde, hasta } (hasta = null mientras siga pausado). El
+// tiempo en pausa no cuenta para que una cápsula pierda valor.
+export async function getPausasCalendario() {
+  const config = await getConfig()
+  return config.pausasCalendario || []
+}
+
+export function calendarioEnPausa(pausas) {
+  return pausas.some((p) => !p.hasta)
+}
+
+export async function alternarPausaCalendario() {
+  const pausas = await getPausasCalendario()
+  const ahora = new Date().toISOString()
+  const nuevas = calendarioEnPausa(pausas)
+    ? pausas.map((p) => (p.hasta ? p : { ...p, hasta: ahora }))
+    : [...pausas, { desde: ahora, hasta: null }]
+  await setDoc(doc(db, 'radgenEduConfig', CONFIG_ID), { pausasCalendario: nuevas }, { merge: true })
+  return nuevas
+}
+
+// ===== Equipos =====
+
+export async function getEquipos() {
+  const config = await getConfig()
+  return config.equipos || []
+}
+
+export async function guardarEquipos(equipos) {
+  await setDoc(doc(db, 'radgenEduConfig', CONFIG_ID), { equipos }, { merge: true })
+  return equipos
+}
+
 export async function getRequisitos() {
   const config = await getConfig()
   return config.requisitos
@@ -252,6 +312,7 @@ export async function actualizarPerfil({
   skyElegido,
   fondoPerfil,
   insigniaDestacada,
+  marcoAvatar,
 }) {
   const cambios = {}
   if (nombre?.trim()) cambios.nombre = nombre.trim()
@@ -262,6 +323,7 @@ export async function actualizarPerfil({
   if (skyElegido !== undefined) cambios.skyElegido = skyElegido
   if (fondoPerfil !== undefined) cambios.fondoPerfil = fondoPerfil
   if (insigniaDestacada !== undefined) cambios.insigniaDestacada = insigniaDestacada
+  if (marcoAvatar !== undefined) cambios.marcoAvatar = marcoAvatar
   await updateDoc(doc(db, 'radgenPerfiles', uid), cambios)
   const snap = await getDoc(doc(db, 'radgenPerfiles', uid))
   return { uid, ...snap.data() }
@@ -668,12 +730,11 @@ export async function asignarSerieCompleta({ serieId, jovenUids, liderUid }) {
   return deSerie.length
 }
 
-// 1 de cada 5 cápsulas completadas trae un empujón extra de XP — nada
-// garantizado, para que completar una cápsula cualquiera a veces se sienta
-// como una sorpresa y no solo como marcar una casilla.
-const PROBABILIDAD_BONO = 0.2
-const BONO_XP_MIN = 5
-const BONO_XP_MAX = 15
+// 1 de cada 10 cápsulas completadas trae un empujón chico de XP — una
+// sorpresa, pero nunca tan grande como para mover el ranking por suerte.
+const PROBABILIDAD_BONO = 0.1
+const BONO_XP_MIN = 2
+const BONO_XP_MAX = 5
 
 export async function marcarCompletado(asignacionId, quizScore = null) {
   const asignacionRef = doc(db, 'radgenAsignaciones', asignacionId)
@@ -701,6 +762,10 @@ export async function marcarCompletado(asignacionId, quizScore = null) {
 
 export async function marcarRetoCumplido(asignacionId, valor) {
   await updateDoc(doc(db, 'radgenAsignaciones', asignacionId), { retoCumplido: valor })
+}
+
+export async function marcarVersiculoMemorizado(asignacionId) {
+  await updateDoc(doc(db, 'radgenAsignaciones', asignacionId), { versiculoMemorizado: true })
 }
 
 // Reacción rápida de la líder a una cápsula completada, directo desde el
@@ -831,21 +896,23 @@ function getInicioSemana(fecha) {
 
 // Semanas consecutivas (hasta la semana actual) con al menos una cápsula
 // completada — como una racha de Duolingo, pero de constancia espiritual.
-export async function getRachaSemanas(uid) {
-  const todas = await getAsignacionesDe(uid)
+function rachaDesdeAsignaciones(todas) {
   const asignaciones = todas.filter((a) => a.estado === 'completado' && a.fechaCompletado)
   if (asignaciones.length === 0) return 0
 
   const semanas = new Set(asignaciones.map((a) => getInicioSemana(a.fechaCompletado)))
-  const unaSemanaMs = 7 * 24 * 60 * 60 * 1000
   let cursor = getInicioSemana(new Date())
   let racha = 0
 
   while (semanas.has(cursor)) {
     racha += 1
-    cursor -= unaSemanaMs
+    cursor -= SEMANA_MS
   }
   return racha
+}
+
+export async function getRachaSemanas(uid) {
+  return rachaDesdeAsignaciones(await getAsignacionesDe(uid))
 }
 
 // Últimas `cantidadSemanas`, de la más antigua a la más reciente, con si
@@ -914,26 +981,6 @@ export async function getParticipacionSemanal() {
   return { activos: conCurriculo.filter(Boolean).length, total: conCurriculo.length }
 }
 
-export async function getRankingCampamento() {
-  const jovenes = await getJovenes()
-  const filas = await Promise.all(
-    jovenes.map(async (j) => {
-      const [insignias, racha] = await Promise.all([getInsigniasDe(j.uid), getRachaSemanas(j.uid)])
-      return {
-        joven: j,
-        totalCompletadas: insignias.totalCompletadas,
-        nivelActual: insignias.nivelActual,
-        racha,
-        insigniasTotal:
-          insignias.porLeccion.filter((b) => b.desbloqueada).length +
-          insignias.porSerie.filter((b) => b.desbloqueada).length +
-          (insignias.nivelActual ? 1 : 0),
-      }
-    }),
-  )
-  return filas.sort((a, b) => b.totalCompletadas - a.totalCompletadas)
-}
-
 // ===== Insignias otorgadas a mano por la líder =====
 
 export async function getInsigniasManualesDe(uid) {
@@ -979,44 +1026,463 @@ export async function quitarInsigniaManual({ jovenUid, registroId }) {
 
 // ===== Experiencia y niveles =====
 
-// Todo se calcula al vuelo a partir del historial real — igual que
-// insignias, racha y ranking — para que cambiar los valores de XP desde
-// el panel de líder recalcule a todos de inmediato, sin tener que migrar
-// contadores guardados.
-export async function getExperienciaDe(uid) {
-  const xpCfg = await getXpConfig()
-  const [asignaciones, racha, manuales] = await Promise.all([
-    getAsignacionesDe(uid),
-    getRachaSemanas(uid),
-    getInsigniasManualesDe(uid),
-  ])
+// Tiempo transcurrido entre dos fechas sin contar lo que el calendario
+// estuvo en pausa.
+function msEfectivos(desde, hasta, pausas) {
+  const a = new Date(desde).getTime()
+  const b = new Date(hasta).getTime()
+  if (b <= a) return 0
+  const pausado = pausas.reduce((suma, p) => {
+    const inicio = new Date(p.desde).getTime()
+    const fin = p.hasta ? new Date(p.hasta).getTime() : Date.now()
+    return suma + Math.max(0, Math.min(b, fin) - Math.max(a, inicio))
+  }, 0)
+  return b - a - pausado
+}
 
+// Para cada asignación: en qué semana de su serie "tocaba", cuántas semanas
+// tarde se hizo (o va, si sigue pendiente), cuánto vale y cuánto falta para
+// que baje al siguiente escalón. La serie empieza, para cada joven, el día
+// que se le asignó su primera cápsula de esa serie — así alguien que se
+// une después no arranca ya castigado.
+export function calcularValorCapsulas(asignaciones, lecciones, pausas, ahora = new Date()) {
+  const inicioPorSerie = new Map()
+  asignaciones.forEach((a) => {
+    const serieId = a.leccion?.serieId
+    if (!serieId || !a.fechaAsignada) return
+    const actual = inicioPorSerie.get(serieId)
+    if (!actual || a.fechaAsignada < actual) inicioPorSerie.set(serieId, a.fechaAsignada)
+  })
+
+  const ordenEnSerie = new Map()
+  const porSerie = new Map()
+  lecciones
+    .filter((l) => l.estado !== 'borrador')
+    .forEach((l) => {
+      if (!porSerie.has(l.serieId)) porSerie.set(l.serieId, [])
+      porSerie.get(l.serieId).push(l)
+    })
+  porSerie.forEach((lista) => {
+    lista.sort((x, y) => x.orden - y.orden).forEach((l, i) => ordenEnSerie.set(l.id, i))
+  })
+
+  const enPausa = calendarioEnPausa(pausas)
+  const resultado = new Map()
+  asignaciones.forEach((a) => {
+    const inicio = inicioPorSerie.get(a.leccion?.serieId)
+    const semanaEsperada = ordenEnSerie.get(a.leccionId)
+    if (!inicio || semanaEsperada === undefined) {
+      resultado.set(a.id, { factor: 1, semanasTarde: 0, msParaBajar: null, enPausa })
+      return
+    }
+    const completada = a.estado === 'completado' && a.fechaCompletado
+    const referencia = completada ? a.fechaCompletado : ahora
+    const efectivo = msEfectivos(inicio, referencia, pausas)
+    const semanaEntrega = Math.floor(efectivo / SEMANA_MS)
+    const semanasTarde = Math.max(0, semanaEntrega - semanaEsperada)
+    const escalon = Math.min(semanasTarde, VALOR_POR_SEMANAS_TARDE.length - 1)
+    const factor = VALOR_POR_SEMANAS_TARDE[escalon]
+    const puedeBajarMas = escalon < VALOR_POR_SEMANAS_TARDE.length - 1
+    const msParaBajar =
+      !completada && puedeBajarMas ? (semanaEsperada + escalon + 1) * SEMANA_MS - efectivo : null
+    resultado.set(a.id, { factor, semanasTarde, msParaBajar, enPausa })
+  })
+  return resultado
+}
+
+function contarInsigniasAuto(lecciones, completadasIds) {
+  const deCapsulas = lecciones.filter((l) => completadasIds.has(l.id)).length
+  const series = getSeriesUnicas(lecciones)
+  const deSeries = series.filter((s) =>
+    lecciones.filter((l) => l.serieId === s.serieId).every((l) => completadasIds.has(l.id)),
+  ).length
+  const rango = [...NIVELES].reverse().find((n) => completadasIds.size >= n.minimo) || null
+  return { total: deCapsulas + deSeries + (rango ? 1 : 0), nivelActual: rango, totalCompletadas: completadasIds.size }
+}
+
+// Quién ganó un duelo (null si todavía falta alguien o fue empate exacto).
+export function ganadorDeDuelo(duelo) {
+  const r1 = duelo.respuestas?.[duelo.retadorUid]
+  const r2 = duelo.respuestas?.[duelo.retadoUid]
+  if (!r1 || !r2) return null
+  if (r1.correctas !== r2.correctas) return r1.correctas > r2.correctas ? duelo.retadorUid : duelo.retadoUid
+  if (r1.tiempoMs !== r2.tiempoMs) return r1.tiempoMs < r2.tiempoMs ? duelo.retadorUid : duelo.retadoUid
+  return null
+}
+
+function duelosGanadosConXp(uid, duelos) {
+  const porSemana = new Map()
+  duelos.forEach((d) => {
+    if (ganadorDeDuelo(d) !== uid) return
+    const fechas = Object.values(d.respuestas).map((r) => r.fecha)
+    const semana = getInicioSemana(fechas.sort().at(-1))
+    porSemana.set(semana, (porSemana.get(semana) || 0) + 1)
+  })
+  let total = 0
+  porSemana.forEach((n) => {
+    total += Math.min(n, DUELOS_CON_XP_POR_SEMANA)
+  })
+  return total
+}
+
+// El cálculo puro: recibe todo lo de UN joven ya cargado y devuelve su XP
+// con el desglose completo, para poder explicarle de dónde sale cada punto.
+function calcularExperiencia({ xpCfg, asignaciones, lecciones, pausas, manuales, asistencias, duelos, uid }) {
   const completadas = asignaciones.filter((a) => a.estado === 'completado')
-  const quizCorrectas = completadas.reduce((suma, a) => suma + (a.quizScore?.correctas || 0), 0)
-  const insigniasManualesTotal = manuales.reduce((suma, m) => suma + m.veces, 0)
+  const valores = calcularValorCapsulas(asignaciones, lecciones, pausas)
 
-  const bonoXpTotal = completadas.reduce((suma, a) => suma + (a.bonoXp || 0), 0)
+  let capsulas = 0
+  let quiz = 0
+  let perdidoPorTarde = 0
+  let aTiempo = 0
+  completadas.forEach((a) => {
+    const { factor } = valores.get(a.id) || { factor: 1 }
+    const baseCapsula = xpCfg.porLeccionCompletada
+    const baseQuiz = (a.quizScore?.correctas || 0) * xpCfg.porQuizCorrecta
+    const ganado = Math.round(baseCapsula * factor) + Math.round(baseQuiz * factor)
+    capsulas += Math.round(baseCapsula * factor)
+    quiz += Math.round(baseQuiz * factor)
+    perdidoPorTarde += baseCapsula + baseQuiz - ganado
+    if (factor === 1) aTiempo += 1
+  })
 
-  const xpTotal =
-    completadas.length * xpCfg.porLeccionCompletada +
-    quizCorrectas * xpCfg.porQuizCorrecta +
-    racha * xpCfg.porRachaSemana +
-    insigniasManualesTotal * xpCfg.porInsigniaManual +
-    bonoXpTotal
+  const racha = rachaDesdeAsignaciones(asignaciones)
+  // La XP de constancia cuenta semanas con al menos una cápsula, no la
+  // racha actual: así nunca baja, y no premia a quien se pone al corriente
+  // tarde por encima de quien la hizo a tiempo la semana anterior.
+  const semanasActivas = new Set(
+    completadas.filter((a) => a.fechaCompletado).map((a) => getInicioSemana(a.fechaCompletado)),
+  ).size
+  const insigniasManualesTotal = manuales.length
+  const versiculos = completadas.filter((a) => a.versiculoMemorizado).length
+  const duelosGanados = duelosGanadosConXp(uid, duelos)
+
+  const desglose = {
+    capsulas,
+    quiz,
+    racha: semanasActivas * xpCfg.porRachaSemana,
+    insignias: insigniasManualesTotal * xpCfg.porInsigniaManual,
+    asistencia: asistencias.length * xpCfg.porAsistencia,
+    versiculos: versiculos * xpCfg.porVersiculoMemorizado,
+    duelos: duelosGanados * xpCfg.porDueloGanado,
+    bono: completadas.reduce((suma, a) => suma + (a.bonoXp || 0), 0),
+  }
+  const xpTotal = Object.values(desglose).reduce((s, v) => s + v, 0)
 
   const xpPorNivel = Math.max(1, xpCfg.xpPorNivel)
   const nivel = Math.floor(xpTotal / xpPorNivel) + 1
   const xpEnNivelActual = xpTotal % xpPorNivel
 
-  return { xpTotal, nivel, xpEnNivelActual, xpPorNivel }
+  return {
+    xpTotal,
+    nivel,
+    xpEnNivelActual,
+    xpPorNivel,
+    desglose,
+    perdidoPorTarde,
+    aTiempo,
+    totalCompletadas: completadas.length,
+    racha,
+    conteos: {
+      semanasActivas,
+      asistencias: asistencias.length,
+      versiculos,
+      duelosGanados,
+      insigniasManuales: insigniasManualesTotal,
+    },
+  }
 }
 
-export async function getExperienciaRanking() {
-  const jovenes = await getJovenes()
-  const filas = await Promise.all(
-    jovenes.map(async (j) => ({ joven: j, experiencia: await getExperienciaDe(j.uid) })),
+async function leerSeguro(consulta) {
+  try {
+    const snap = await getDocs(consulta)
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  } catch {
+    return []
+  }
+}
+
+// Todo se calcula al vuelo a partir del historial real — igual que
+// insignias, racha y ranking — para que cambiar los valores de XP desde
+// el panel de líder recalcule a todos de inmediato, sin tener que migrar
+// contadores guardados.
+export async function getExperienciaDe(uid) {
+  const [config, lecciones, asignacionesRaw, manuales, asistencias, duelosA, duelosB] = await Promise.all([
+    getConfig(),
+    getLecciones(),
+    leerSeguro(query(collection(db, 'radgenAsignaciones'), where('asignadoA', '==', uid))),
+    leerSeguro(query(collection(db, 'radgenInsigniasManuales'), where('jovenUid', '==', uid))),
+    leerSeguro(query(collection(db, 'radgenAsistencias'), where('jovenUid', '==', uid))),
+    leerSeguro(query(collection(db, 'radgenDuelos'), where('retadorUid', '==', uid))),
+    leerSeguro(query(collection(db, 'radgenDuelos'), where('retadoUid', '==', uid))),
+  ])
+  const asignaciones = asignacionesRaw.map((a) => ({ ...a, leccion: lecciones.find((l) => l.id === a.leccionId) }))
+  return calcularExperiencia({
+    xpCfg: { ...XP_CONFIG_POR_DEFECTO, ...(config.xp || {}) },
+    asignaciones,
+    lecciones,
+    pausas: config.pausasCalendario || [],
+    manuales,
+    asistencias,
+    duelos: [...duelosA, ...duelosB],
+    uid,
+  })
+}
+
+// Un solo ranking para todo (panel, pantalla de insignias y proyector):
+// ordenado por experiencia, desempatando por insignias totales. Carga cada
+// colección UNA vez para todo el grupo, en vez de repetir las mismas
+// lecturas por cada joven.
+export async function getRanking() {
+  const [config, lecciones, jovenes, asignaciones, manuales, asistencias, duelos] = await Promise.all([
+    getConfig(),
+    getLecciones(),
+    getJovenes(),
+    leerSeguro(collection(db, 'radgenAsignaciones')),
+    leerSeguro(collection(db, 'radgenInsigniasManuales')),
+    leerSeguro(collection(db, 'radgenAsistencias')),
+    leerSeguro(collection(db, 'radgenDuelos')),
+  ])
+  const xpCfg = { ...XP_CONFIG_POR_DEFECTO, ...(config.xp || {}) }
+  const pausas = config.pausasCalendario || []
+  const leccionPorId = new Map(lecciones.map((l) => [l.id, l]))
+
+  const filas = jovenes.map((joven) => {
+    const deJoven = asignaciones
+      .filter((a) => a.asignadoA === joven.uid)
+      .map((a) => ({ ...a, leccion: leccionPorId.get(a.leccionId) }))
+    const manualesDeJoven = manuales.filter((m) => m.jovenUid === joven.uid)
+    const experiencia = calcularExperiencia({
+      xpCfg,
+      asignaciones: deJoven,
+      lecciones,
+      pausas,
+      manuales: manualesDeJoven,
+      asistencias: asistencias.filter((x) => x.jovenUid === joven.uid),
+      duelos: duelos.filter((d) => d.retadorUid === joven.uid || d.retadoUid === joven.uid),
+      uid: joven.uid,
+    })
+    const completadasIds = new Set(deJoven.filter((a) => a.estado === 'completado').map((a) => a.leccionId))
+    const auto = contarInsigniasAuto(lecciones, completadasIds)
+    return {
+      joven,
+      experiencia,
+      xpTotal: experiencia.xpTotal,
+      insigniasTotal: auto.total + manualesDeJoven.length,
+      totalCompletadas: auto.totalCompletadas,
+      nivelActual: auto.nivelActual,
+      racha: experiencia.racha,
+    }
+  })
+
+  filas.sort(
+    (a, b) =>
+      b.xpTotal - a.xpTotal ||
+      b.insigniasTotal - a.insigniasTotal ||
+      (a.joven.nombre || '').localeCompare(b.joven.nombre || ''),
   )
-  return filas.sort((a, b) => b.experiencia.xpTotal - a.experiencia.xpTotal)
+  // Empatados (misma XP y mismas insignias) comparten lugar: 1, 2, 2, 4…
+  filas.forEach((f, i) => {
+    const anterior = filas[i - 1]
+    f.posicion =
+      anterior && anterior.xpTotal === f.xpTotal && anterior.insigniasTotal === f.insigniasTotal ? anterior.posicion : i + 1
+  })
+  return filas
+}
+
+// Equipos ordenados por XP promedio por integrante — con promedio y no con
+// suma, para que un equipo más grande no gane solo por tener más gente.
+export function calcularRankingEquipos(equipos, ranking) {
+  return equipos
+    .map((e) => {
+      const filas = ranking.filter((f) => e.miembros?.includes(f.joven.uid))
+      const total = filas.reduce((s, f) => s + f.xpTotal, 0)
+      return { ...e, integrantes: filas, total, promedio: filas.length ? Math.round(total / filas.length) : 0 }
+    })
+    .sort((a, b) => b.promedio - a.promedio)
+}
+
+// ===== Asistencia con QR =====
+
+function codigoAleatorio() {
+  const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let codigo = ''
+  for (let i = 0; i < 6; i += 1) codigo += letras[Math.floor(Math.random() * letras.length)]
+  return codigo
+}
+
+export async function crearReunion({ titulo, liderUid }) {
+  const codigo = codigoAleatorio()
+  const reunion = {
+    codigo,
+    titulo: titulo?.trim() || `Reunión ${new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}`,
+    fecha: new Date().toISOString(),
+    activa: true,
+    creadaPor: liderUid,
+  }
+  await setDoc(doc(db, 'radgenReuniones', codigo), reunion)
+  return reunion
+}
+
+export async function cerrarReunion(codigo) {
+  await updateDoc(doc(db, 'radgenReuniones', codigo), { activa: false })
+}
+
+export async function getReuniones() {
+  const lista = await leerSeguro(collection(db, 'radgenReuniones'))
+  return lista.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+}
+
+export function observarAsistenciasDeReunion(codigo, callback) {
+  return onSnapshot(
+    query(collection(db, 'radgenAsistencias'), where('reunionCodigo', '==', codigo)),
+    (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    () => callback([]),
+  )
+}
+
+// Devuelve { ok, yaRegistrada, reunion } o { ok: false, error }.
+export async function registrarAsistencia({ codigo, jovenUid }) {
+  try {
+    return await registrarAsistenciaInterno({ codigo, jovenUid })
+  } catch {
+    return { ok: false, error: 'No se pudo registrar tu asistencia. Intenta de nuevo o avísale a tu líder.' }
+  }
+}
+
+async function registrarAsistenciaInterno({ codigo, jovenUid }) {
+  const limpio = (codigo || '').trim().toUpperCase()
+  const snap = await getDoc(doc(db, 'radgenReuniones', limpio))
+  if (!snap.exists()) return { ok: false, error: 'Ese código no existe. Revísalo con tu líder.' }
+  const reunion = snap.data()
+  if (!reunion.activa) return { ok: false, error: 'Esta reunión ya cerró su registro de asistencia.' }
+
+  const ref = doc(db, 'radgenAsistencias', `${limpio}_${jovenUid}`)
+  const existente = await getDoc(ref)
+  if (existente.exists()) return { ok: true, yaRegistrada: true, reunion }
+
+  await setDoc(ref, { reunionCodigo: limpio, jovenUid, fecha: new Date().toISOString() })
+  return { ok: true, yaRegistrada: false, reunion }
+}
+
+export async function quitarAsistencia(asistenciaId) {
+  await deleteDoc(doc(db, 'radgenAsistencias', asistenciaId))
+}
+
+// ===== Duelos de quiz =====
+
+function mezclar(lista) {
+  const copia = [...lista]
+  for (let i = copia.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[copia[i], copia[j]] = [copia[j], copia[i]]
+  }
+  return copia
+}
+
+// Preguntas de cápsulas que AMBOS ya completaron — un duelo es de repaso,
+// nunca le adelanta a nadie el quiz de algo que todavía no ve.
+export async function crearDuelo({ retadorUid, retadoUid }) {
+  try {
+    return await crearDueloInterno({ retadorUid, retadoUid })
+  } catch {
+    return { ok: false, error: 'No se pudo crear el duelo justo ahora. Intenta de nuevo en un momento.' }
+  }
+}
+
+async function crearDueloInterno({ retadorUid, retadoUid }) {
+  const [lecciones, mias, suyas] = await Promise.all([
+    getLecciones(),
+    leerSeguro(query(collection(db, 'radgenAsignaciones'), where('asignadoA', '==', retadorUid))),
+    leerSeguro(query(collection(db, 'radgenAsignaciones'), where('asignadoA', '==', retadoUid))),
+  ])
+  const hechasPor = (lista) => new Set(lista.filter((a) => a.estado === 'completado').map((a) => a.leccionId))
+  const mias_ = hechasPor(mias)
+  const suyas_ = hechasPor(suyas)
+  const banco = lecciones
+    .filter((l) => mias_.has(l.id) && suyas_.has(l.id) && l.quiz?.length)
+    .flatMap((l) => l.quiz.map((p) => ({ ...p, leccionTitulo: l.titulo })))
+
+  if (banco.length < 3) {
+    return { ok: false, error: 'Todavía no tienen suficientes cápsulas con quiz en común para un duelo.' }
+  }
+
+  const preguntas = mezclar(banco)
+    .slice(0, 5)
+    .map((p) => ({ pregunta: p.pregunta, opciones: p.opciones, correcta: p.correcta, leccionTitulo: p.leccionTitulo }))
+
+  const ref = await addDoc(collection(db, 'radgenDuelos'), {
+    retadorUid,
+    retadoUid,
+    preguntas,
+    respuestas: {},
+    fecha: new Date().toISOString(),
+  })
+  return { ok: true, dueloId: ref.id }
+}
+
+export async function getDuelo(dueloId) {
+  const snap = await getDoc(doc(db, 'radgenDuelos', dueloId))
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null
+}
+
+export async function getDuelosDe(uid) {
+  const [a, b] = await Promise.all([
+    leerSeguro(query(collection(db, 'radgenDuelos'), where('retadorUid', '==', uid))),
+    leerSeguro(query(collection(db, 'radgenDuelos'), where('retadoUid', '==', uid))),
+  ])
+  return [...a, ...b].sort((x, y) => new Date(y.fecha) - new Date(x.fecha))
+}
+
+export async function responderDuelo({ dueloId, uid, correctas, tiempoMs }) {
+  await updateDoc(doc(db, 'radgenDuelos', dueloId), {
+    [`respuestas.${uid}`]: { correctas, tiempoMs: Math.round(tiempoMs), fecha: new Date().toISOString() },
+  })
+  return getDuelo(dueloId)
+}
+
+// ===== Resumen ("Wrapped") de una serie terminada =====
+
+export async function getResumenSerie(uid, serieId) {
+  const [config, lecciones, asignacionesRaw] = await Promise.all([
+    getConfig(),
+    getLecciones(),
+    leerSeguro(query(collection(db, 'radgenAsignaciones'), where('asignadoA', '==', uid))),
+  ])
+  const xpCfg = { ...XP_CONFIG_POR_DEFECTO, ...(config.xp || {}) }
+  const asignaciones = asignacionesRaw.map((a) => ({ ...a, leccion: lecciones.find((l) => l.id === a.leccionId) }))
+  const valores = calcularValorCapsulas(asignaciones, lecciones, config.pausasCalendario || [])
+  const deSerie = asignaciones.filter((a) => a.leccion?.serieId === serieId && a.estado === 'completado')
+  if (deSerie.length === 0) return null
+
+  const correctas = deSerie.reduce((s, a) => s + (a.quizScore?.correctas || 0), 0)
+  const preguntas = deSerie.reduce((s, a) => s + (a.quizScore?.total || 0), 0)
+  const aTiempo = deSerie.filter((a) => (valores.get(a.id)?.factor ?? 1) === 1).length
+  const xp = deSerie.reduce((s, a) => {
+    const f = valores.get(a.id)?.factor ?? 1
+    return (
+      s +
+      Math.round(xpCfg.porLeccionCompletada * f) +
+      Math.round((a.quizScore?.correctas || 0) * xpCfg.porQuizCorrecta * f) +
+      (a.bonoXp || 0) +
+      (a.versiculoMemorizado ? xpCfg.porVersiculoMemorizado : 0)
+    )
+  }, 0)
+  const fechas = deSerie.map((a) => a.fechaCompletado).filter(Boolean).sort()
+  const inicio = deSerie.map((a) => a.fechaAsignada).filter(Boolean).sort()[0]
+  const dias = inicio && fechas.length ? Math.max(1, Math.round((new Date(fechas.at(-1)) - new Date(inicio)) / DIA_MS)) : 1
+
+  return {
+    serieTitulo: deSerie[0].leccion.serieTitulo,
+    capsulas: deSerie.length,
+    correctas,
+    preguntas,
+    aTiempo,
+    xp,
+    dias,
+    versiculos: deSerie.filter((a) => a.versiculoMemorizado).length,
+    retos: deSerie.filter((a) => a.retoCumplido).length,
+  }
 }
 
 // ===== Notas del líder =====
