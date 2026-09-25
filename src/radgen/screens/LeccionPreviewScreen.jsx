@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getLeccionPorId } from '../store'
 import Sky from '../components/Sky'
 import LeccionContenidoLectura from '../components/LeccionContenidoLectura'
+import Esqueleto from '../components/Esqueleto'
 
 // Lo que la líder ve al previsualizar una lección desde Cursos — el mismo
 // contenido que vería un joven, pero de solo lectura: sin marcar como
@@ -18,9 +19,7 @@ export default function LeccionPreviewScreen() {
 
   if (leccion === undefined) {
     return (
-      <div className="re-shell" style={{ textAlign: 'center' }}>
-        <Sky size={72} pose="estudiando" animado />
-      </div>
+      <Esqueleto variante="detalle" />
     )
   }
 

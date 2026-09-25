@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getPerfilPublico, crearDuelo, imagenDeInsignia } from '../store'
-import Avatar from '../components/Avatar'
-import Sky from '../components/Sky'
+import { getPerfilPublico, crearDuelo } from '../store'
+import CartaColeccionable from '../components/CartaColeccionable'
+import BotonAccion from '../components/BotonAccion'
+import { generarCartaPerfil } from '../utils/cartaPerfil'
+import { numeroDeCarta } from '../utils/rarezaCarta'
+import { compartirImagen } from '../utils/shareCard'
+import Esqueleto from '../components/Esqueleto'
 
 // Lo que un joven ve del perfil de OTRO joven — de solo lectura, y
 // deliberadamente limitado a lo cosmético + lo que ya es público en el
@@ -23,9 +27,7 @@ export default function PerfilPublicoScreen({ usuario }) {
 
   if (perfil === undefined && !error) {
     return (
-      <div className="re-shell" style={{ textAlign: 'center' }}>
-        <Sky size={72} pose="estudiando" animado />
-      </div>
+      <Esqueleto variante="perfil" />
     )
   }
 
@@ -47,7 +49,7 @@ export default function PerfilPublicoScreen({ usuario }) {
     )
   }
 
-  const { joven, nivelActual, racha, insigniasEspeciales } = perfil
+  const { joven, nivelActual, racha, insigniasEspeciales, nivelXp, xpTotal, totalCompletadas } = perfil
   const esMiPropioPerfil = uid === usuario.uid
   const perfilEsLider = joven.rol === 'lider'
   // Jóvenes entre sí y jóvenes contra líderes; dos líderes no se retan.
@@ -65,63 +67,52 @@ export default function PerfilPublicoScreen({ usuario }) {
     }
   }
 
+  async function compartirCarta() {
+    const dataUrl = await generarCartaPerfil({
+      joven,
+      nivelActual,
+      racha,
+      nivelXp,
+      xpTotal,
+      totalCompletadas,
+      numero: numeroDeCarta(joven.uid),
+    })
+    await compartirImagen({
+      dataUrl,
+      nombreArchivo: 'mi-carta-radgen.png',
+      titulo: 'Mi carta de RadGen Education',
+      texto: 'Esta es mi carta en RadGen Education 🦅',
+    })
+  }
+
   return (
     <div className="re-shell">
       <button className="re-vinculo re-vinculo--volver" style={{ marginBottom: 16 }} onClick={() => navigate(-1)}>
         ← Volver
       </button>
 
-      <div className={`re-perfil-hero ${joven.fondoPerfil ? `re-fondo-perfil--${joven.fondoPerfil}` : ''}`}>
-        <Avatar
-          nombre={joven.nombre}
-          uid={joven.uid}
-          foto={joven.fotoPerfil}
-          size={110}
-          marco={joven.marcoAvatar || nivelActual?.id}
-          racha={racha}
-          colorAcento={joven.colorAcento}
-        />
-        <h1 className="re-perfil-hero__nombre">{joven.nombre}</h1>
-        {joven.apodo && <p className="re-perfil-apodo">{joven.apodo}</p>}
+      <CartaColeccionable
+        joven={joven}
+        nivelActual={nivelActual}
+        racha={racha}
+        nivelXp={nivelXp}
+        xpTotal={xpTotal}
+        totalCompletadas={totalCompletadas}
+      />
 
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginTop: 14 }}>
-          {perfilEsLider ? (
-            <span className="re-etiqueta-lider re-etiqueta-lider--grande">👑 Líder · Nivel ♾️</span>
-          ) : (
-            <span className={`re-badge ${nivelActual ? 're-badge--completado' : 're-badge--pendiente'}`}>
-              {nivelActual ? `${nivelActual.icono} ${nivelActual.nombre}` : 'Sin rango aún'}
-            </span>
-          )}
-          {racha > 0 && <span className="re-badge re-badge--completado">🔥 {racha} semana{racha === 1 ? '' : 's'}</span>}
-        </div>
-
-        {joven.bio && <p className="re-bio-card">"{joven.bio}"</p>}
-
+      <div className="re-carta-acciones">
         {puedeRetar && (
-          <div style={{ marginTop: 18 }}>
-            <button className="re-btn re-btn--lleno re-btn--duelo" onClick={retar} disabled={retando}>
-              {retando ? 'Armando duelo…' : `⚔️ Retar a ${joven.apodo || joven.nombre.split(' ')[0]} a un duelo`}
-            </button>
-            {errorDuelo && <p className="re-duelo-error">{errorDuelo}</p>}
-          </div>
+          <button className="re-btn re-btn--lleno re-btn--duelo" onClick={retar} disabled={retando}>
+            {retando ? 'Armando duelo…' : `⚔️ Retar a ${joven.apodo || joven.nombre.split(' ')[0]}`}
+          </button>
+        )}
+        {esMiPropioPerfil && (
+          <BotonAccion className="re-btn re-btn--lleno" onClick={compartirCarta} textoCargando="Generando…">
+            📤 Compartir mi carta
+          </BotonAccion>
         )}
       </div>
-
-      {joven.insigniaDestacada && (
-        <div className="re-card" style={{ textAlign: 'center' }}>
-          <h2 className="re-subtitulo">Insignia destacada</h2>
-          <div className="re-insignia-destacada">
-            <span className="re-insignia-destacada__icono">
-              {imagenDeInsignia(joven.insigniaDestacada) ? (
-                <img src={imagenDeInsignia(joven.insigniaDestacada)} alt="" />
-              ) : (
-                joven.insigniaDestacada.icono
-              )}
-            </span>
-            <span className="re-insignia-destacada__texto">{joven.insigniaDestacada.nombre}</span>
-          </div>
-        </div>
-      )}
+      {errorDuelo && <p className="re-duelo-error" style={{ textAlign: 'center' }}>{errorDuelo}</p>}
 
       {insigniasEspeciales?.length > 0 && (
         <div className="re-card">

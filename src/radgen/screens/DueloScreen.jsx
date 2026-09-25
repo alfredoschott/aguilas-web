@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getDuelo, getJovenPorUid, responderDuelo, ganadorDeDuelo, dueloVencido, msParaVencerDuelo } from '../store'
 import { textoTiempoRestante } from '../utils/tiempo'
-import Sky from '../components/Sky'
 import Avatar from '../components/Avatar'
 import Confetti from '../components/Confetti'
 import { sonidoCompletar, sonidoNivel } from '../utils/sonidos'
+import Esqueleto from '../components/Esqueleto'
 
 const DIAS_TEXTO = '7 días'
 
@@ -117,9 +117,7 @@ export default function DueloScreen({ usuario }) {
 
   if (duelo === undefined) {
     return (
-      <div className="re-shell" style={{ textAlign: 'center' }}>
-        <Sky size={72} pose="estudiando" animado />
-      </div>
+      <Esqueleto variante="detalle" />
     )
   }
 

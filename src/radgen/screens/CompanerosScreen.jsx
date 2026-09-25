@@ -5,6 +5,7 @@ import { textoTiempoRestante } from '../utils/tiempo'
 import Avatar from '../components/Avatar'
 import Sky from '../components/Sky'
 import BotonAccion from '../components/BotonAccion'
+import Esqueleto from '../components/Esqueleto'
 
 function prioridad(c, uid) {
   if (c.dueloAbierto && !c.dueloAbierto.respuestas?.[uid]) return 0 // te toca jugar
@@ -123,9 +124,7 @@ export default function CompanerosScreen({ usuario }) {
 
   if (!companeros) {
     return (
-      <div className="re-shell" style={{ textAlign: 'center' }}>
-        <Sky size={72} pose="estudiando" animado />
-      </div>
+      <Esqueleto variante="lista" />
     )
   }
 

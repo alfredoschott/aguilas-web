@@ -27,12 +27,11 @@ const VistaJovenScreen = lazy(() => import('./screens/VistaJovenScreen'))
 import TopBar from './components/TopBar'
 import Sky from './components/Sky'
 import './radgen.css'
+import Esqueleto from './components/Esqueleto'
 
 function CargandoPantalla() {
   return (
-    <div className="re-shell" style={{ textAlign: 'center' }}>
-      <Sky size={72} pose="estudiando" animado />
-    </div>
+    <Esqueleto variante="detalle" />
   )
 }
 

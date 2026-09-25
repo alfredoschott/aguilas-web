@@ -59,6 +59,7 @@ import { exportarEstadoCsv } from '../utils/exportCsv'
 import { subirImagenSerie } from '../utils/imagenLeccion'
 import { useBorrador } from '../hooks/useBorrador'
 import useEliminarConDeshacer from '../hooks/useEliminarConDeshacer'
+import Esqueleto from '../components/Esqueleto'
 
 const TABS = [
   ['cursos', 'Cursos'],
@@ -595,6 +596,97 @@ function TarjetaPersona({ joven, totalCompletadas, totalAsignaciones, nivelActua
   )
 }
 
+const SEMANAS_GRAFICA = 8
+const SEMANAS_MINIMAS = 4
+
+function inicioDeSemana(fecha) {
+  const d = new Date(fecha)
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() - d.getDay()) // domingo, igual que la racha
+  return d.getTime()
+}
+
+function semanasDeActividad(tabla) {
+  const actual = inicioDeSemana(Date.now())
+  const lista = Array.from({ length: SEMANAS_GRAFICA }, (_, i) => {
+    const inicio = new Date(actual)
+    inicio.setDate(inicio.getDate() - (SEMANAS_GRAFICA - 1 - i) * 7)
+    return { inicio: inicio.getTime(), capsulas: 0, jovenes: new Set() }
+  })
+  const porInicio = new Map(lista.map((s) => [s.inicio, s]))
+  tabla.forEach((f) => {
+    if (f.estado !== 'completado' || !f.fechaCompletado) return
+    const semana = porInicio.get(inicioDeSemana(f.fechaCompletado))
+    if (!semana) return
+    semana.capsulas += 1
+    semana.jovenes.add(f.asignadoA)
+  })
+  // Las semanas vacías de antes de que el grupo arrancara no dicen nada:
+  // se recortan, dejando al menos 4 para que siempre haya comparación.
+  while (lista.length > SEMANAS_MINIMAS && lista[0].capsulas === 0) lista.shift()
+  return lista
+}
+
+// Las últimas semanas del grupo de un vistazo: cuántas cápsulas se
+// completaron y cuántos jóvenes distintos avanzaron cada semana — para ver
+// si el grupo va en subida o se está enfriando sin tener que leer tablas.
+function ActividadSemanal({ tabla }) {
+  const semanas = useMemo(() => semanasDeActividad(tabla), [tabla])
+
+  const maximo = Math.max(1, ...semanas.map((s) => s.capsulas))
+  const estaSemana = semanas.at(-1)
+  const pasada = semanas.at(-2)
+  const diferencia = estaSemana.capsulas - pasada.capsulas
+  const tendencia =
+    diferencia > 0
+      ? { texto: `▲ ${diferencia} más que la semana pasada`, clase: 'sube' }
+      : diferencia < 0
+        ? { texto: `▼ ${-diferencia} menos que la semana pasada`, clase: 'baja' }
+        : { texto: 'Igual que la semana pasada', clase: 'igual' }
+
+  return (
+    <div className="re-card re-actividad-semanal">
+      <div className="re-actividad-semanal__cabecera">
+        <div>
+          <h2 className="re-subtitulo" style={{ margin: 0 }}>Actividad semanal</h2>
+          <p className="re-actividad-semanal__resumen">
+            Esta semana: <strong>{estaSemana.capsulas}</strong> cápsula{estaSemana.capsulas === 1 ? '' : 's'} ·{' '}
+            <strong>{estaSemana.jovenes.size}</strong> {estaSemana.jovenes.size === 1 ? 'joven activo' : 'jóvenes activos'}
+          </p>
+        </div>
+        <span className={`re-actividad-semanal__tendencia re-actividad-semanal__tendencia--${tendencia.clase}`}>
+          {tendencia.texto}
+        </span>
+      </div>
+
+      <div className="re-actividad-semanal__grafica" role="img" aria-label={`Cápsulas completadas por semana en las últimas ${semanas.length} semanas`}
+        style={{ gridTemplateColumns: `repeat(${semanas.length}, minmax(0, 1fr))` }}>
+        {semanas.map((s, i) => {
+          const esActual = i === semanas.length - 1
+          const fecha = new Date(s.inicio).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+          return (
+            <div
+              key={s.inicio}
+              className={`re-actividad-semanal__columna ${esActual ? 're-actividad-semanal__columna--actual' : ''}`}
+              title={`Semana del ${fecha}: ${s.capsulas} cápsulas, ${s.jovenes.size} jóvenes`}
+            >
+              <span className="re-actividad-semanal__valor">{s.capsulas}</span>
+              <div className="re-actividad-semanal__carril">
+                <div
+                  className="re-actividad-semanal__barra"
+                  style={{ height: `${Math.max(s.capsulas ? 6 : 0, (s.capsulas / maximo) * 100)}%`, animationDelay: `${i * 0.05}s` }}
+                />
+              </div>
+              <span className="re-actividad-semanal__jovenes">👤 {s.jovenes.size}</span>
+              <span className="re-actividad-semanal__fecha">{esActual ? 'Esta' : fecha}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 const FILTROS_SEGUIMIENTO = [
   ['todos', 'Todos'],
   ['nuevos', '🆕 Nuevos'],
@@ -665,6 +757,8 @@ function PanelSeguimiento({ jovenes, tabla, ranking }) {
           <span className="re-resumen-grupo__etiqueta">sin ninguna cápsula asignada</span>
         </button>
       </div>
+
+      <ActividadSemanal tabla={tabla} />
 
       {inactivos.length > 0 && (
         <div className="re-card re-card--inactivos">
@@ -1623,9 +1717,7 @@ export default function LeaderDashboard({ usuario }) {
 
   if (cargando) {
     return (
-      <div className="re-shell re-shell--ancho" style={{ textAlign: 'center' }}>
-        <Sky size={72} pose="estudiando" animado />
-      </div>
+      <Esqueleto variante="panel" ancho />
     )
   }
 

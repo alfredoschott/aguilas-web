@@ -29,6 +29,7 @@ import Toast from '../components/Toast'
 import { useBorrador } from '../hooks/useBorrador'
 import useEliminarConDeshacer from '../hooks/useEliminarConDeshacer'
 import { generarCertificado, compartirCertificado } from '../utils/certificado'
+import Esqueleto from '../components/Esqueleto'
 
 export default function PerfilJovenScreen({ usuario }) {
   const { uid } = useParams()
@@ -92,9 +93,7 @@ export default function PerfilJovenScreen({ usuario }) {
 
   if (joven === undefined) {
     return (
-      <div className="re-shell" style={{ textAlign: 'center' }}>
-        <Sky size={72} pose="estudiando" animado />
-      </div>
+      <Esqueleto variante="perfil" />
     )
   }
 

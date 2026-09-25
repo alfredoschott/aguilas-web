@@ -3,7 +3,7 @@
 // dependencias externas.
 import skyLogrado from '../../assets/sky-logrado.webp'
 
-function dibujarRectRedondeado(ctx, x, y, w, h, r) {
+export function dibujarRectRedondeado(ctx, x, y, w, h, r) {
   ctx.beginPath()
   ctx.moveTo(x + r, y)
   ctx.arcTo(x + w, y, x + w, y + h, r)
@@ -13,7 +13,7 @@ function dibujarRectRedondeado(ctx, x, y, w, h, r) {
   ctx.closePath()
 }
 
-function envolverTexto(ctx, texto, x, y, maxAncho, alturaLinea) {
+export function envolverTexto(ctx, texto, x, y, maxAncho, alturaLinea) {
   const palabras = texto.split(' ')
   let linea = ''
   let lineaY = y
@@ -35,7 +35,7 @@ function envolverTexto(ctx, texto, x, y, maxAncho, alturaLinea) {
   return lineaY
 }
 
-function cargarImagen(src) {
+export function cargarImagen(src) {
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.crossOrigin = 'anonymous'

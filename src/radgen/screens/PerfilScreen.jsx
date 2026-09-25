@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { actualizarPerfil, getInsigniasDe, getRachaSemanas, getInsigniasManualesDe, getExperienciaDe, MARCOS_AVATAR, imagenDeInsignia } from '../store'
 import { recortarYComprimir } from '../utils/imagenPerfil'
@@ -143,6 +144,15 @@ export default function PerfilScreen({ usuario, onActualizar }) {
 
         {bio && <p className="re-bio-card">"{bio}"</p>}
       </div>
+
+      <Link to={`/radgen/education/joven/${usuario.uid}`} className="re-card re-card--enlace-carta">
+        <span className="re-card--enlace-carta__icono" aria-hidden="true">🃏</span>
+        <span>
+          <strong>Tu carta coleccionable</strong>
+          <small>Así te ven los demás — y la puedes compartir como imagen.</small>
+        </span>
+        <span aria-hidden="true">→</span>
+      </Link>
 
       <div className="re-card">
         <label className="re-label">Nombre</label>

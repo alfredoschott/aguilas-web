@@ -24,6 +24,7 @@ import RachaBadge from '../components/RachaBadge'
 import { generarCertificado, compartirCertificado } from '../utils/certificado'
 import { generarWrappedSerie } from '../utils/wrapped'
 import { compartirImagen } from '../utils/shareCard'
+import Esqueleto from '../components/Esqueleto'
 
 function Medalla({ nombre, icono, imagen, desbloqueada, progreso, variante, delay = 0, onDescargarCertificado, destacada, onDestacar, onResumen }) {
   return (
@@ -31,8 +32,17 @@ function Medalla({ nombre, icono, imagen, desbloqueada, progreso, variante, dela
       className={`re-medalla ${variante ? `re-medalla--${variante}` : ''} ${desbloqueada ? '' : 're-medalla--bloqueada'}`}
       style={{ animationDelay: `${delay}s` }}
     >
+      {/* Bloqueada se ve como silueta de la pieza real (no un candado
+          genérico) para que den ganas de "llenar la vitrina". */}
       <div className="re-medalla__icono">
-        {!desbloqueada ? '🔒' : imagen ? <img src={imagen} alt="" className="re-medalla__imagen" /> : icono}
+        <span className={`re-medalla__pieza ${desbloqueada ? '' : 're-medalla__pieza--silueta'}`}>
+          {imagen ? <img src={imagen} alt="" className="re-medalla__imagen" /> : icono || '🏅'}
+        </span>
+        {!desbloqueada && (
+          <span className="re-medalla__candado" aria-label="Bloqueada">
+            🔒
+          </span>
+        )}
       </div>
       <p className="re-medalla__nombre">{nombre}</p>
       {progreso && <p className="re-medalla__progreso">{progreso}</p>}
@@ -204,12 +214,23 @@ function TarjetaMarcos({ nivel, usuario }) {
 
 const rutaPerfilJoven = (uid) => `/radgen/education/joven/${uid}`
 
-function CabeceraSeccion({ titulo, contador }) {
+// Cada colección es un estante de una vitrina de trofeos: lo que ya ganaste
+// brilla sobre la repisa y lo que falta se ve como silueta.
+function Vitrina({ titulo, contador, descripcion, children }) {
+  const [hechas, total] = String(contador).split('/').map(Number)
+  const llena = total > 0 && hechas === total
   return (
-    <div className="re-seccion-header">
-      <h2 className="re-subtitulo" style={{ margin: 0 }}>{titulo}</h2>
-      <span className="re-seccion-header__contador">{contador}</span>
-    </div>
+    <section className={`re-vitrina ${llena ? 're-vitrina--llena' : ''}`}>
+      <div className="re-vitrina__cabecera">
+        <h2 className="re-vitrina__titulo">{titulo}</h2>
+        <span className="re-vitrina__contador">
+          {llena && '✨ '}
+          {contador}
+        </span>
+      </div>
+      {descripcion && <p className="re-vitrina__descripcion">{descripcion}</p>}
+      <div className="re-medallas-grid">{children}</div>
+    </section>
   )
 }
 
@@ -262,9 +283,7 @@ export default function BadgesScreen({ usuario, onActualizar }) {
 
   if (!insignias) {
     return (
-      <div className="re-shell re-shell--ancho" style={{ textAlign: 'center' }}>
-        <Sky size={72} pose="estudiando" animado />
-      </div>
+      <Esqueleto variante="insignias" ancho />
     )
   }
 
@@ -397,9 +416,7 @@ export default function BadgesScreen({ usuario, onActualizar }) {
         </div>
       )}
 
-      <div className="re-card">
-        <CabeceraSeccion titulo="Cápsulas" contador={`${capsulasDesbloqueadas}/${insignias.porLeccion.length}`} />
-        <div className="re-medallas-grid">
+      <Vitrina titulo="Cápsulas" contador={`${capsulasDesbloqueadas}/${insignias.porLeccion.length}`}>
           {insignias.porLeccion.map((b, i) => (
             <Medalla
               key={b.id}
@@ -413,18 +430,13 @@ export default function BadgesScreen({ usuario, onActualizar }) {
               onDestacar={b.desbloqueada ? () => destacar({ id: b.id, nombre: b.nombre, icono: b.icono, imagen: b.imagen }) : undefined}
             />
           ))}
-        </div>
-      </div>
+      </Vitrina>
 
-      <div className="re-card">
-        <CabeceraSeccion
-          titulo="Insignias especiales"
-          contador={`${insigniasManuales.filter((b) => b.desbloqueada).length}/${insigniasManuales.length}`}
-        />
-        <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
-          Estas te las otorga tu líder en persona — no se desbloquean solas.
-        </p>
-        <div className="re-medallas-grid">
+      <Vitrina
+        titulo="Insignias especiales"
+        contador={`${insigniasManuales.filter((b) => b.desbloqueada).length}/${insigniasManuales.length}`}
+        descripcion="Estas te las otorga tu líder en persona — no se desbloquean solas."
+      >
           {insigniasManuales
             .filter((b) => b.id !== 'especial')
             .map((b, i) => (
@@ -464,19 +476,13 @@ export default function BadgesScreen({ usuario, onActualizar }) {
                 )}
               </div>
             ))}
-        </div>
-      </div>
+      </Vitrina>
 
-      <div className="re-card">
-        <CabeceraSeccion
-          titulo="Insignias especiales individuales"
-          contador={`${insigniasManuales.find((b) => b.id === 'especial')?.veces || 0}`}
-        />
-        <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
-          Por lo mismo que son especiales, cada una se muestra por su cuenta — con su propio motivo y su propio
-          certificado.
-        </p>
-        <div className="re-medallas-grid">
+      <Vitrina
+        titulo="Insignias especiales individuales"
+        contador={`${insigniasManuales.find((b) => b.id === 'especial')?.veces || 0}`}
+        descripcion="Por lo mismo que son especiales, cada una se muestra por su cuenta — con su propio motivo y su propio certificado."
+      >
           {(() => {
             const especial = insigniasManuales.find((b) => b.id === 'especial')
             if (!especial) return null
@@ -498,12 +504,9 @@ export default function BadgesScreen({ usuario, onActualizar }) {
               />
             ))
           })()}
-        </div>
-      </div>
+      </Vitrina>
 
-      <div className="re-card">
-        <CabeceraSeccion titulo="Series completas" contador={`${seriesDesbloqueadas}/${insignias.porSerie.length}`} />
-        <div className="re-medallas-grid">
+      <Vitrina titulo="Series completas" contador={`${seriesDesbloqueadas}/${insignias.porSerie.length}`}>
           {insignias.porSerie.map((b, i) => (
             <Medalla
               key={b.id}
@@ -519,8 +522,7 @@ export default function BadgesScreen({ usuario, onActualizar }) {
               onDestacar={b.desbloqueada ? () => destacar({ id: b.id, nombre: b.nombre, icono: b.icono }) : undefined}
             />
           ))}
-        </div>
-      </div>
+      </Vitrina>
 
       {experiencia && <TarjetaMarcos nivel={experiencia.nivel} usuario={usuario} />}
 

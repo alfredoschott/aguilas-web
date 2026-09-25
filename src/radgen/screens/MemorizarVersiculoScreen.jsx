@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { getAsignacionesDe, getXpConfig, marcarVersiculoMemorizado, obtenerBloques } from '../store'
 import Sky from '../components/Sky'
 import MemorizarVersiculo from '../components/MemorizarVersiculo'
+import Esqueleto from '../components/Esqueleto'
 
 // Pantalla aparte a propósito: si el juego viviera en la misma página que
 // el versículo (como estaba antes), el texto ya se ve arriba y memorizarlo
@@ -23,9 +24,7 @@ export default function MemorizarVersiculoScreen({ usuario }) {
 
   if (asignacion === undefined || !xpCfg) {
     return (
-      <div className="re-shell" style={{ textAlign: 'center' }}>
-        <Sky size={72} pose="estudiando" animado />
-      </div>
+      <Esqueleto variante="detalle" />
     )
   }
 

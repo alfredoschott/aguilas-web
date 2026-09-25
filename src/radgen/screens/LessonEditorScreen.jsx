@@ -5,10 +5,10 @@ import { extraerYoutubeId } from '../utils/youtube'
 import { subirImagenLeccion, borrarImagenLeccion } from '../utils/imagenLeccion'
 import { leerBorradorLeccion, guardarBorradorLeccion, limpiarBorradorLeccion } from '../utils/borradorLeccion'
 import useArrastrarBloques from '../hooks/useArrastrarBloques'
-import Sky from '../components/Sky'
 import CampoTextoFormateado from '../components/CampoTextoFormateado'
 import LeccionContenidoLectura from '../components/LeccionContenidoLectura'
 import Toast from '../components/Toast'
+import Esqueleto from '../components/Esqueleto'
 
 const PREGUNTA_VACIA = () => ({ pregunta: '', opciones: ['', '', '', ''], correcta: 0 })
 
@@ -262,9 +262,7 @@ export default function LessonEditorScreen() {
 
   if (cargando) {
     return (
-      <div className="re-shell re-shell--ancho" style={{ textAlign: 'center' }}>
-        <Sky size={72} pose="estudiando" animado />
-      </div>
+      <Esqueleto variante="detalle" ancho />
     )
   }
 

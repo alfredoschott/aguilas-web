@@ -21,7 +21,6 @@ import {
   dueloAbierto,
   dueloVencido,
 } from '../store'
-import Sky from '../components/Sky'
 import TareaPersonal from '../components/TareaPersonal'
 import Avatar from '../components/Avatar'
 import MapaSerie from '../components/MapaSerie'
@@ -29,6 +28,7 @@ import HeroSiguiente from '../components/HeroSiguiente'
 import { mostrarNotificacion } from '../utils/notificaciones'
 import { textoPlano } from '../utils/formatoTexto'
 import { HORA_MS, textoTiempoRestante } from '../utils/tiempo'
+import Esqueleto from '../components/Esqueleto'
 
 function inicioSemanaLocal(fecha) {
   const d = new Date(fecha)
@@ -335,9 +335,7 @@ export default function LessonListScreen({ usuario, supervision = false }) {
 
   if (cargando) {
     return (
-      <div className="re-shell" style={{ textAlign: 'center' }}>
-        <Sky size={72} pose="estudiando" animado />
-      </div>
+      <Esqueleto variante="lecciones" />
     )
   }
 

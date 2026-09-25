@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { getJovenes, getLeccionesActivas, getSeries } from '../store'
-import Sky from '../components/Sky'
+import Esqueleto from '../components/Esqueleto'
 import MapaSerie from '../components/MapaSerie'
 import LessonListScreen from './LessonListScreen'
 
@@ -32,9 +32,7 @@ function MapaGeneral() {
 
   if (!datos) {
     return (
-      <div style={{ textAlign: 'center' }}>
-        <Sky size={72} pose="estudiando" animado />
-      </div>
+      <Esqueleto variante="mapa" sinShell />
     )
   }
 

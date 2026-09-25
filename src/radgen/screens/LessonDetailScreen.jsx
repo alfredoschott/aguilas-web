@@ -20,6 +20,7 @@ import Sky from '../components/Sky'
 import { sonidoReto } from '../utils/sonidos'
 import { textoTiempoRestante, nivelUrgencia } from '../utils/tiempo'
 import { renderTextoFormateado } from '../utils/formatoTexto'
+import Esqueleto from '../components/Esqueleto'
 
 // Subir de rango es un logro distinto a desbloquear la insignia de una
 // cápsula cualquiera — se devuelve aparte para que la celebración le dé
@@ -60,9 +61,7 @@ export default function LessonDetailScreen({ usuario }) {
 
   if (asignacion === undefined) {
     return (
-      <div className="re-shell" style={{ textAlign: 'center' }}>
-        <Sky size={72} pose="estudiando" animado />
-      </div>
+      <Esqueleto variante="detalle" />
     )
   }
 
@@ -310,6 +309,7 @@ export default function LessonDetailScreen({ usuario }) {
           factor={celebracion.factor}
           serieCompletada={celebracion.serieCompletada}
           uid={usuario.uid}
+          perfil={usuario}
           onCerrar={() => navigate(celebracion.destino)}
         />
       )}

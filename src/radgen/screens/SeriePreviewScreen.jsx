@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getLecciones, getSeries } from '../store'
 import Sky from '../components/Sky'
+import Esqueleto from '../components/Esqueleto'
 
 // Mismo zigzag suave que usa el camino real del joven en LessonListScreen —
 // se repite aquí a propósito para que la vista previa se sienta idéntica a
@@ -30,9 +31,7 @@ export default function SeriePreviewScreen() {
 
   if (datos === undefined) {
     return (
-      <div className="re-shell" style={{ textAlign: 'center' }}>
-        <Sky size={72} pose="estudiando" animado />
-      </div>
+      <Esqueleto variante="detalle" />
     )
   }
 
