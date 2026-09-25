@@ -109,7 +109,7 @@ export default function RadgenEducationApp() {
             <Route path="/" element={<LoginScreen onSesion={setUsuario} />} />
             <Route
               path="/lecciones"
-              element={requiereCurriculoActivo(<LessonListScreen usuario={usuario} />)}
+              element={requiereCurriculoActivo(<LessonListScreen usuario={usuario} onActualizar={setUsuario} />)}
             />
             <Route
               path="/leccion/:asignacionId"

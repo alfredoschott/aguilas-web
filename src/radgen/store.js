@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore'
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
 import { db, auth, googleProvider } from '../firebase'
+import { VERSION_AVISO } from '../legal/datosResponsable'
 import insigniaLeccionImg from '../assets/insignias/insignia-leccion.webp'
 import insigniaLibretaImg from '../assets/insignias/insignia-libreta.webp'
 import insigniaServicioImg from '../assets/insignias/insignia-servicio.webp'
@@ -217,6 +218,7 @@ export async function completarRegistroJoven({ uid, nombre, email, codigo }) {
     rol: 'joven',
     fotoPerfil: null,
     creadoEn: new Date().toISOString(),
+    aceptoTerminos: { version: VERSION_AVISO, fecha: new Date().toISOString() },
   }
   await setDoc(doc(db, 'radgenPerfiles', uid), nuevoPerfil)
   return { ok: true, usuario: { uid, ...nuevoPerfil } }
@@ -1751,4 +1753,46 @@ export async function eliminarTareaPersonal({ jovenUid, tareaId }) {
 export async function getTareasPendientesTotal(jovenUid) {
   const tareas = await getTareasDe(jovenUid)
   return tareas.filter((t) => t.estado !== 'completado').length
+}
+
+// ===== Autorización de papá, mamá o tutor =====
+// Pasa por /api/autorizacion-tutor (servidor) para que el papá pueda
+// autorizar sin cuenta y sin abrir las reglas de Firestore.
+
+export const AUTORIZACION_COMPLETA = ['aceptada', 'no-requerida']
+
+export function necesitaAutorizacion(perfil) {
+  return perfil?.rol === 'joven' && !AUTORIZACION_COMPLETA.includes(perfil.autorizacionTutor?.estado)
+}
+
+async function llamarAutorizacion(cuerpo) {
+  const token = await auth.currentUser?.getIdToken()
+  const respuesta = await fetch('/api/autorizacion-tutor', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(cuerpo),
+  })
+  const datos = await respuesta.json().catch(() => ({}))
+  if (!respuesta.ok) throw new Error(datos.error || 'No se pudo completar. Intenta de nuevo.')
+  return datos
+}
+
+export function enlaceDeAutorizacion(token) {
+  return `${window.location.origin}/autorizacion/${token}`
+}
+
+// El joven (sin jovenUid) o la líder (con jovenUid) obtienen el enlace.
+export async function pedirEnlaceAutorizacion(jovenUid) {
+  const { token } = await llamarAutorizacion({ accion: 'crear', jovenUid })
+  return enlaceDeAutorizacion(token)
+}
+
+export async function registrarAutorizacionEnPapel({ jovenUid, tutorNombre, parentesco, autorizaFotos }) {
+  const { autorizacion } = await llamarAutorizacion({ accion: 'papel', jovenUid, tutorNombre, parentesco, autorizaFotos })
+  return autorizacion
+}
+
+export async function declararMayorDeEdad() {
+  const { autorizacion } = await llamarAutorizacion({ accion: 'mayor' })
+  return autorizacion
 }

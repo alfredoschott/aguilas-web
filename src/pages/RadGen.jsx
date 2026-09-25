@@ -2,6 +2,7 @@ import { useState, useEffect, useLayoutEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, doc, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
+import { VERSION_AVISO } from '../legal/datosResponsable'
 import {
   ArrowLeft,
   Crown,
@@ -600,6 +601,16 @@ function RadGen() {
         .radgen-nb .footer-brand img{ height:30px; width:auto; opacity:0.9; }
         .radgen-nb .footer-brand-name{ font-family:'Montserrat',sans-serif; font-weight:900; font-size:15px; color:var(--paper); letter-spacing:0.03em; text-transform:uppercase; }
         .radgen-nb .footer-brand-copy{ font-size:11.5px; color:#8a8a90; font-weight:700; letter-spacing:0.02em; }
+        .radgen-nb .footer-brand-legal a{ color:#b9b9bf; }
+        .radgen-nb .registro-form .registro-consentimiento{
+          display:flex; gap:10px; align-items:flex-start; margin:0; cursor:pointer;
+          font-family:'Inter',sans-serif; font-size:13px; line-height:1.5; font-weight:600;
+          text-transform:none; letter-spacing:0; color:#3a3a3a;
+        }
+        .radgen-nb .registro-form .registro-consentimiento input{
+          width:18px; height:18px; padding:0; margin:2px 0 0; flex-shrink:0; accent-color:var(--blue);
+        }
+        .radgen-nb .registro-form .registro-consentimiento a{ color:var(--ink); text-decoration:underline; }
 
         @media (max-width:760px){
           .radgen-nb .nav-links{ display:none; }
@@ -796,6 +807,9 @@ function RadGen() {
           <img src="/radgen-logo.png" alt="Logo RadGen" />
           <span className="footer-brand-name">Radical Generation México</span>
           <span className="footer-brand-copy">© 2026 Águilas Centro Familiar Cristiano Tizayuca</span>
+          <span className="footer-brand-copy footer-brand-legal">
+            <Link to="/privacidad">Aviso de privacidad</Link> · <Link to="/terminos">Términos de RadGen Education</Link>
+          </span>
         </div>
       </section>
     </div>
@@ -1055,6 +1069,7 @@ function FaqAcordeon() {
 
 function FormularioRegistro() {
   const [form, setForm] = useState({ nombre: '', telefono: '', edad: '', mensaje: '' })
+  const [acepto, setAcepto] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [enviado, setEnviado] = useState(false)
 
@@ -1062,7 +1077,7 @@ function FormularioRegistro() {
 
   const enviar = async (e) => {
     e.preventDefault()
-    if (!form.nombre.trim() || !form.telefono.trim()) return
+    if (!form.nombre.trim() || !form.telefono.trim() || !acepto) return
     setEnviando(true)
     try {
       await addDoc(collection(db, 'radgenRegistros'), {
@@ -1070,6 +1085,8 @@ function FormularioRegistro() {
         telefono: form.telefono.trim(),
         edad: form.edad.trim() || null,
         mensaje: form.mensaje.trim() || null,
+        aceptoPrivacidad: true,
+        versionAviso: VERSION_AVISO,
         atendido: false,
         creado: serverTimestamp(),
       })
@@ -1111,7 +1128,14 @@ function FormularioRegistro() {
         <label htmlFor="rg-mensaje">Mensaje (opcional)</label>
         <textarea id="rg-mensaje" rows={3} value={form.mensaje} onChange={cambiar('mensaje')} placeholder="Cuéntanos algo, o pregúntanos lo que quieras" />
       </div>
-      <button type="submit" className="btn btn-blue registro-submit" disabled={enviando}>
+      <label className="registro-consentimiento">
+        <input type="checkbox" required checked={acepto} onChange={(e) => setAcepto(e.target.checked)} />
+        <span>
+          Acepto el <Link to="/privacidad" target="_blank">aviso de privacidad</Link> y que el equipo de RadGen me
+          contacte por WhatsApp. Si soy menor de edad, tengo permiso de mi papá, mamá o tutor.
+        </span>
+      </label>
+      <button type="submit" className="btn btn-blue registro-submit" disabled={enviando || !acepto}>
         {enviando ? 'Enviando...' : 'Quiero unirme'}
       </button>
     </form>

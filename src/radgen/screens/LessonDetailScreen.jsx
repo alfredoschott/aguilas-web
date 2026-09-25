@@ -174,7 +174,7 @@ export default function LessonDetailScreen({ usuario }) {
           <div className="re-video-placeholder">
             {asignacion.leccion?.youtubeId ? (
               <iframe
-                src={`https://www.youtube.com/embed/${asignacion.leccion.youtubeId}?rel=0`}
+                src={`https://www.youtube-nocookie.com/embed/${asignacion.leccion.youtubeId}?rel=0`}
                 title={asignacion.leccion?.titulo}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen

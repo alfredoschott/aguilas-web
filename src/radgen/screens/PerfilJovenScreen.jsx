@@ -30,6 +30,7 @@ import { useBorrador } from '../hooks/useBorrador'
 import useEliminarConDeshacer from '../hooks/useEliminarConDeshacer'
 import { generarCertificado, compartirCertificado } from '../utils/certificado'
 import Esqueleto from '../components/Esqueleto'
+import AutorizacionTutorLider from '../components/AutorizacionTutorLider'
 
 export default function PerfilJovenScreen({ usuario }) {
   const { uid } = useParams()
@@ -202,6 +203,13 @@ export default function PerfilJovenScreen({ usuario }) {
       </div>
 
       {experiencia && <TarjetaExperiencia experiencia={experiencia} />}
+
+      {joven.rol === 'joven' && (
+        <AutorizacionTutorLider
+          joven={joven}
+          onCambio={(autorizacionTutor) => setJoven((j) => ({ ...j, autorizacionTutor }))}
+        />
+      )}
 
       <div className="re-card">
         <h2 className="re-subtitulo">Elegibilidad</h2>

@@ -1,6 +1,7 @@
 import { useState, useLayoutEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { VERSION_AVISO } from '../legal/datosResponsable'
 import { db } from '../firebase'
 import { crearNotificacionVisita } from '../portal/notificaciones'
 import { ArrowLeft, ArrowRight, Users, Flame } from 'lucide-react'
@@ -173,17 +174,20 @@ function Elegir({ onElegir }) {
 
 function FormularioVisita({ modo, estiloInput, estiloBoton, textoBoton, colorTexto, classNameBoton }) {
   const [form, setForm] = useState({ nombre: '', telefono: '' })
+  const [acepto, setAcepto] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [enviado, setEnviado] = useState(false)
 
   const enviar = async (e) => {
     e.preventDefault()
-    if (!form.nombre.trim() || !form.telefono.trim()) return
+    if (!form.nombre.trim() || !form.telefono.trim() || !acepto) return
     setEnviando(true)
     try {
       await addDoc(collection(db, 'visitasNuevas'), {
         nombre: form.nombre.trim(),
         telefono: form.telefono.trim(),
+        aceptoPrivacidad: true,
+        versionAviso: VERSION_AVISO,
         modo,
         atendido: false,
         creado: serverTimestamp(),
@@ -208,9 +212,15 @@ function FormularioVisita({ modo, estiloInput, estiloBoton, textoBoton, colorTex
 
   return (
     <form onSubmit={enviar} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-      <input type="text" required placeholder="Tu nombre" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} style={estiloInput} />
-      <input type="tel" required placeholder="Tu WhatsApp" value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} style={estiloInput} />
-      <button type="submit" disabled={enviando} className={classNameBoton} style={estiloBoton}>
+      <input type="text" required aria-label="Tu nombre" autoComplete="name" placeholder="Tu nombre" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} style={estiloInput} />
+      <input type="tel" required aria-label="Tu número de WhatsApp" autoComplete="tel" placeholder="Tu WhatsApp" value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} style={estiloInput} />
+      <label style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start', color: colorTexto, fontSize: '0.8rem', lineHeight: 1.5, textAlign: 'left', cursor: 'pointer' }}>
+        <input type="checkbox" required checked={acepto} onChange={e => setAcepto(e.target.checked)} style={{ width: 18, height: 18, marginTop: 2, flexShrink: 0, accentColor: 'var(--verde)' }} />
+        <span>
+          Acepto el <Link to="/privacidad" target="_blank" style={{ color: 'inherit', textDecoration: 'underline' }}>aviso de privacidad</Link> y que me contacten por WhatsApp.
+        </span>
+      </label>
+      <button type="submit" disabled={enviando || !acepto} className={classNameBoton} style={{ ...estiloBoton, opacity: acepto ? 1 : 0.6 }}>
         {enviando ? 'Enviando...' : textoBoton}
       </button>
     </form>

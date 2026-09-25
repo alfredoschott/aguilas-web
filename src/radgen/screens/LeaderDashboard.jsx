@@ -49,6 +49,7 @@ import {
   quitarAsistencia,
   getDuelosDe,
   dueloAbierto,
+  necesitaAutorizacion,
 } from '../store'
 import QRCode from 'qrcode'
 import Sky from '../components/Sky'
@@ -585,6 +586,11 @@ function TarjetaPersona({ joven, totalCompletadas, totalAsignaciones, nivelActua
 
       <div className="re-persona-card__chips">
         {esNuevo(joven) && <span className="re-badge re-badge--nuevo">🆕 Nuevo</span>}
+        {necesitaAutorizacion(joven) && (
+          <span className="re-badge re-badge--pendiente">
+            🛡️ {joven.autorizacionTutor?.estado === 'pendiente' ? 'Autorización enviada' : 'Sin autorización'}
+          </span>
+        )}
         {inactivo && <span className="re-badge re-badge--inactivo">😴 {diasSinActividad} días sin actividad</span>}
         {totalAsignaciones === 0 && <span className="re-badge re-badge--alerta">Sin asignar</span>}
         {nivelActual && <span className="re-badge re-badge--completado">{nivelActual.icono} {nivelActual.nombre}</span>}
@@ -693,6 +699,7 @@ const FILTROS_SEGUIMIENTO = [
   ['inactivos', '😴 Inactivos'],
   ['sin-asignar', 'Sin asignar'],
   ['con-pendientes', 'Con pendientes'],
+  ['sin-autorizacion', '🛡️ Sin autorización'],
 ]
 
 function PanelSeguimiento({ jovenes, tabla, ranking }) {
@@ -728,12 +735,14 @@ function PanelSeguimiento({ jovenes, tabla, ranking }) {
   const nuevos = datos.filter((d) => esNuevo(d.joven))
   const sinAsignar = datos.filter((d) => d.totalAsignaciones === 0)
   const inactivos = datos.filter((d) => d.inactivo).sort((a, b) => b.diasSinActividad - a.diasSinActividad)
+  const sinAutorizacion = datos.filter((d) => necesitaAutorizacion(d.joven))
 
   const visibles = datos.filter((d) => {
     if (filtro === 'nuevos') return esNuevo(d.joven)
     if (filtro === 'inactivos') return d.inactivo
     if (filtro === 'sin-asignar') return d.totalAsignaciones === 0
     if (filtro === 'con-pendientes') return d.pendientes > 0
+    if (filtro === 'sin-autorizacion') return necesitaAutorizacion(d.joven)
     return true
   })
 
@@ -755,6 +764,10 @@ function PanelSeguimiento({ jovenes, tabla, ranking }) {
         <button type="button" className="re-resumen-grupo__dato re-resumen-grupo__dato--alerta" onClick={() => filtrarYMostrar('sin-asignar')}>
           <span className="re-resumen-grupo__numero">{sinAsignar.length}</span>
           <span className="re-resumen-grupo__etiqueta">sin ninguna cápsula asignada</span>
+        </button>
+        <button type="button" className="re-resumen-grupo__dato re-resumen-grupo__dato--autorizacion" onClick={() => filtrarYMostrar('sin-autorizacion')}>
+          <span className="re-resumen-grupo__numero">{sinAutorizacion.length}</span>
+          <span className="re-resumen-grupo__etiqueta">sin autorización de papá o mamá</span>
         </button>
       </div>
 

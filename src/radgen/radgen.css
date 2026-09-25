@@ -2912,6 +2912,7 @@ button.re-resumen-grupo__dato:hover {
 
 .re-resumen-grupo__dato--nuevo { box-shadow: 4px 4px 0 #34a853; }
 .re-resumen-grupo__dato--alerta { box-shadow: 4px 4px 0 var(--rg-red); }
+.re-resumen-grupo__dato--autorizacion { box-shadow: 4px 4px 0 #e0a100; }
 
 .re-resumen-grupo__numero {
   font-family: 'Montserrat', sans-serif;
@@ -6109,4 +6110,164 @@ a.re-parada:active .re-parada__nodo {
 }
 .re-card--enlace-carta__icono {
   font-size: 1.8rem;
+}
+
+/* ── Enlaces legales en el inicio de sesión ── */
+.re-login-legal {
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-top: 1.2rem;
+  color: var(--rg-paper);
+  opacity: 0.75;
+}
+.re-login-legal a {
+  color: inherit;
+}
+.re-login-legal__check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0.6rem 0 1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--rg-ink);
+  cursor: pointer;
+}
+.re-login-legal__check input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--rg-blue);
+}
+.re-login-legal__check a {
+  color: var(--rg-blue);
+}
+
+/* ── Autorización de papá/mamá: aviso para el joven ── */
+.re-autorizacion {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1.4rem;
+  border-radius: 16px;
+  border: var(--rg-bw) solid var(--rg-ink);
+  background: #fff6d8;
+  color: var(--rg-ink);
+  box-shadow: 5px 5px 0 #e0a100;
+}
+.re-autorizacion__icono {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #ffd93b;
+  border: 2.5px solid var(--rg-ink);
+}
+.re-autorizacion__cuerpo {
+  flex: 1;
+  min-width: 0;
+}
+.re-autorizacion__titulo {
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  font-size: 1rem;
+  text-transform: uppercase;
+}
+.re-autorizacion__texto {
+  margin: 4px 0 12px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  opacity: 0.85;
+}
+.re-autorizacion__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.re-autorizacion__whatsapp {
+  background: #25d366;
+  color: var(--rg-ink);
+  text-decoration: none;
+}
+.re-autorizacion__pregunta {
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.re-autorizacion__mayor {
+  font-size: 0.8rem;
+  color: var(--rg-ink);
+}
+.re-autorizacion__nota {
+  margin: 10px 0 0;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #1f7a3a;
+}
+.re-autorizacion__error {
+  margin: 10px 0 0;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #c62828;
+}
+.re-autorizacion__legal {
+  margin: 10px 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.re-autorizacion__legal a {
+  color: var(--rg-ink);
+  opacity: 0.7;
+}
+@media (max-width: 480px) {
+  .re-autorizacion { flex-direction: column; }
+  .re-autorizacion__acciones > * { flex: 1 1 auto; text-align: center; justify-content: center; }
+}
+
+/* ── Autorización de papá/mamá: vista de la líder ── */
+.re-autorizacion-lider__enlace {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.re-autorizacion-lider__enlace code {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(15, 15, 18, 0.06);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+.re-autorizacion-lider__botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.re-autorizacion-lider__botones a {
+  text-decoration: none;
+}
+.re-autorizacion-lider__papel {
+  display: flex;
+  flex-direction: column;
+}
+.re-autorizacion-lider__check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.88rem;
+  margin: 4px 0 14px;
+  cursor: pointer;
+}
+.re-autorizacion-lider__check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--rg-blue);
 }

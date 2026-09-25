@@ -19,7 +19,7 @@ export default function LeccionContenidoLectura({ leccion }) {
       <div className="re-video-placeholder">
         {leccion.youtubeId ? (
           <iframe
-            src={`https://www.youtube.com/embed/${leccion.youtubeId}?rel=0`}
+            src={`https://www.youtube-nocookie.com/embed/${leccion.youtubeId}?rel=0`}
             title={leccion.titulo}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen

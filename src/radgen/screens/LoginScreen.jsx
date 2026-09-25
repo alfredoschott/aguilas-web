@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { iniciarSesionConGoogle, completarRegistroJoven } from '../store'
 import Sky from '../components/Sky'
 import logo from '../../assets/radgen-education-logo.png'
@@ -17,6 +17,7 @@ export default function LoginScreen({ onSesion }) {
   const [paso, setPaso] = useState('inicio') // inicio | codigo
   const [perfilGoogle, setPerfilGoogle] = useState(null)
   const [codigo, setCodigo] = useState('')
+  const [aceptaTerminos, setAceptaTerminos] = useState(false)
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
 
@@ -48,6 +49,10 @@ export default function LoginScreen({ onSesion }) {
   async function enviarCodigo(e) {
     e.preventDefault()
     setError('')
+    if (!aceptaTerminos) {
+      setError('Para crear tu cuenta acepta los Términos de uso y el Aviso de privacidad.')
+      return
+    }
     setCargando(true)
     try {
       const resultado = await completarRegistroJoven({
@@ -154,13 +159,31 @@ export default function LoginScreen({ onSesion }) {
               placeholder="Código de invitación"
               autoFocus
             />
+            <label className="re-login-legal__check">
+              <input type="checkbox" checked={aceptaTerminos} onChange={(e) => setAceptaTerminos(e.target.checked)} />
+              <span>
+                Acepto los{' '}
+                <Link to="/terminos" target="_blank">
+                  Términos de uso
+                </Link>{' '}
+                y el{' '}
+                <Link to="/privacidad" target="_blank">
+                  Aviso de privacidad
+                </Link>
+                . Si soy menor de edad, le pediré a mi papá, mamá o tutor que autorice mi cuenta.
+              </span>
+            </label>
             {error && <div className="re-error">{error}</div>}
-            <button type="submit" className="re-btn re-btn--lleno re-btn--bloque" disabled={cargando}>
+            <button type="submit" className="re-btn re-btn--lleno re-btn--bloque" disabled={cargando || !aceptaTerminos}>
               {cargando ? 'Creando cuenta…' : 'Crear mi cuenta'}
             </button>
           </form>
         )}
       </div>
+
+      <p className="re-login-legal">
+        <Link to="/terminos">Términos de uso</Link> · <Link to="/privacidad">Aviso de privacidad</Link>
+      </p>
     </div>
   )
 }

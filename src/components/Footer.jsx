@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 function Footer() {
   const links = [
     { label: 'Nosotros', href: '#nosotros' },
@@ -32,7 +33,7 @@ function Footer() {
           <p style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: '900', fontSize: '1rem', color: '#ffffff', marginBottom: '0.5rem' }}>
             ÁGUILAS CFC
           </p>
-          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: '#666666', lineHeight: '1.7', marginBottom: '1rem' }}>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: '#a3a3a3', lineHeight: '1.7', marginBottom: '1rem' }}>
             Tizayuca, Hidalgo, México
           </p>
           <p style={{ fontFamily: 'Montserrat, sans-serif', fontStyle: 'italic', fontWeight: '700', fontSize: '0.9rem', color: '#3DDC04' }}>
@@ -44,7 +45,7 @@ function Footer() {
             Horarios
           </p>
           {horarios.map((item) => (
-            <p key={item} style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: '#666666', marginBottom: '0.75rem', lineHeight: '1.5' }}>
+            <p key={item} style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: '#a3a3a3', marginBottom: '0.75rem', lineHeight: '1.5' }}>
               {item}
             </p>
           ))}
@@ -54,7 +55,7 @@ function Footer() {
             Explora
           </p>
           {links.map((link) => (
-            <a key={link.label} href={link.href} style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: '#666666', textDecoration: 'none', marginBottom: '0.75rem' }}>
+            <a key={link.label} href={link.href} style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: '#a3a3a3', textDecoration: 'none', marginBottom: '0.75rem' }}>
               {link.label}
             </a>
           ))}
@@ -63,13 +64,13 @@ function Footer() {
           <p style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: '700', fontSize: '0.7rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#ffffff', marginBottom: '1.5rem' }}>
             Contacto
           </p>
-          <a href="https://wa.me/527711107903" target="_blank" rel="noreferrer" style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: '#666666', textDecoration: 'none', marginBottom: '0.75rem' }}>
+          <a href="https://wa.me/527711107903" target="_blank" rel="noreferrer" style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: '#a3a3a3', textDecoration: 'none', marginBottom: '0.75rem' }}>
             WhatsApp
           </a>
-          <a href="https://www.facebook.com/share/1DtXzksGaU/?mibextid=wwXIfr" target="_blank" rel="noreferrer" style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: '#666666', textDecoration: 'none', marginBottom: '0.75rem' }}>
+          <a href="https://www.facebook.com/share/1DtXzksGaU/?mibextid=wwXIfr" target="_blank" rel="noreferrer" style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: '#a3a3a3', textDecoration: 'none', marginBottom: '0.75rem' }}>
             Facebook
           </a>
-          <a href="https://www.instagram.com/aguilascfctizayuca" target="_blank" rel="noreferrer" style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: '#666666', textDecoration: 'none', marginBottom: '0.75rem' }}>
+          <a href="https://www.instagram.com/aguilascfctizayuca" target="_blank" rel="noreferrer" style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: '#a3a3a3', textDecoration: 'none', marginBottom: '0.75rem' }}>
             Instagram
           </a>
         </div>
@@ -85,11 +86,12 @@ function Footer() {
         flexWrap: 'wrap',
         gap: '1rem',
       }}>
-        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: '#444444' }}>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: '#8f8f8f' }}>
           2026 Águilas Centro Familiar Cristiano Tizayuca
         </p>
-        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: '#444444' }}>
-          Tizayuca, Hidalgo, México
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: '#8f8f8f', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <span>Tizayuca, Hidalgo, México</span>
+          <Link to="/privacidad" style={{ color: '#a3a3a3' }}>Aviso de privacidad</Link>
         </p>
       </div>
     </footer>

@@ -20,6 +20,7 @@ import {
   getSeries,
   dueloAbierto,
   dueloVencido,
+  necesitaAutorizacion,
 } from '../store'
 import TareaPersonal from '../components/TareaPersonal'
 import Avatar from '../components/Avatar'
@@ -29,6 +30,7 @@ import { mostrarNotificacion } from '../utils/notificaciones'
 import { textoPlano } from '../utils/formatoTexto'
 import { HORA_MS, textoTiempoRestante } from '../utils/tiempo'
 import Esqueleto from '../components/Esqueleto'
+import AvisoAutorizacionTutor from '../components/AvisoAutorizacionTutor'
 
 function inicioSemanaLocal(fecha) {
   const d = new Date(fecha)
@@ -166,7 +168,7 @@ const vistaPrevia = (nodo) => `/radgen/education/lider/leccion/${nodo.leccion.id
 
 // `supervision`: la líder ve exactamente lo que ve este joven, pero de solo
 // lectura — sin notificaciones, sin registrar asistencia, sin marcar tareas.
-export default function LessonListScreen({ usuario, supervision = false }) {
+export default function LessonListScreen({ usuario, supervision = false, onActualizar }) {
   const [busqueda, setBusqueda] = useState('')
   const [tareas, setTareas] = useState([])
   const [asignaciones, setAsignaciones] = useState([])
@@ -348,6 +350,12 @@ export default function LessonListScreen({ usuario, supervision = false }) {
 
   return (
     <div className="re-shell re-shell--lecciones">
+      {!supervision && necesitaAutorizacion(usuario) && (
+        <AvisoAutorizacionTutor
+          usuario={usuario}
+          onResuelto={(autorizacionTutor) => onActualizar?.({ ...usuario, autorizacionTutor })}
+        />
+      )}
       <HeroSiguiente
         siguiente={siguiente}
         valor={siguiente ? valores.get(siguiente.nodo.asignacion.id) : null}

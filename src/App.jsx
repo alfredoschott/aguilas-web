@@ -8,6 +8,10 @@ import ProtectedRoute from './portal/ProtectedRoute'
 // se descarga hasta que alguien lo visita.
 const RadGen = lazy(() => import('./pages/RadGen'))
 const Bienvenida = lazy(() => import('./pages/Bienvenida'))
+const AvisoPrivacidad = lazy(() => import('./legal/AvisoPrivacidad'))
+const TerminosRadgen = lazy(() => import('./legal/TerminosRadgen'))
+const AutorizacionTutor = lazy(() => import('./legal/AutorizacionTutor'))
+const FormatoAutorizacion = lazy(() => import('./legal/FormatoAutorizacion'))
 const PortalLogin = lazy(() => import('./portal/PortalLogin'))
 const PortalDashboard = lazy(() => import('./portal/PortalDashboard'))
 const NuevoEvento = lazy(() => import('./portal/NuevoEvento'))
@@ -36,6 +40,10 @@ function App() {
         <Route path="/" element={<PaginaPrincipal />} />
         <Route path="/radgen" element={<RadGen />} />
         <Route path="/bienvenida" element={<Bienvenida />} />
+        <Route path="/privacidad" element={<AvisoPrivacidad />} />
+        <Route path="/terminos" element={<TerminosRadgen />} />
+        <Route path="/autorizacion/formato" element={<FormatoAutorizacion />} />
+        <Route path="/autorizacion/:token" element={<AutorizacionTutor />} />
 
         <Route path="/lideres" element={<PortalLayout />}>
           <Route index element={<PortalLogin />} />
