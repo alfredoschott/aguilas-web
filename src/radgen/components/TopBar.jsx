@@ -12,30 +12,32 @@ const URL_RADGEN = import.meta.env.DEV ? 'http://localhost:5180/radgen' : '/radg
 
 const BASE = '/radgen/education'
 
+const SECCION_COMPANEROS = {
+  ruta: `${BASE}/companeros`,
+  etiqueta: 'Compañeros',
+  Icono: Swords,
+  tambien: [`${BASE}/duelo/`, `${BASE}/joven/`],
+}
+
 // Qué secciones ve cada quien. "Mi perfil" vive en el menú del avatar en
-// computadora y en la barra de abajo en celular.
+// computadora y como pestaña en celular.
 function seccionesPara(usuario, bloqueado, esAdmin) {
   if (!usuario) return []
+  const esLider = usuario.rol === 'lider'
   const lista = []
-  if (usuario.rol === 'joven' && !bloqueado) {
+  if (esLider) {
+    lista.push({ ruta: `${BASE}/lider`, etiqueta: 'Panel', Icono: LayoutDashboard }, SECCION_COMPANEROS)
+    return lista
+  }
+  if (!bloqueado) {
     lista.push(
       { ruta: `${BASE}/lecciones`, etiqueta: 'Lecciones', Icono: BookOpen, tambien: [`${BASE}/leccion/`] },
       { ruta: `${BASE}/insignias`, etiqueta: 'Insignias', Icono: Award },
-      {
-        ruta: `${BASE}/companeros`,
-        etiqueta: 'Compañeros',
-        Icono: Swords,
-        tambien: [`${BASE}/duelo/`, `${BASE}/joven/`],
-      },
+      SECCION_COMPANEROS,
     )
   }
-  if (usuario.rol === 'lider' || esAdmin) {
-    lista.push({
-      ruta: `${BASE}/lider`,
-      etiqueta: usuario.rol === 'lider' ? 'Panel' : 'Panel líder',
-      corta: usuario.rol === 'lider' ? 'Panel' : 'Líder',
-      Icono: LayoutDashboard,
-    })
+  if (esAdmin) {
+    lista.push({ ruta: `${BASE}/lider`, etiqueta: 'Panel líder', corta: 'Líder', Icono: LayoutDashboard })
   }
   return lista
 }
@@ -82,6 +84,7 @@ function MenuCuenta({ usuario, onSalir }) {
           uid={usuario.uid}
           foto={usuario.fotoPerfil}
           size={32}
+          marco={usuario.marcoAvatar}
           colorAcento={usuario.colorAcento}
         />
         <span className="re-cuenta__nombre">{usuario.apodo || usuario.nombre.split(' ')[0]}</span>

@@ -70,6 +70,7 @@ const XP_CONFIG_POR_DEFECTO = {
   porVersiculoMemorizado: 3,
   porDueloGanado: 3,
   xpPorNivel: 50,
+  xpIncrementoPorNivel: 10,
 }
 
 // La cápsula N de una serie "toca" en la semana N desde que ese joven
@@ -90,7 +91,32 @@ export const MARCOS_AVATAR = [
   { id: 'oceano', nombre: 'Océano', nivel: 4 },
   { id: 'arcoiris', nombre: 'Arcoíris', nivel: 6 },
   { id: 'diamante', nombre: 'Diamante', nivel: 8 },
+  { id: 'galaxia', nombre: 'Galaxia', nivel: 10 },
+  { id: 'leyenda', nombre: 'Leyenda', nivel: 15 },
 ]
+
+// Cada nivel cuesta un poco más que el anterior: los primeros llegan
+// rápido para enganchar, y los altos se vuelven un logro de verdad.
+// Con los valores por defecto: nivel 2 = 50 XP, nivel 4 = 180, nivel 8 =
+// 560, nivel 10 = 800, nivel 15 = 1,750.
+export function nivelDesdeXp(xpTotal, xpCfg) {
+  const base = Math.max(1, Number(xpCfg.xpPorNivel) || 1)
+  const incremento = Math.max(0, Number(xpCfg.xpIncrementoPorNivel) || 0)
+  let nivel = 1
+  let restante = Math.max(0, xpTotal)
+  let costo = base
+  while (restante >= costo) {
+    restante -= costo
+    nivel += 1
+    costo = base + incremento * (nivel - 1)
+  }
+  return { nivel, xpEnNivelActual: restante, xpPorNivel: costo }
+}
+
+// Las líderes no juegan por XP: tienen "nivel infinito" y todos los marcos.
+export function esLider(perfil) {
+  return perfil?.rol === 'lider'
+}
 
 const CONFIG_ID = 'config'
 const CONFIG_POR_DEFECTO = {
@@ -1184,9 +1210,7 @@ function calcularExperiencia({ xpCfg, asignaciones, lecciones, pausas, manuales,
   }
   const xpTotal = Object.values(desglose).reduce((s, v) => s + v, 0)
 
-  const xpPorNivel = Math.max(1, xpCfg.xpPorNivel)
-  const nivel = Math.floor(xpTotal / xpPorNivel) + 1
-  const xpEnNivelActual = xpTotal % xpPorNivel
+  const { nivel, xpEnNivelActual, xpPorNivel } = nivelDesdeXp(xpTotal, xpCfg)
 
   return {
     xpTotal,
@@ -1405,6 +1429,15 @@ export async function crearDuelo({ retadorUid, retadoUid }) {
   }
 }
 
+// De qué cápsulas pueden salir las preguntas de un duelo. Entre jóvenes:
+// solo las que los dos ya completaron. Contra una líder (que no hace
+// cápsulas y se sabe todo el contenido): las que completó el joven.
+function leccionesParaDuelo(mias, suyas, yoSoyLider, elEsLider) {
+  if (yoSoyLider) return suyas
+  if (elEsLider) return mias
+  return new Set([...mias].filter((id) => suyas.has(id)))
+}
+
 function dueloSinTerminar(d) {
   return !d.respuestas?.[d.retadorUid] || !d.respuestas?.[d.retadoUid]
 }
@@ -1419,16 +1452,17 @@ async function crearDueloInterno({ retadorUid, retadoUid }) {
   )
   if (pendiente) return { ok: true, dueloId: pendiente.id, existente: true }
 
-  const [lecciones, mias, suyas] = await Promise.all([
+  const [lecciones, mias, suyas, retador, retado] = await Promise.all([
     getLecciones(),
     leerSeguro(query(collection(db, 'radgenAsignaciones'), where('asignadoA', '==', retadorUid))),
     leerSeguro(query(collection(db, 'radgenAsignaciones'), where('asignadoA', '==', retadoUid))),
+    getJovenPorUid(retadorUid),
+    getJovenPorUid(retadoUid),
   ])
   const hechasPor = (lista) => new Set(lista.filter((a) => a.estado === 'completado').map((a) => a.leccionId))
-  const mias_ = hechasPor(mias)
-  const suyas_ = hechasPor(suyas)
+  const idsBanco = leccionesParaDuelo(hechasPor(mias), hechasPor(suyas), esLider(retador), esLider(retado))
   const banco = lecciones
-    .filter((l) => mias_.has(l.id) && suyas_.has(l.id) && l.quiz?.length)
+    .filter((l) => idsBanco.has(l.id) && l.quiz?.length)
     .flatMap((l) => l.quiz.map((p) => ({ ...p, leccionTitulo: l.titulo })))
 
   if (banco.length < 3) {
@@ -1455,12 +1489,15 @@ async function crearDueloInterno({ retadorUid, retadoUid }) {
 // cada quien — nada de XP ni lugares, que eso depende de si la líder
 // decidió mostrar el ranking.
 export async function getCompaneros(uid) {
-  const [jovenes, lecciones, asignaciones, duelos] = await Promise.all([
+  const [jovenes, lideres, lecciones, asignaciones, duelos] = await Promise.all([
     getJovenes(),
+    getLideresRadgen(),
     getLecciones(),
     leerSeguro(collection(db, 'radgenAsignaciones')),
     getDuelosDe(uid),
   ])
+  const yo = [...jovenes, ...lideres].find((p) => p.uid === uid)
+  const yoSoyLider = esLider(yo)
   const preguntasPorLeccion = new Map(lecciones.map((l) => [l.id, l.quiz?.length || 0]))
   const completadasDe = new Map()
   asignaciones.forEach((a) => {
@@ -1470,13 +1507,17 @@ export async function getCompaneros(uid) {
   })
   const mias = completadasDe.get(uid) || new Set()
 
-  return jovenes
+  // Una líder ve a todos los jóvenes; un joven ve a los demás jóvenes y
+  // también a sus líderes, para poder retarlas.
+  const personas = yoSoyLider ? jovenes : [...lideres, ...jovenes]
+
+  return personas
     .filter((j) => j.uid !== uid)
     .map((joven) => {
       const suyas = completadasDe.get(joven.uid) || new Set()
       let preguntasEnComun = 0
-      mias.forEach((id) => {
-        if (suyas.has(id)) preguntasEnComun += preguntasPorLeccion.get(id) || 0
+      leccionesParaDuelo(mias, suyas, yoSoyLider, esLider(joven)).forEach((id) => {
+        preguntasEnComun += preguntasPorLeccion.get(id) || 0
       })
       const dueloAbierto =
         duelos.find((d) => (d.retadorUid === joven.uid || d.retadoUid === joven.uid) && dueloSinTerminar(d)) || null

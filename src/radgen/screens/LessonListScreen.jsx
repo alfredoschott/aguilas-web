@@ -333,7 +333,7 @@ export default function LessonListScreen({ usuario }) {
               className="re-check-pill"
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}
             >
-              <Avatar nombre={l.nombre} foto={l.fotoPerfil} uid={l.uid} size={22} colorAcento={l.colorAcento} />
+              <Avatar nombre={l.nombre} foto={l.fotoPerfil} uid={l.uid} size={22} colorAcento={l.colorAcento} marco={l.marcoAvatar} />
               Tu líder: {l.apodo || l.nombre}
             </Link>
           ))}

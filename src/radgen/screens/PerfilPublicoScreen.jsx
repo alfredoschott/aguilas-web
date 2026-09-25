@@ -49,7 +49,9 @@ export default function PerfilPublicoScreen({ usuario }) {
 
   const { joven, nivelActual, racha, insigniasEspeciales } = perfil
   const esMiPropioPerfil = uid === usuario.uid
-  const puedeRetar = !esMiPropioPerfil && usuario.rol === 'joven' && joven.rol === 'joven'
+  const perfilEsLider = joven.rol === 'lider'
+  // Jóvenes entre sí y jóvenes contra líderes; dos líderes no se retan.
+  const puedeRetar = !esMiPropioPerfil && !(usuario.rol === 'lider' && perfilEsLider)
 
   async function retar() {
     setRetando(true)
@@ -83,9 +85,13 @@ export default function PerfilPublicoScreen({ usuario }) {
         {joven.apodo && <p className="re-perfil-apodo">{joven.apodo}</p>}
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginTop: 14 }}>
-          <span className={`re-badge ${nivelActual ? 're-badge--completado' : 're-badge--pendiente'}`}>
-            {nivelActual ? `${nivelActual.icono} ${nivelActual.nombre}` : 'Sin rango aún'}
-          </span>
+          {perfilEsLider ? (
+            <span className="re-etiqueta-lider re-etiqueta-lider--grande">👑 Líder · Nivel ♾️</span>
+          ) : (
+            <span className={`re-badge ${nivelActual ? 're-badge--completado' : 're-badge--pendiente'}`}>
+              {nivelActual ? `${nivelActual.icono} ${nivelActual.nombre}` : 'Sin rango aún'}
+            </span>
+          )}
           {racha > 0 && <span className="re-badge re-badge--completado">🔥 {racha} semana{racha === 1 ? '' : 's'}</span>}
         </div>
 

@@ -61,7 +61,7 @@ export default function PerfilScreen({ usuario, onActualizar }) {
       usuario.rol === 'joven' ? getExperienciaDe(usuario.uid) : Promise.resolve(null),
     ]).then(
       ([insignias, r, manuales, exp]) => {
-        setNivelXp(exp?.nivel ?? null)
+        setNivelXp(usuario.rol === 'lider' ? Infinity : exp?.nivel ?? null)
         setMarco(insignias.nivelActual?.id || null)
         setRacha(r)
         const especial = manuales.find((m) => m.id === 'especial')
@@ -213,7 +213,9 @@ export default function PerfilScreen({ usuario, onActualizar }) {
           <>
             <h2 className="re-subtitulo">Marco de tu avatar</h2>
             <p style={{ marginTop: 0, marginBottom: 14, opacity: 0.75 }}>
-              Vas en el nivel {nivelXp}. Cada marco se desbloquea al llegar a su nivel.
+              {nivelXp === Infinity
+                ? 'Como líder tienes nivel infinito ♾️ — todos los marcos están desbloqueados para ti.'
+                : `Vas en el nivel ${nivelXp}. Cada marco se desbloquea al llegar a su nivel.`}
             </p>
             <div className="re-marcos-grid" style={{ marginBottom: 20 }}>
               <button
@@ -222,7 +224,7 @@ export default function PerfilScreen({ usuario, onActualizar }) {
                 onClick={() => setMarcoAvatar(null)}
               >
                 <Avatar nombre={nombre} foto={foto} uid={usuario.uid} size={46} marco={marco} colorAcento={colorAcento} />
-                <span className="re-marco-opcion__nombre">Por rango</span>
+                <span className="re-marco-opcion__nombre">{nivelXp === Infinity ? 'Sin marco' : 'Por rango'}</span>
               </button>
               {MARCOS_AVATAR.map((m) => {
                 const desbloqueado = m.nivel <= nivelXp

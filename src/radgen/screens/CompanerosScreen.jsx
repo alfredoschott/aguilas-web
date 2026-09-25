@@ -8,17 +8,28 @@ import BotonAccion from '../components/BotonAccion'
 function prioridad(c, uid) {
   if (c.dueloAbierto && !c.dueloAbierto.respuestas?.[uid]) return 0 // te toca jugar
   if (c.dueloAbierto) return 1 // esperando al otro
-  if (c.puedeRetar) return 2
-  return 3
+  if (c.joven.rol === 'lider') return 2 // tu líder, siempre a la vista
+  if (c.puedeRetar) return 3
+  return 4
 }
 
-function TarjetaCompanero({ companero, uid, onRetar, error }) {
+function TarjetaCompanero({ companero, uid, onRetar, error, soyLider }) {
   const { joven, dueloAbierto, puedeRetar, preguntasEnComun, victorias, derrotas } = companero
   const nombre = joven.apodo || joven.nombre
   const meToca = dueloAbierto && !dueloAbierto.respuestas?.[uid]
+  const esLider = joven.rol === 'lider'
+
+  let motivoBloqueo = `${preguntasEnComun}/3 preguntas en común`
+  if (preguntasEnComun === 0) {
+    motivoBloqueo = soyLider
+      ? 'Aún no completa cápsulas'
+      : esLider
+        ? 'Completa una cápsula para retarla'
+        : 'Sin cápsulas en común aún'
+  }
 
   return (
-    <div className={`re-companero ${meToca ? 're-companero--turno' : ''}`}>
+    <div className={`re-companero ${meToca ? 're-companero--turno' : ''} ${esLider ? 're-companero--lider' : ''}`}>
       <Link to={`/radgen/education/joven/${joven.uid}`} className="re-companero__identidad">
         <Avatar
           nombre={joven.nombre}
@@ -30,7 +41,11 @@ function TarjetaCompanero({ companero, uid, onRetar, error }) {
         />
         <span className="re-companero__texto">
           <span className="re-companero__nombre">{nombre}</span>
-          {joven.apodo && <span className="re-companero__sub">{joven.nombre}</span>}
+          {esLider ? (
+            <span className="re-etiqueta-lider">👑 Líder · Nivel ♾️</span>
+          ) : (
+            joven.apodo && <span className="re-companero__sub">{joven.nombre}</span>
+          )}
           {(victorias > 0 || derrotas > 0) && (
             <span className="re-companero__marcador">
               Tú {victorias} · {derrotas} {nombre.split(' ')[0]}
@@ -52,8 +67,8 @@ function TarjetaCompanero({ companero, uid, onRetar, error }) {
             ⚔️ Retar
           </BotonAccion>
         ) : (
-          <span className="re-companero__bloqueado" title="Hace falta tener al menos 3 preguntas de quiz en común">
-            {preguntasEnComun === 0 ? 'Sin cápsulas en común aún' : `${preguntasEnComun}/3 preguntas en común`}
+          <span className="re-companero__bloqueado" title="Hace falta tener al menos 3 preguntas de quiz para armar el duelo">
+            {motivoBloqueo}
           </span>
         )}
         {error && <p className="re-duelo-error">{error}</p>}
@@ -103,6 +118,7 @@ export default function CompanerosScreen({ usuario }) {
   }
 
   const turnos = companeros.filter((c) => c.dueloAbierto && !c.dueloAbierto.respuestas?.[usuario.uid]).length
+  const soyLider = usuario.rol === 'lider'
 
   return (
     <div className="re-shell re-shell--medio">
@@ -111,8 +127,17 @@ export default function CompanerosScreen({ usuario }) {
         <Sky size={64} pose="saludando" animado={false} />
       </div>
       <p className="re-companeros__intro">
-        Reta a alguien a un <strong>duelo de repaso</strong>: 5 preguntas de cápsulas que los dos ya hicieron. Gana
-        quien acierte más; si empatan, el más rápido.
+        {soyLider ? (
+          <>
+            Reta a cualquiera de tus jóvenes a un <strong>duelo de repaso</strong>: 5 preguntas de las cápsulas que
+            esa persona ya completó. Gana quien acierte más; si empatan, el más rápido. ¡A ver si te ganan! 👀
+          </>
+        ) : (
+          <>
+            Reta a alguien a un <strong>duelo de repaso</strong>: 5 preguntas de cápsulas que los dos ya hicieron (o
+            las tuyas, si retas a tu líder). Gana quien acierte más; si empatan, el más rápido.
+          </>
+        )}
       </p>
 
       {turnos > 0 && (
@@ -141,7 +166,14 @@ export default function CompanerosScreen({ usuario }) {
       ) : (
         <div className="re-companeros">
           {visibles.map((c) => (
-            <TarjetaCompanero key={c.joven.uid} companero={c} uid={usuario.uid} onRetar={retar} error={errores[c.joven.uid]} />
+            <TarjetaCompanero
+              key={c.joven.uid}
+              companero={c}
+              uid={usuario.uid}
+              onRetar={retar}
+              error={errores[c.joven.uid]}
+              soyLider={soyLider}
+            />
           ))}
           {visibles.length === 0 && <p style={{ opacity: 0.7 }}>Nadie coincide con “{busqueda}”.</p>}
         </div>

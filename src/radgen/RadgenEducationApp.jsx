@@ -66,6 +66,13 @@ export default function RadgenEducationApp() {
   // Mientras la app esté pausada, un joven solo puede ver/editar su perfil
   // — el currículo (lecciones, insignias) queda oculto hasta que la líder
   // la reactive desde Ajustes.
+  // Compañeros, duelos y perfiles públicos: para jóvenes (si el currículo no
+  // está en pausa) y también para líderes, que pueden retar y ser retadas.
+  function requiereComunidad(elemento) {
+    if (usuario?.rol === 'lider') return requiereSesion('lider', elemento)
+    return requiereCurriculoActivo(elemento)
+  }
+
   function requiereCurriculoActivo(elemento) {
     const bloqueado = requiereSesion('joven', elemento)
     if (bloqueado !== elemento) return bloqueado
@@ -114,7 +121,7 @@ export default function RadgenEducationApp() {
             />
             <Route
               path="/companeros"
-              element={requiereCurriculoActivo(<CompanerosScreen usuario={usuario} />)}
+              element={requiereComunidad(<CompanerosScreen usuario={usuario} />)}
             />
             <Route
               path="/insignias"
@@ -122,11 +129,11 @@ export default function RadgenEducationApp() {
             />
             <Route
               path="/joven/:uid"
-              element={requiereCurriculoActivo(<PerfilPublicoScreen usuario={usuario} />)}
+              element={requiereComunidad(<PerfilPublicoScreen usuario={usuario} />)}
             />
             <Route
               path="/duelo/:dueloId"
-              element={requiereCurriculoActivo(<DueloScreen usuario={usuario} />)}
+              element={requiereComunidad(<DueloScreen usuario={usuario} />)}
             />
             <Route path="/asistencia/:codigo" element={<AsistenciaScreen usuario={usuario} />} />
             <Route

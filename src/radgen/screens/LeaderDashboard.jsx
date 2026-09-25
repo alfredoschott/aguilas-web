@@ -47,6 +47,7 @@ import {
   getReuniones,
   observarAsistenciasDeReunion,
   quitarAsistencia,
+  getDuelosDe,
 } from '../store'
 import QRCode from 'qrcode'
 import Sky from '../components/Sky'
@@ -679,8 +680,9 @@ function PanelSeguimiento({ jovenes, tabla, ranking }) {
                   <strong>{d.joven.nombre}</strong>
                   <small>Última actividad {haceCuanto(d.ultimaActividad)}</small>
                 </span>
-                <span className="re-badge re-badge--pendiente">
-                  {d.pendientes} pendiente{d.pendientes === 1 ? '' : 's'}
+                <span className="re-badge re-badge--pendiente" title={`${d.pendientes} cápsulas pendientes`}>
+                  {d.pendientes}
+                  <span className="re-solo-escritorio"> pendiente{d.pendientes === 1 ? '' : 's'}</span>
                 </span>
               </Link>
             ))}
@@ -702,7 +704,10 @@ function PanelSeguimiento({ jovenes, tabla, ranking }) {
                 {d.totalAsignaciones === 0 ? (
                   <span className="re-badge re-badge--alerta">Sin asignar</span>
                 ) : (
-                  <span className="re-badge re-badge--completado">✓ {d.totalAsignaciones} asignada{d.totalAsignaciones === 1 ? '' : 's'}</span>
+                  <span className="re-badge re-badge--completado" title={`${d.totalAsignaciones} cápsulas asignadas`}>
+                    ✓ {d.totalAsignaciones}
+                    <span className="re-solo-escritorio"> asignada{d.totalAsignaciones === 1 ? '' : 's'}</span>
+                  </span>
                 )}
               </Link>
             ))}
@@ -1264,7 +1269,8 @@ const CAMPOS_XP = [
   ['porAsistencia', 'Extra por registrar asistencia con QR (opcional)'],
   ['porVersiculoMemorizado', 'Por memorizar el versículo de una cápsula'],
   ['porDueloGanado', 'Por duelo ganado (máx. 3 por semana)'],
-  ['xpPorNivel', 'XP necesaria para subir de nivel'],
+  ['xpPorNivel', 'XP para subir del nivel 1 al 2'],
+  ['xpIncrementoPorNivel', 'Cuánto XP más cuesta cada nivel siguiente'],
 ]
 
 function SeccionValoresXp({ xpConfig, guardarXpConfig }) {
@@ -1483,6 +1489,7 @@ export default function LeaderDashboard({ usuario }) {
   const [mostrarRanking, setMostrarRanking] = useState(false)
   const [pendientes, setPendientes] = useState([])
   const [pausado, setPausado] = useState(false)
+  const [duelosPorJugar, setDuelosPorJugar] = useState([])
   const [actividad, setActividad] = useState([])
   const [xpConfig, setXpConfigState] = useState(null)
   const [pausas, setPausas] = useState([])
@@ -1512,6 +1519,12 @@ export default function LeaderDashboard({ usuario }) {
     const unsub = observarAppPausada(setPausado)
     return unsub
   }, [])
+
+  // Los jóvenes también pueden retar a la líder: si alguien la está
+  // esperando, se le avisa arriba del panel.
+  useEffect(() => {
+    getDuelosDe(usuario.uid).then((duelos) => setDuelosPorJugar(duelos.filter((d) => !d.respuestas?.[usuario.uid])))
+  }, [usuario.uid])
 
   // Se refresca sola cada 20s mientras la líder tiene el panel abierto —
   // así el "recién completó" no se queda viejo si se deja abierto un rato.
@@ -1631,6 +1644,29 @@ export default function LeaderDashboard({ usuario }) {
           <button className="re-btn re-btn--sm" onClick={cambiarPausado}>Reactivar para todos</button>
         </div>
       )}
+
+      {duelosPorJugar.map((d) => {
+        const rivalUid = d.retadorUid === usuario.uid ? d.retadoUid : d.retadorUid
+        const rival = jovenes.find((j) => j.uid === rivalUid)
+        return (
+          <Link key={d.id} to={`/radgen/education/duelo/${d.id}`} className="re-aviso re-aviso--duelo">
+            <span className="re-aviso__icono">⚔️</span>
+            <span>
+              {d.retadoUid === usuario.uid ? (
+                <>
+                  <strong>{rival?.apodo || rival?.nombre || 'Un joven'}</strong> te retó a un duelo. ¡Demuéstrale quién
+                  manda!
+                </>
+              ) : (
+                <>
+                  Tu duelo contra <strong>{rival?.apodo || rival?.nombre || 'un joven'}</strong> está listo para jugar.
+                </>
+              )}
+            </span>
+            <span className="re-aviso__flecha">→</span>
+          </Link>
+        )
+      })}
 
       <ActividadReciente actividad={actividad} onReaccionar={reaccionar} />
 

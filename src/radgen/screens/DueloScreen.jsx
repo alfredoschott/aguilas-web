@@ -74,8 +74,9 @@ function TarjetaJugador({ joven, respuesta, total, gano }) {
   return (
     <div className={`re-duelo-jugador ${gano ? 're-duelo-jugador--gano' : ''}`}>
       {gano && <span className="re-duelo-jugador__corona">👑</span>}
-      <Avatar nombre={joven?.nombre} foto={joven?.fotoPerfil} uid={joven?.uid} size={60} colorAcento={joven?.colorAcento} />
+      <Avatar nombre={joven?.nombre} foto={joven?.fotoPerfil} uid={joven?.uid} size={60} colorAcento={joven?.colorAcento} marco={joven?.marcoAvatar} />
       <p className="re-duelo-jugador__nombre">{joven?.apodo || joven?.nombre || '…'}</p>
+      {joven?.rol === 'lider' && <span className="re-etiqueta-lider">👑 Líder</span>}
       {respuesta ? (
         <>
           <p className="re-duelo-jugador__puntos">{respuesta.correctas}/{total}</p>
@@ -124,7 +125,7 @@ export default function DueloScreen({ usuario }) {
     return (
       <div className="re-shell">
         <div className="re-card">Este duelo no existe o no es tuyo.</div>
-        <Link to="/radgen/education/lecciones" className="re-btn">← Mis lecciones</Link>
+        <Link to="/radgen/education/companeros" className="re-btn">← Compañeros</Link>
       </div>
     )
   }
@@ -145,8 +146,8 @@ export default function DueloScreen({ usuario }) {
 
   return (
     <div className="re-shell">
-      <Link to="/radgen/education/lecciones" className="re-vinculo re-vinculo--volver" style={{ marginBottom: 16, display: 'inline-block' }}>
-        ← Mis lecciones
+      <Link to="/radgen/education/companeros" className="re-vinculo re-vinculo--volver" style={{ marginBottom: 16, display: 'inline-block' }}>
+        ← Compañeros
       </Link>
       <div className="re-card re-duelo" style={{ position: 'relative', overflow: 'hidden' }}>
         {ambos && ganador === usuario.uid && <Confetti piezas={40} contenida />}
