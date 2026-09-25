@@ -5202,3 +5202,30 @@ a.re-parada:active .re-parada__nodo {
   .re-mapa__sky--izquierda { margin-left: -118px; }
   .re-mapa__sky--derecha { margin-left: 50px; }
 }
+
+/* ----- Duelos con vigencia de 7 días ----- */
+
+.re-companero__vigencia {
+  margin-top: 4px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  opacity: 0.55;
+  white-space: nowrap;
+}
+
+.re-duelo__vigencia {
+  display: inline-block;
+  margin: -4px 0 14px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(147, 51, 227, 0.1);
+  color: #6b21a8;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.re-duelo__vencido {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

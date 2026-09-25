@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getCompaneros, crearDuelo } from '../store'
+import { getCompaneros, crearDuelo, msParaVencerDuelo } from '../store'
+import { textoTiempoRestante } from '../utils/tiempo'
 import Avatar from '../components/Avatar'
 import Sky from '../components/Sky'
 import BotonAccion from '../components/BotonAccion'
@@ -55,18 +56,29 @@ function TarjetaCompanero({ companero, uid, onRetar, error, soyLider }) {
       </Link>
 
       <div className="re-companero__accion">
-        {dueloAbierto ? (
-          <Link
-            to={`/radgen/education/duelo/${dueloAbierto.id}`}
-            className={`re-btn re-btn--sm ${meToca ? 're-btn--lleno re-btn--duelo' : ''}`}
+        {dueloAbierto && (
+          <>
+            <Link
+              to={`/radgen/education/duelo/${dueloAbierto.id}`}
+              className={`re-btn re-btn--sm ${meToca ? 're-btn--lleno re-btn--duelo' : ''}`}
+            >
+              {meToca ? '⚔️ Jugar' : '⏳ Esperando'}
+            </Link>
+            <span className="re-companero__vigencia">
+              Vence en {textoTiempoRestante(msParaVencerDuelo(dueloAbierto))}
+            </span>
+          </>
+        )}
+        {!dueloAbierto && puedeRetar && (
+          <BotonAccion
+            className="re-btn re-btn--sm re-btn--lleno re-btn--duelo"
+            onClick={() => onRetar(joven.uid)}
+            textoCargando="Armando…"
           >
-            {meToca ? '⚔️ Jugar' : '⏳ Esperando'}
-          </Link>
-        ) : puedeRetar ? (
-          <BotonAccion className="re-btn re-btn--sm re-btn--lleno re-btn--duelo" onClick={() => onRetar(joven.uid)} textoCargando="Armando…">
             ⚔️ Retar
           </BotonAccion>
-        ) : (
+        )}
+        {!dueloAbierto && !puedeRetar && (
           <span className="re-companero__bloqueado" title="Hace falta tener al menos 3 preguntas de quiz para armar el duelo">
             {motivoBloqueo}
           </span>

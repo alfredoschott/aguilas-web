@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getDuelo, getJovenPorUid, responderDuelo, ganadorDeDuelo } from '../store'
+import { getDuelo, getJovenPorUid, responderDuelo, ganadorDeDuelo, dueloVencido, msParaVencerDuelo } from '../store'
+import { textoTiempoRestante } from '../utils/tiempo'
 import Sky from '../components/Sky'
 import Avatar from '../components/Avatar'
 import Confetti from '../components/Confetti'
 import { sonidoCompletar, sonidoNivel } from '../utils/sonidos'
+
+const DIAS_TEXTO = '7 días'
 
 function segundos(ms) {
   return (ms / 1000).toFixed(1)
@@ -135,6 +138,8 @@ export default function DueloScreen({ usuario }) {
   const yaJugue = !!duelo.respuestas?.[usuario.uid]
   const ambos = yaJugue && !!duelo.respuestas?.[rivalUid]
   const ganador = ganadorDeDuelo(duelo)
+  const vencido = dueloVencido(duelo)
+  const nombreRival = rival?.apodo || rival?.nombre || 'tu rival'
 
   if (jugando) {
     return (
@@ -158,21 +163,41 @@ export default function DueloScreen({ usuario }) {
           <TarjetaJugador joven={rival} respuesta={ambos ? duelo.respuestas?.[rivalUid] : null} total={duelo.preguntas.length} gano={ambos && ganador === rivalUid} />
         </div>
 
-        {!yaJugue && (
+        {vencido && (
+          <div className="re-duelo__vencido">
+            <p className="re-duelo__resultado">⌛ Este duelo venció</p>
+            <p className="re-duelo__texto">
+              {yaJugue
+                ? `${nombreRival} no alcanzó a jugar en ${DIAS_TEXTO}. Nadie gana puntos, y ya pueden volver a retarse.`
+                : `Pasaron ${DIAS_TEXTO} sin que se completara. Nadie gana puntos, y ya pueden volver a retarse.`}
+            </p>
+            <Link to="/radgen/education/companeros" className="re-btn re-btn--lleno re-btn--duelo re-btn--bloque">
+              ⚔️ Retar de nuevo
+            </Link>
+          </div>
+        )}
+
+        {!vencido && !yaJugue && (
           <>
             <p className="re-duelo__texto">
-              {duelo.preguntas.length} preguntas de cápsulas que los dos ya vieron. Gana quien acierte más; si empatan, el más rápido.
+              {duelo.preguntas.length} preguntas de repaso. Gana quien acierte más; si empatan, el más rápido.
             </p>
+            <p className="re-duelo__vigencia">⏳ Tienes {textoTiempoRestante(msParaVencerDuelo(duelo))} para jugarlo</p>
             <button className="re-btn re-btn--lleno re-btn--bloque" onClick={() => setJugando(true)}>
               ¡Empezar! ⚔️
             </button>
           </>
         )}
 
-        {yaJugue && !ambos && (
-          <p className="re-duelo__texto">
-            ✅ Ya jugaste. Esperando a que {rival?.apodo || rival?.nombre || 'tu rival'} responda — el resultado aparece aquí en cuanto juegue.
-          </p>
+        {!vencido && yaJugue && !ambos && (
+          <>
+            <p className="re-duelo__texto">
+              ✅ Ya jugaste. Esperando a que {nombreRival} responda — el resultado aparece aquí en cuanto juegue.
+            </p>
+            <p className="re-duelo__vigencia">
+              ⏳ Si no juega en {textoTiempoRestante(msParaVencerDuelo(duelo))}, el duelo se cancela solo.
+            </p>
+          </>
         )}
 
         {ambos && (

@@ -1442,13 +1442,31 @@ function dueloSinTerminar(d) {
   return !d.respuestas?.[d.retadorUid] || !d.respuestas?.[d.retadoUid]
 }
 
+// Un duelo que nadie terminó en 7 días se cancela solo: deja de aparecer
+// como pendiente, no da XP a nadie y los dos pueden volver a retarse.
+export const DIAS_VIGENCIA_DUELO = 7
+
+export function dueloVencido(d, ahora = Date.now()) {
+  return dueloSinTerminar(d) && ahora - new Date(d.fecha).getTime() > DIAS_VIGENCIA_DUELO * DIA_MS
+}
+
+// Pendiente de verdad: sin terminar y todavía vigente.
+export function dueloAbierto(d) {
+  return dueloSinTerminar(d) && !dueloVencido(d)
+}
+
+// Milisegundos que le quedan a un duelo antes de cancelarse solo.
+export function msParaVencerDuelo(d, ahora = Date.now()) {
+  return new Date(d.fecha).getTime() + DIAS_VIGENCIA_DUELO * DIA_MS - ahora
+}
+
 async function crearDueloInterno({ retadorUid, retadoUid }) {
   // Si ya tienen un duelo sin terminar entre los dos (en cualquier
   // dirección), se reusa en vez de crear otro — evita duplicados por un
   // doble clic o por retarse mutuamente al mismo tiempo.
   const mios = await getDuelosDe(retadorUid)
   const pendiente = mios.find(
-    (d) => (d.retadorUid === retadoUid || d.retadoUid === retadoUid) && dueloSinTerminar(d),
+    (d) => (d.retadorUid === retadoUid || d.retadoUid === retadoUid) && dueloAbierto(d),
   )
   if (pendiente) return { ok: true, dueloId: pendiente.id, existente: true }
 
@@ -1519,8 +1537,8 @@ export async function getCompaneros(uid) {
       leccionesParaDuelo(mias, suyas, yoSoyLider, esLider(joven)).forEach((id) => {
         preguntasEnComun += preguntasPorLeccion.get(id) || 0
       })
-      const dueloAbierto =
-        duelos.find((d) => (d.retadorUid === joven.uid || d.retadoUid === joven.uid) && dueloSinTerminar(d)) || null
+      const abierto =
+        duelos.find((d) => (d.retadorUid === joven.uid || d.retadoUid === joven.uid) && dueloAbierto(d)) || null
       const duelosTerminados = duelos.filter(
         (d) => (d.retadorUid === joven.uid || d.retadoUid === joven.uid) && !dueloSinTerminar(d),
       )
@@ -1528,7 +1546,7 @@ export async function getCompaneros(uid) {
         joven,
         preguntasEnComun,
         puedeRetar: preguntasEnComun >= 3,
-        dueloAbierto,
+        dueloAbierto: abierto,
         victorias: duelosTerminados.filter((d) => ganadorDeDuelo(d) === uid).length,
         derrotas: duelosTerminados.filter((d) => ganadorDeDuelo(d) === joven.uid).length,
       }

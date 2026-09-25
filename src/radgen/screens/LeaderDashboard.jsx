@@ -48,6 +48,7 @@ import {
   observarAsistenciasDeReunion,
   quitarAsistencia,
   getDuelosDe,
+  dueloAbierto,
 } from '../store'
 import QRCode from 'qrcode'
 import Sky from '../components/Sky'
@@ -1523,7 +1524,9 @@ export default function LeaderDashboard({ usuario }) {
   // Los jóvenes también pueden retar a la líder: si alguien la está
   // esperando, se le avisa arriba del panel.
   useEffect(() => {
-    getDuelosDe(usuario.uid).then((duelos) => setDuelosPorJugar(duelos.filter((d) => !d.respuestas?.[usuario.uid])))
+    getDuelosDe(usuario.uid).then((duelos) =>
+      setDuelosPorJugar(duelos.filter((d) => !d.respuestas?.[usuario.uid] && dueloAbierto(d))),
+    )
   }, [usuario.uid])
 
   // Se refresca sola cada 20s mientras la líder tiene el panel abierto —

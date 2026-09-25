@@ -18,6 +18,8 @@ import {
   registrarAsistencia,
   getExperienciaDe,
   getSeries,
+  dueloAbierto,
+  dueloVencido,
 } from '../store'
 import Sky from '../components/Sky'
 import TareaPersonal from '../components/TareaPersonal'
@@ -199,7 +201,7 @@ export default function LessonListScreen({ usuario }) {
       setTodasLecciones(tl)
       setPausas(pa)
       const ahora = Date.now()
-      setDuelos(du.map((d) => ({ ...d, reciente: ahora - new Date(d.fecha).getTime() < 7 * 24 * HORA_MS })))
+      setDuelos(du.map((d) => ({ ...d, reciente: ahora - new Date(d.fecha).getTime() < 7 * 24 * HORA_MS, vencido: dueloVencido(d, ahora) })))
       setJovenes(js)
       setCargando(false)
 
@@ -213,7 +215,7 @@ export default function LessonListScreen({ usuario }) {
           body: `"${porVencer.leccion?.titulo}" vale más si la haces hoy.`,
         })
       }
-      const retoRecibido = du.find((d) => d.retadoUid === usuario.uid && !d.respuestas?.[usuario.uid])
+      const retoRecibido = du.find((d) => d.retadoUid === usuario.uid && !d.respuestas?.[usuario.uid] && dueloAbierto(d))
       if (retoRecibido) {
         const rival = js.find((j) => j.uid === retoRecibido.retadorUid)
         mostrarNotificacion('duelo-recibido', '⚔️ Te retaron a un duelo', {
@@ -289,7 +291,7 @@ export default function LessonListScreen({ usuario }) {
   }, [asignaciones, valores])
 
   const nombrePorUid = useMemo(() => new Map(jovenes.map((j) => [j.uid, j.apodo || j.nombre])), [jovenes])
-  const duelosPorJugar = duelos.filter((d) => !d.respuestas?.[usuario.uid])
+  const duelosPorJugar = duelos.filter((d) => !d.respuestas?.[usuario.uid] && !d.vencido)
   const duelosConResultado = duelos
     .filter((d) => d.reciente && Object.keys(d.respuestas || {}).length === 2)
     .slice(0, 3)
