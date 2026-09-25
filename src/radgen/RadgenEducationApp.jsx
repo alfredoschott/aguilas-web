@@ -22,6 +22,7 @@ const AsistenciaScreen = lazy(() => import('./screens/AsistenciaScreen'))
 const DueloScreen = lazy(() => import('./screens/DueloScreen'))
 const MemorizarVersiculoScreen = lazy(() => import('./screens/MemorizarVersiculoScreen'))
 const CompanerosScreen = lazy(() => import('./screens/CompanerosScreen'))
+const VistaJovenScreen = lazy(() => import('./screens/VistaJovenScreen'))
 
 import TopBar from './components/TopBar'
 import Sky from './components/Sky'
@@ -148,6 +149,7 @@ export default function RadgenEducationApp() {
               path="/lider"
               element={requiereSesion('lider', <LeaderDashboard usuario={usuario} />)}
             />
+            <Route path="/lider/vista-joven" element={requiereSesion('lider', <VistaJovenScreen />)} />
             <Route
               path="/lider/joven/:uid"
               element={requiereSesion('lider', <PerfilJovenScreen usuario={usuario} />)}

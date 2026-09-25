@@ -24,7 +24,7 @@ function textoValor(valor) {
   return { texto: `⚡ ${porcentaje}%`, clase: valor.factor < 1 ? 'tarde' : 'ok' }
 }
 
-function Parada({ nodo, i, esSiguiente, valor, opacado, color }) {
+function Parada({ nodo, i, esSiguiente, valor, opacado, color, enlaceDe }) {
   const { leccion, asignacion, estado } = nodo
   const { x, y } = puntoDe(i)
   const aTiempo = estado === 'completada' && valor?.factor === 1
@@ -57,7 +57,10 @@ function Parada({ nodo, i, esSiguiente, valor, opacado, color }) {
   const clase = `re-parada ${opacado ? 're-parada--opacada' : ''} ${estado === 'bloqueada' ? 're-parada--bloqueada' : ''}`
   const estilo = { left: `${x}%`, top: y, '--serie-color': color, animationDelay: `${i * 0.06}s` }
 
-  if (estado === 'bloqueada') {
+  // En la vista de supervisión, `enlaceDe` manda todo a la vista previa de
+  // solo lectura (incluso lo bloqueado); para el joven, lo bloqueado no abre.
+  const destino = enlaceDe ? enlaceDe(nodo) : estado === 'bloqueada' ? null : `/radgen/education/leccion/${asignacion.id}`
+  if (!destino) {
     return (
       <div className={clase} style={estilo} title="Se desbloquea cuando tu líder te la asigne">
         {contenido}
@@ -65,7 +68,7 @@ function Parada({ nodo, i, esSiguiente, valor, opacado, color }) {
     )
   }
   return (
-    <Link to={`/radgen/education/leccion/${asignacion.id}`} className={clase} style={estilo}>
+    <Link to={destino} className={clase} style={estilo}>
       {contenido}
     </Link>
   )
@@ -74,7 +77,7 @@ function Parada({ nodo, i, esSiguiente, valor, opacado, color }) {
 // Una serie como un mapa: un sendero dibujado que se va pintando del color
 // de la serie conforme avanzas, con Sky parado junto a la cápsula que te
 // toca y un trofeo esperándote al final.
-export default function MapaSerie({ serie, color, portada, siguienteId, valores, terminoBusqueda }) {
+export default function MapaSerie({ serie, color, portada, siguienteId, valores, terminoBusqueda, enlaceDe }) {
   const { nodos } = serie
   const completadas = nodos.filter((n) => n.estado === 'completada').length
   const total = nodos.length
@@ -142,6 +145,7 @@ export default function MapaSerie({ serie, color, portada, siguienteId, valores,
             esSiguiente={nodo.leccion.id === siguienteId}
             valor={nodo.asignacion ? valores.get(nodo.asignacion.id) : null}
             opacado={terminoBusqueda && !nodo.leccion.titulo.toLowerCase().includes(terminoBusqueda)}
+            enlaceDe={enlaceDe}
           />
         ))}
 

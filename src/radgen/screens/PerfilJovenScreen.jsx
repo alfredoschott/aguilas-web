@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   getJovenPorUid,
   getAsignacionesDe,
@@ -186,6 +186,9 @@ export default function PerfilJovenScreen({ usuario }) {
           <h1 className="re-titulo-pagina" style={{ margin: 0 }}>{joven.nombre}</h1>
           {joven.apodo && <p style={{ margin: '2px 0 0', fontWeight: 700, opacity: 0.75 }}>{joven.apodo}</p>}
         </div>
+        <Link to={`/radgen/education/lider/vista-joven?joven=${joven.uid}`} className="re-btn re-btn--sm re-btn--fantasma">
+          👁 Ver sus lecciones
+        </Link>
         <Sky size={56} pose={insignias.nivelActual ? 'logrado' : 'relajado'} animado={false} />
       </div>
 

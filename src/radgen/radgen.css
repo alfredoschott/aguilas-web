@@ -5229,3 +5229,50 @@ a.re-parada:active .re-parada__nodo {
   flex-direction: column;
   gap: 6px;
 }
+
+/* ── Vista de joven (supervisión de la líder) ── */
+.re-vista-joven__cabecera {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.2rem;
+}
+.re-vista-joven__cabecera > div {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.re-vista-joven__texto {
+  margin: 0.4rem 0 0;
+  font-weight: 600;
+  opacity: 0.75;
+  max-width: 56ch;
+}
+.re-vista-joven__selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 0 1 320px;
+  min-width: 0;
+  font-weight: 800;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.re-vista-joven__selector select {
+  width: 100%;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.re-vista-joven__mapas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}
+@media (max-width: 640px) {
+  .re-vista-joven__selector {
+    flex-basis: 100%;
+  }
+}

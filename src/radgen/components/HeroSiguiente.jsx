@@ -17,7 +17,7 @@ function lineaValor(valor) {
 // La tarjeta más importante de la pantalla: qué te toca hacer ahora, cuánto
 // vale si la haces hoy y un botón grande para empezar — en vez de que el
 // joven tenga que buscarla en el mapa.
-export default function HeroSiguiente({ siguiente, valor, nombre, pose, mensaje, sinLecciones }) {
+export default function HeroSiguiente({ siguiente, valor, nombre, pose, mensaje, sinLecciones, enlaceLeccion, supervision }) {
   const primerNombre = (nombre || '').split(' ')[0]
 
   if (!siguiente) {
@@ -31,7 +31,7 @@ export default function HeroSiguiente({ siguiente, valor, nombre, pose, mensaje,
           <p className="re-hero-sig__texto">
             {sinLecciones ? mensaje : 'Completaste todo lo que tienes. Tu próxima cápsula aparece aquí en cuanto tu líder la libere.'}
           </p>
-          {!sinLecciones && (
+          {!sinLecciones && !supervision && (
             <Link to="/radgen/education/companeros" className="re-btn re-btn--lleno re-btn--duelo re-hero-sig__cta">
               ⚔️ Mientras tanto, reta a alguien
             </Link>
@@ -56,8 +56,11 @@ export default function HeroSiguiente({ siguiente, valor, nombre, pose, mensaje,
         <h1 className="re-hero-sig__titulo">{nodo.leccion.titulo}</h1>
         <p className="re-hero-sig__serie">{serie.serieTitulo.replace(/^Serie:\s*/i, '')}</p>
         {linea && <span className={`re-hero-sig__valor re-hero-sig__valor--${linea.clase}`}>{linea.texto}</span>}
-        <Link to={`/radgen/education/leccion/${nodo.asignacion.id}`} className="re-hero-sig__cta re-hero-sig__cta--empezar">
-          Empezar
+        <Link
+          to={enlaceLeccion ? enlaceLeccion(nodo) : `/radgen/education/leccion/${nodo.asignacion.id}`}
+          className="re-hero-sig__cta re-hero-sig__cta--empezar"
+        >
+          {supervision ? 'Ver cápsula' : 'Empezar'}
           <span aria-hidden="true">→</span>
         </Link>
       </div>

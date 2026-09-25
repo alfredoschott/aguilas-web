@@ -26,7 +26,11 @@ function seccionesPara(usuario, bloqueado, esAdmin) {
   const esLider = usuario.rol === 'lider'
   const lista = []
   if (esLider) {
-    lista.push({ ruta: `${BASE}/lider`, etiqueta: 'Panel', Icono: LayoutDashboard }, SECCION_COMPANEROS)
+    lista.push(
+      { ruta: `${BASE}/lider`, etiqueta: 'Panel', Icono: LayoutDashboard, excepto: [`${BASE}/lider/vista-joven`] },
+      { ruta: `${BASE}/lider/vista-joven`, etiqueta: 'Lecciones', Icono: BookOpen, tambien: [`${BASE}/lider/leccion/`] },
+      SECCION_COMPANEROS,
+    )
     return lista
   }
   if (!bloqueado) {
@@ -37,7 +41,7 @@ function seccionesPara(usuario, bloqueado, esAdmin) {
     )
   }
   if (esAdmin) {
-    lista.push({ ruta: `${BASE}/lider`, etiqueta: 'Panel líder', corta: 'Líder', Icono: LayoutDashboard })
+    lista.push({ ruta: `${BASE}/lider`, etiqueta: 'Panel líder', corta: 'Líder', Icono: LayoutDashboard, excepto: [`${BASE}/lider/vista-joven`] })
   }
   return lista
 }
@@ -130,9 +134,11 @@ export default function TopBar({ usuario, onSesion, pausado }) {
     navigate(BASE)
   }
 
-  function esActivo({ ruta, tambien = [] }) {
+  function esActivo({ ruta, tambien = [], excepto = [] }) {
     const actual = location.pathname
-    return actual === ruta || actual.startsWith(`${ruta}/`) || tambien.some((prefijo) => actual.startsWith(prefijo))
+    if (excepto.some((prefijo) => actual.startsWith(prefijo))) return false
+    if (tambien.some((prefijo) => actual.startsWith(prefijo))) return true
+    return actual === ruta || actual.startsWith(`${ruta}/`)
   }
 
   const bloqueado = usuario?.rol === 'joven' && pausado
