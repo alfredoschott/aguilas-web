@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getPerfilPublico, crearDuelo } from '../store'
+import { getPerfilPublico, crearDuelo, imagenDeInsignia } from '../store'
 import Avatar from '../components/Avatar'
 import Sky from '../components/Sky'
 
@@ -106,8 +106,8 @@ export default function PerfilPublicoScreen({ usuario }) {
           <h2 className="re-subtitulo">Insignia destacada</h2>
           <div className="re-insignia-destacada">
             <span className="re-insignia-destacada__icono">
-              {joven.insigniaDestacada.imagen ? (
-                <img src={joven.insigniaDestacada.imagen} alt="" />
+              {imagenDeInsignia(joven.insigniaDestacada) ? (
+                <img src={imagenDeInsignia(joven.insigniaDestacada)} alt="" />
               ) : (
                 joven.insigniaDestacada.icono
               )}

@@ -18,6 +18,7 @@ import { Link } from 'react-router-dom'
 import Sky from '../components/Sky'
 import { PodioRanking, TablaRanking, RankingEquipos } from '../components/Ranking'
 import Avatar from '../components/Avatar'
+import BotonAccion from '../components/BotonAccion'
 import TarjetaExperiencia from '../components/TarjetaExperiencia'
 import RachaBadge from '../components/RachaBadge'
 import { generarCertificado, compartirCertificado } from '../utils/certificado'
@@ -36,14 +37,14 @@ function Medalla({ nombre, icono, imagen, desbloqueada, progreso, variante, dela
       <p className="re-medalla__nombre">{nombre}</p>
       {progreso && <p className="re-medalla__progreso">{progreso}</p>}
       {desbloqueada && onDescargarCertificado && (
-        <button type="button" className="re-medalla__certificado" onClick={onDescargarCertificado}>
+        <BotonAccion className="re-medalla__certificado" onClick={onDescargarCertificado}>
           🎓 Certificado
-        </button>
+        </BotonAccion>
       )}
       {desbloqueada && onResumen && (
-        <button type="button" className="re-medalla__certificado re-medalla__resumen" onClick={onResumen}>
+        <BotonAccion className="re-medalla__certificado re-medalla__resumen" onClick={onResumen} textoCargando="Armando…">
           🎬 Resumen
-        </button>
+        </BotonAccion>
       )}
       {desbloqueada && onDestacar && (
         <button type="button" className={`re-medalla__destacar ${destacada ? 'activo' : ''}`} onClick={onDestacar}>
@@ -157,9 +158,9 @@ function HeroRango({ insignias, racha, onDescargarCertificado, destacada, onDest
         <div style={{ marginTop: 12, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <RachaBadge semanas={racha} />
           {insignias.nivelActual && (
-            <button type="button" className="re-hero-rango__certificado" onClick={onDescargarCertificado}>
+            <BotonAccion className="re-hero-rango__certificado" onClick={onDescargarCertificado}>
               🎓 Descargar certificado
-            </button>
+            </BotonAccion>
           )}
           {insignias.nivelActual && onDestacar && (
             <button type="button" className={`re-medalla__destacar ${destacada ? 'activo' : ''}`} onClick={onDestacar}>

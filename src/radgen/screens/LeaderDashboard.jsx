@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   getJovenes,
@@ -18,7 +18,7 @@ import {
   getRanking,
   getRequisitos,
   toggleRequisito,
-  getInsigniasDe,
+  calcularElegibilidad,
   getMostrarElegibilidadAJovenes,
   setMostrarElegibilidadAJovenes,
   getNotasDe,
@@ -26,9 +26,10 @@ import {
   eliminarNota,
   getComentariosPendientes,
   responderComentario,
+  eliminarComentario,
   asignarTareaPersonal,
-  observarModoPreRegistro,
-  setModoPreRegistro,
+  observarAppPausada,
+  setAppPausada,
   getMostrarRankingAJovenes,
   setMostrarRankingAJovenes,
   getActividadReciente,
@@ -63,13 +64,13 @@ const TABS = [
   ['seguimiento', 'Seguimiento'],
   ['elegibilidad', 'Elegibilidad'],
   ['notas', 'Notas y preguntas'],
-  ['ranking', 'Ranking'],
-  ['equipos', 'Equipos'],
-  ['asistencia', 'Asistencia'],
   ['experiencia', 'Experiencia'],
+  ['ajustes', 'Ajustes'],
 ]
 
 const DIAS_COMO_NUEVO = 14
+const DIAS_PARA_INACTIVO = 14
+const DIA_MS = 24 * 60 * 60 * 1000
 
 function esNuevo(joven) {
   return joven.creadoEn && Date.now() - new Date(joven.creadoEn).getTime() < DIAS_COMO_NUEVO * 24 * 60 * 60 * 1000
@@ -528,6 +529,18 @@ function PanelAsignacionPersonal({ usuario, jovenes }) {
   )
 }
 
+// Última vez que el joven hizo algo: su cápsula completada más reciente o,
+// si nunca ha completado ninguna, cuándo recibió la primera.
+function ultimaActividadDe(asignaciones) {
+  const completadas = asignaciones.map((a) => a.fechaCompletado).filter(Boolean).sort()
+  if (completadas.length) return completadas.at(-1)
+  return asignaciones.map((a) => a.fechaAsignada).filter(Boolean).sort()[0] || null
+}
+
+function diasDesde(fechaIso) {
+  return fechaIso ? Math.floor((Date.now() - new Date(fechaIso).getTime()) / DIA_MS) : 0
+}
+
 function haceCuanto(fechaIso) {
   if (!fechaIso) return ''
   const dias = Math.floor((Date.now() - new Date(fechaIso).getTime()) / (24 * 60 * 60 * 1000))
@@ -541,7 +554,7 @@ function haceCuanto(fechaIso) {
 
 // Puramente presentacional — recibe ya calculados los datos del joven
 // (vienen de `ranking` y `tabla`, que el panel padre ya cargó una sola vez).
-function TarjetaPersona({ joven, totalCompletadas, totalAsignaciones, nivelActual, racha, pendientes, xpTotal }) {
+function TarjetaPersona({ joven, totalCompletadas, totalAsignaciones, nivelActual, racha, pendientes, xpTotal, inactivo, diasSinActividad }) {
   return (
     <Link to={`/radgen/education/lider/joven/${joven.uid}`} className={`re-persona-card ${totalAsignaciones === 0 ? 're-persona-card--sin-asignar' : ''}`}>
       <div className="re-persona-card__cabecera">
@@ -569,6 +582,7 @@ function TarjetaPersona({ joven, totalCompletadas, totalAsignaciones, nivelActua
 
       <div className="re-persona-card__chips">
         {esNuevo(joven) && <span className="re-badge re-badge--nuevo">🆕 Nuevo</span>}
+        {inactivo && <span className="re-badge re-badge--inactivo">😴 {diasSinActividad} días sin actividad</span>}
         {totalAsignaciones === 0 && <span className="re-badge re-badge--alerta">Sin asignar</span>}
         {nivelActual && <span className="re-badge re-badge--completado">{nivelActual.icono} {nivelActual.nombre}</span>}
         {xpTotal > 0 && <span className="re-badge re-badge--completado">⚡ {xpTotal} XP</span>}
@@ -582,31 +596,48 @@ function TarjetaPersona({ joven, totalCompletadas, totalAsignaciones, nivelActua
 const FILTROS_SEGUIMIENTO = [
   ['todos', 'Todos'],
   ['nuevos', '🆕 Nuevos'],
+  ['inactivos', '😴 Inactivos'],
   ['sin-asignar', 'Sin asignar'],
   ['con-pendientes', 'Con pendientes'],
 ]
 
 function PanelSeguimiento({ jovenes, tabla, ranking }) {
   const [filtro, setFiltro] = useState('todos')
+  const listaRef = useRef(null)
+
+  function filtrarYMostrar(valor) {
+    setFiltro(valor)
+    listaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const datos = jovenes
     .map((j) => {
       const deEsteJoven = tabla.filter((f) => f.asignadoA === j.uid)
       const filaRanking = ranking.find((r) => r.joven.uid === j.uid)
+      const pendientes = deEsteJoven.filter((f) => f.estado !== 'completado').length
+      const ultimaActividad = ultimaActividadDe(deEsteJoven)
+      const diasSinActividad = diasDesde(ultimaActividad)
       return {
         joven: j,
         totalAsignaciones: deEsteJoven.length,
-        pendientes: deEsteJoven.filter((f) => f.estado !== 'completado').length,
+        pendientes,
         filaRanking,
+        ultimaActividad,
+        diasSinActividad,
+        // Solo cuenta como inactivo si tiene algo pendiente: quien ya
+        // terminó todo y espera su próxima cápsula no se ha desconectado.
+        inactivo: pendientes > 0 && diasSinActividad >= DIAS_PARA_INACTIVO,
       }
     })
     .sort((a, b) => (b.joven.creadoEn || '').localeCompare(a.joven.creadoEn || ''))
 
   const nuevos = datos.filter((d) => esNuevo(d.joven))
   const sinAsignar = datos.filter((d) => d.totalAsignaciones === 0)
+  const inactivos = datos.filter((d) => d.inactivo).sort((a, b) => b.diasSinActividad - a.diasSinActividad)
 
   const visibles = datos.filter((d) => {
     if (filtro === 'nuevos') return esNuevo(d.joven)
+    if (filtro === 'inactivos') return d.inactivo
     if (filtro === 'sin-asignar') return d.totalAsignaciones === 0
     if (filtro === 'con-pendientes') return d.pendientes > 0
     return true
@@ -619,19 +650,43 @@ function PanelSeguimiento({ jovenes, tabla, ranking }) {
           <span className="re-resumen-grupo__numero">{jovenes.length}</span>
           <span className="re-resumen-grupo__etiqueta">jóvenes registrados</span>
         </div>
-        <button type="button" className="re-resumen-grupo__dato re-resumen-grupo__dato--nuevo" onClick={() => setFiltro('nuevos')}>
+        <button type="button" className="re-resumen-grupo__dato re-resumen-grupo__dato--nuevo" onClick={() => filtrarYMostrar('nuevos')}>
           <span className="re-resumen-grupo__numero">{nuevos.length}</span>
           <span className="re-resumen-grupo__etiqueta">nuevos (últimos {DIAS_COMO_NUEVO} días)</span>
         </button>
-        <button type="button" className="re-resumen-grupo__dato re-resumen-grupo__dato--alerta" onClick={() => setFiltro('sin-asignar')}>
+        <button type="button" className="re-resumen-grupo__dato re-resumen-grupo__dato--inactivo" onClick={() => filtrarYMostrar('inactivos')}>
+          <span className="re-resumen-grupo__numero">{inactivos.length}</span>
+          <span className="re-resumen-grupo__etiqueta">inactivos ({DIAS_PARA_INACTIVO}+ días sin avanzar)</span>
+        </button>
+        <button type="button" className="re-resumen-grupo__dato re-resumen-grupo__dato--alerta" onClick={() => filtrarYMostrar('sin-asignar')}>
           <span className="re-resumen-grupo__numero">{sinAsignar.length}</span>
           <span className="re-resumen-grupo__etiqueta">sin ninguna cápsula asignada</span>
         </button>
-        <div className="re-resumen-grupo__dato">
-          <span className="re-resumen-grupo__numero">{jovenes.length - sinAsignar.length}</span>
-          <span className="re-resumen-grupo__etiqueta">ya con cápsulas</span>
-        </div>
       </div>
+
+      {inactivos.length > 0 && (
+        <div className="re-card re-card--inactivos">
+          <h2 className="re-subtitulo">😴 Hace rato que no avanzan</h2>
+          <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
+            Tienen cápsulas pendientes y llevan {DIAS_PARA_INACTIVO} días o más sin completar nada. Un mensaje tuyo
+            puede hacer la diferencia.
+          </p>
+          <div className="re-nuevos-lista">
+            {inactivos.map((d) => (
+              <Link key={d.joven.uid} to={`/radgen/education/lider/joven/${d.joven.uid}`} className="re-nuevo-item re-nuevo-item--inactivo">
+                <Avatar nombre={d.joven.nombre} foto={d.joven.fotoPerfil} uid={d.joven.uid} size={36} colorAcento={d.joven.colorAcento} />
+                <span className="re-nuevo-item__texto">
+                  <strong>{d.joven.nombre}</strong>
+                  <small>Última actividad {haceCuanto(d.ultimaActividad)}</small>
+                </span>
+                <span className="re-badge re-badge--pendiente">
+                  {d.pendientes} pendiente{d.pendientes === 1 ? '' : 's'}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {nuevos.length > 0 && (
         <div className="re-card re-card--nuevos">
@@ -655,7 +710,7 @@ function PanelSeguimiento({ jovenes, tabla, ranking }) {
         </div>
       )}
 
-      <div className="re-card re-card--rojo">
+      <div className="re-card re-card--rojo" ref={listaRef} style={{ scrollMarginTop: 90 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
           <h2 className="re-subtitulo" style={{ margin: 0 }}>Estado por joven</h2>
           <button className="re-btn re-btn--sm" onClick={() => exportarEstadoCsv(tabla)}>
@@ -687,6 +742,8 @@ function PanelSeguimiento({ jovenes, tabla, ranking }) {
               racha={d.filaRanking?.racha || 0}
               xpTotal={d.filaRanking?.xpTotal || 0}
               pendientes={d.pendientes}
+              inactivo={d.inactivo}
+              diasSinActividad={d.diasSinActividad}
             />
           ))}
         </div>
@@ -698,25 +755,15 @@ function PanelSeguimiento({ jovenes, tabla, ranking }) {
   )
 }
 
-function PanelElegibilidad({ elegibilidadPorJoven, lecciones, requisitos, cambiarRequisito, mostrarElegibilidad, cambiarVisibilidadElegibilidad }) {
+function PanelElegibilidad({ elegibilidadPorJoven, lecciones, requisitos, cambiarRequisito }) {
   return (
     <>
       <div className="re-card">
         <h2 className="re-subtitulo">Elegibilidad para servir</h2>
         <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
           Quién ya cumple los requisitos para tomarse en cuenta en voluntariado o viajes misioneros.
-          Esta tabla siempre la ves tú; el interruptor decide si los jóvenes también la ven en su perfil.
+          Esta tabla siempre la ves tú; en <strong>Ajustes</strong> decides si los jóvenes también la ven en su perfil.
         </p>
-
-        <button
-          type="button"
-          className={`re-switch ${mostrarElegibilidad ? 'activo' : ''}`}
-          onClick={cambiarVisibilidadElegibilidad}
-          style={{ marginBottom: 20 }}
-        >
-          <span className="re-switch__perilla" />
-          <span>{mostrarElegibilidad ? 'Los jóvenes SÍ ven su elegibilidad' : 'Los jóvenes NO ven su elegibilidad'}</span>
-        </button>
 
         <div className="re-tabla-wrap">
           <table className="re-tabla">
@@ -829,6 +876,11 @@ function PanelNotasYPreguntas({ usuario, jovenes, pendientes, refrescarPendiente
     setRespuestas((prev) => ({ ...prev, [comentarioId]: '' }))
   }
 
+  async function eliminar(comentarioId) {
+    await eliminarComentario(comentarioId)
+    refrescarPendientes()
+  }
+
   return (
     <>
       <div className="re-card">
@@ -851,13 +903,18 @@ function PanelNotasYPreguntas({ usuario, jovenes, pendientes, refrescarPendiente
               onChange={(e) => setRespuestas((prev) => ({ ...prev, [comentario.id]: e.target.value }))}
               style={{ resize: 'vertical', fontFamily: 'inherit', marginBottom: 8 }}
             />
-            <button
-              className="re-btn re-btn--sm"
-              onClick={() => responder(asignacionId, comentario.id)}
-              disabled={!(respuestas[comentario.id] || '').trim()}
-            >
-              Responder
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <button
+                className="re-btn re-btn--sm"
+                onClick={() => responder(asignacionId, comentario.id)}
+                disabled={!(respuestas[comentario.id] || '').trim()}
+              >
+                Responder
+              </button>
+              <button type="button" className="re-vinculo re-vinculo--peligro" onClick={() => eliminar(comentario.id)}>
+                Eliminar
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -925,7 +982,7 @@ function PanelNotasYPreguntas({ usuario, jovenes, pendientes, refrescarPendiente
 
 const rutaPerfilLider = (uid) => `/radgen/education/lider/joven/${uid}`
 
-function PanelRanking({ ranking, mostrarRanking, cambiarVisibilidadRanking }) {
+function SeccionRanking({ ranking }) {
   return (
     <div className="re-card re-card--ranking">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
@@ -937,16 +994,6 @@ function PanelRanking({ ranking, mostrarRanking, cambiarVisibilidadRanking }) {
       <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
         Un solo ranking: ordenado por experiencia (XP) y, si empatan, por insignias totales.
       </p>
-
-      <button
-        type="button"
-        className={`re-switch ${mostrarRanking ? 'activo' : ''}`}
-        onClick={cambiarVisibilidadRanking}
-        style={{ marginBottom: 20 }}
-      >
-        <span className="re-switch__perilla" />
-        <span>{mostrarRanking ? 'Los jóvenes SÍ ven este ranking' : 'Los jóvenes NO ven este ranking'}</span>
-      </button>
 
       {ranking.length === 0 ? (
         <p style={{ opacity: 0.6 }}>Todavía no hay jóvenes registrados.</p>
@@ -962,7 +1009,7 @@ function PanelRanking({ ranking, mostrarRanking, cambiarVisibilidadRanking }) {
 
 const COLORES_EQUIPO = ['#3a7bff', '#FF3B3B', '#e3a234', '#34a853', '#9333e3', '#14b8a6']
 
-function PanelEquipos({ jovenes, ranking, equipos, setEquipos }) {
+function SeccionEquipos({ jovenes, ranking, equipos, setEquipos }) {
   const [nombreNuevo, setNombreNuevo] = useState('')
   const [guardando, setGuardando] = useState(false)
 
@@ -1081,7 +1128,7 @@ function QrReunion({ codigo, grande }) {
   return src ? <img src={src} alt={`Código QR de asistencia ${codigo}`} className={grande ? 're-qr re-qr--grande' : 're-qr'} /> : null
 }
 
-function PanelAsistencia({ usuario, jovenes }) {
+function SeccionAsistencia({ usuario, jovenes }) {
   const [reuniones, setReuniones] = useState([])
   const [titulo, setTitulo] = useState('')
   const [creando, setCreando] = useState(false)
@@ -1220,11 +1267,10 @@ const CAMPOS_XP = [
   ['xpPorNivel', 'XP necesaria para subir de nivel'],
 ]
 
-function PanelExperiencia({ xpConfig, guardarXpConfig, pausas, cambiarPausa }) {
+function SeccionValoresXp({ xpConfig, guardarXpConfig }) {
   const [valores, setValores] = useState(xpConfig)
   const [guardando, setGuardando] = useState(false)
   const [mensaje, setMensaje] = useState('')
-  const enPausa = calendarioEnPausa(pausas)
 
   function cambiarValor(campo, valor) {
     setValores((prev) => ({ ...prev, [campo]: Math.max(0, Number(valor) || 0) }))
@@ -1242,7 +1288,107 @@ function PanelExperiencia({ xpConfig, guardarXpConfig, pausas, cambiarPausa }) {
   }
 
   return (
+    <div className="re-card">
+      <h2 className="re-subtitulo">Cuánto vale cada cosa</h2>
+      <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
+        Ajusta cuánta experiencia (XP) da cada acción. Se recalcula sola para todos, sin perder historial.
+      </p>
+      <div className="re-xp-campos">
+        {CAMPOS_XP.map(([campo, etiqueta]) => (
+          <div key={campo}>
+            <label className="re-label">{etiqueta}</label>
+            <input
+              type="number"
+              min="0"
+              className="re-input"
+              style={{ maxWidth: 160, marginBottom: 0 }}
+              value={valores[campo]}
+              onChange={(e) => cambiarValor(campo, e.target.value)}
+            />
+          </div>
+        ))}
+      </div>
+      <button className="re-btn re-btn--lleno" onClick={guardar} disabled={guardando} style={{ marginTop: 18 }}>
+        {guardando ? 'Guardando…' : 'Guardar valores'}
+      </button>
+      {mensaje && <span style={{ marginLeft: 12, fontWeight: 700 }}>{mensaje}</span>}
+    </div>
+  )
+}
+
+// Todo lo relacionado a "quién va ganando y por qué" vive en una sola
+// pestaña: el ranking en sí, los equipos (otra vista del mismo ranking),
+// la asistencia (una forma más de ganar XP) y los valores que definen esos
+// números — así se entiende de un vistazo en vez de saltar entre pestañas.
+function PanelExperiencia({ usuario, jovenes, ranking, equipos, setEquipos, xpConfig, guardarXpConfig }) {
+  return (
     <>
+      <SeccionRanking ranking={ranking} />
+      <SeccionEquipos jovenes={jovenes} ranking={ranking} equipos={equipos} setEquipos={setEquipos} />
+      <SeccionAsistencia usuario={usuario} jovenes={jovenes} />
+      <SeccionValoresXp xpConfig={xpConfig} guardarXpConfig={guardarXpConfig} />
+    </>
+  )
+}
+
+// Todos los interruptores generales ("¿esto lo ven/aplica a todos ahora
+// mismo?") juntos en un solo lugar, en vez de repartidos dentro de cada
+// pestaña que afectan.
+function PanelAjustes({
+  pausado,
+  cambiarPausado,
+  mostrarRanking,
+  cambiarVisibilidadRanking,
+  mostrarElegibilidad,
+  cambiarVisibilidadElegibilidad,
+  pausas,
+  cambiarPausa,
+}) {
+  const enPausa = calendarioEnPausa(pausas)
+  return (
+    <>
+      <div className={`re-card re-pausa-banner ${pausado ? 're-card--rojo' : ''}`}>
+        <div>
+          <p className="re-pausa-banner__titulo">
+            {pausado ? '⏸ Currículo pausado para todos' : '✅ Currículo activo'}
+          </p>
+          <p className="re-pausa-banner__texto">
+            {pausado
+              ? 'Los jóvenes solo pueden ver y editar su perfil — nada de lecciones, insignias ni ranking. Úsalo para el lanzamiento, o para pausar todo mientras haces ajustes.'
+              : 'Los jóvenes ven sus lecciones, insignias y todo con normalidad.'}
+          </p>
+        </div>
+        <button className="re-btn re-btn--sm" onClick={cambiarPausado}>
+          {pausado ? 'Reactivar para todos' : 'Pausar para todos'}
+        </button>
+      </div>
+
+      <div className="re-card">
+        <h2 className="re-subtitulo">Visibilidad para los jóvenes</h2>
+        <p style={{ marginTop: 0, marginBottom: 20, opacity: 0.75 }}>
+          Tú siempre ves todo — estos interruptores solo deciden qué comparte la app con ellos.
+        </p>
+
+        <button
+          type="button"
+          className={`re-switch ${mostrarRanking ? 'activo' : ''}`}
+          onClick={cambiarVisibilidadRanking}
+          style={{ marginBottom: 14 }}
+        >
+          <span className="re-switch__perilla" />
+          <span>{mostrarRanking ? 'Los jóvenes SÍ ven el ranking' : 'Los jóvenes NO ven el ranking'}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`re-switch ${mostrarElegibilidad ? 'activo' : ''}`}
+          onClick={cambiarVisibilidadElegibilidad}
+        >
+          <span className="re-switch__perilla" />
+          <span>{mostrarElegibilidad ? 'Los jóvenes SÍ ven su elegibilidad' : 'Los jóvenes NO ven su elegibilidad'}</span>
+        </button>
+      </div>
+
       <div className={`re-card ${enPausa ? 're-card--pausa' : ''}`}>
         <h2 className="re-subtitulo">{enPausa ? '⏸ Calendario en pausa' : '📅 Calendario de cápsulas'}</h2>
         <p style={{ marginTop: 0, marginBottom: 12, opacity: 0.8 }}>
@@ -1258,32 +1404,6 @@ function PanelExperiencia({ xpConfig, guardarXpConfig, pausas, cambiarPausa }) {
         <button className={`re-btn ${enPausa ? 're-btn--lleno' : ''}`} onClick={cambiarPausa}>
           {enPausa ? '▶ Reanudar calendario' : '⏸ Pausar calendario'}
         </button>
-      </div>
-
-      <div className="re-card">
-        <h2 className="re-subtitulo">Cuánto vale cada cosa</h2>
-        <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
-          Ajusta cuánta experiencia (XP) da cada acción. Se recalcula sola para todos, sin perder historial.
-        </p>
-        <div className="re-xp-campos">
-          {CAMPOS_XP.map(([campo, etiqueta]) => (
-            <div key={campo}>
-              <label className="re-label">{etiqueta}</label>
-              <input
-                type="number"
-                min="0"
-                className="re-input"
-                style={{ maxWidth: 160, marginBottom: 0 }}
-                value={valores[campo]}
-                onChange={(e) => cambiarValor(campo, e.target.value)}
-              />
-            </div>
-          ))}
-        </div>
-        <button className="re-btn re-btn--lleno" onClick={guardar} disabled={guardando} style={{ marginTop: 18 }}>
-          {guardando ? 'Guardando…' : 'Guardar valores'}
-        </button>
-        {mensaje && <span style={{ marginLeft: 12, fontWeight: 700 }}>{mensaje}</span>}
       </div>
     </>
   )
@@ -1362,15 +1482,34 @@ export default function LeaderDashboard({ usuario }) {
   const [mostrarElegibilidad, setMostrarElegibilidad] = useState(false)
   const [mostrarRanking, setMostrarRanking] = useState(false)
   const [pendientes, setPendientes] = useState([])
-  const [elegibilidadPorJoven, setElegibilidadPorJoven] = useState([])
-  const [preRegistro, setPreRegistro] = useState(true)
+  const [pausado, setPausado] = useState(false)
   const [actividad, setActividad] = useState([])
   const [xpConfig, setXpConfigState] = useState(null)
   const [pausas, setPausas] = useState([])
   const [equipos, setEquipos] = useState([])
 
+  // Se calcula con lo que el panel ya cargó (todas las asignaciones y
+  // lecciones), en vez de volver a leer la base de datos por cada joven — y
+  // se actualiza al instante cuando cambias un requisito.
+  const elegibilidadPorJoven = useMemo(
+    () =>
+      jovenes.map((joven) => {
+        const completadasIds = new Set(
+          tabla.filter((f) => f.asignadoA === joven.uid && f.estado === 'completado').map((f) => f.leccionId),
+        )
+        return {
+          joven,
+          insignias: {
+            totalCompletadas: completadasIds.size,
+            elegibilidad: calcularElegibilidad(completadasIds, requisitos, lecciones),
+          },
+        }
+      }),
+    [jovenes, tabla, requisitos, lecciones],
+  )
+
   useEffect(() => {
-    const unsub = observarModoPreRegistro(setPreRegistro)
+    const unsub = observarAppPausada(setPausado)
     return unsub
   }, [])
 
@@ -1399,7 +1538,7 @@ export default function LeaderDashboard({ usuario }) {
       getXpConfig(),
       getPausasCalendario(),
       getEquipos(),
-    ]).then(async ([js, ls, la, se, tb, rk, rq, me, mr, pd, xc, pa, eq]) => {
+    ]).then(([js, ls, la, se, tb, rk, rq, me, mr, pd, xc, pa, eq]) => {
       setJovenes(js)
       setLecciones(ls)
       setLeccionesActivas(la)
@@ -1413,8 +1552,6 @@ export default function LeaderDashboard({ usuario }) {
       setXpConfigState(xc)
       setPausas(pa)
       setEquipos(eq)
-      const elegibilidad = await Promise.all(js.map(async (j) => ({ joven: j, insignias: await getInsigniasDe(j.uid) })))
-      setElegibilidadPorJoven(elegibilidad)
       setCargando(false)
     })
   }, [])
@@ -1464,8 +1601,8 @@ export default function LeaderDashboard({ usuario }) {
     setPendientes(await getComentariosPendientes())
   }
 
-  async function cambiarPreRegistro() {
-    await setModoPreRegistro(!preRegistro)
+  async function cambiarPausado() {
+    await setAppPausada(!pausado)
   }
 
   if (cargando) {
@@ -1483,21 +1620,17 @@ export default function LeaderDashboard({ usuario }) {
         <Sky size={56} pose="relajado" animado={false} />
       </div>
 
-      <div className={`re-card re-preregistro-banner ${preRegistro ? 're-card--rojo' : ''}`}>
-        <div>
-          <p className="re-preregistro-banner__titulo">
-            {preRegistro ? '🔒 Modo pre-registro activado' : '✅ Currículo visible para todos'}
-          </p>
-          <p className="re-preregistro-banner__texto">
-            {preRegistro
-              ? 'Los jóvenes pueden registrarse y personalizar su perfil, pero todavía no ven lecciones ni asignaciones.'
-              : 'Los jóvenes ya ven sus lecciones y asignaciones con normalidad.'}
-          </p>
+      {pausado && (
+        <div className="re-card re-pausa-banner re-card--rojo">
+          <div>
+            <p className="re-pausa-banner__titulo">⏸ Currículo pausado para todos</p>
+            <p className="re-pausa-banner__texto">
+              Los jóvenes solo pueden ver y editar su perfil. Reactívalo desde Ajustes cuando termines.
+            </p>
+          </div>
+          <button className="re-btn re-btn--sm" onClick={cambiarPausado}>Reactivar para todos</button>
         </div>
-        <button className="re-btn re-btn--sm" onClick={cambiarPreRegistro}>
-          {preRegistro ? 'Activar lecciones para todos' : 'Volver a modo pre-registro'}
-        </button>
-      </div>
+      )}
 
       <ActividadReciente actividad={actividad} onReaccionar={reaccionar} />
 
@@ -1544,8 +1677,6 @@ export default function LeaderDashboard({ usuario }) {
           lecciones={leccionesActivas}
           requisitos={requisitos}
           cambiarRequisito={cambiarRequisito}
-          mostrarElegibilidad={mostrarElegibilidad}
-          cambiarVisibilidadElegibilidad={cambiarVisibilidadElegibilidad}
         />
       )}
 
@@ -1558,20 +1689,29 @@ export default function LeaderDashboard({ usuario }) {
         />
       )}
 
-      {tab === 'ranking' && (
-        <PanelRanking
+      {tab === 'experiencia' && xpConfig && (
+        <PanelExperiencia
+          usuario={usuario}
+          jovenes={jovenes}
           ranking={ranking}
-          mostrarRanking={mostrarRanking}
-          cambiarVisibilidadRanking={cambiarVisibilidadRanking}
+          equipos={equipos}
+          setEquipos={setEquipos}
+          xpConfig={xpConfig}
+          guardarXpConfig={guardarXpConfig}
         />
       )}
 
-      {tab === 'equipos' && <PanelEquipos jovenes={jovenes} ranking={ranking} equipos={equipos} setEquipos={setEquipos} />}
-
-      {tab === 'asistencia' && <PanelAsistencia usuario={usuario} jovenes={jovenes} />}
-
-      {tab === 'experiencia' && xpConfig && (
-        <PanelExperiencia xpConfig={xpConfig} guardarXpConfig={guardarXpConfig} pausas={pausas} cambiarPausa={cambiarPausa} />
+      {tab === 'ajustes' && (
+        <PanelAjustes
+          pausado={pausado}
+          cambiarPausado={cambiarPausado}
+          mostrarRanking={mostrarRanking}
+          cambiarVisibilidadRanking={cambiarVisibilidadRanking}
+          mostrarElegibilidad={mostrarElegibilidad}
+          cambiarVisibilidadElegibilidad={cambiarVisibilidadElegibilidad}
+          pausas={pausas}
+          cambiarPausa={cambiarPausa}
+        />
       )}
     </div>
   )

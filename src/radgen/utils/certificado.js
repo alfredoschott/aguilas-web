@@ -1,7 +1,7 @@
 // Genera un certificado de logro como imagen — pensado para subirse
 // directo a una historia de Instagram: 1080x1920 (formato 9:16 exacto),
 // vistoso y con la marca de RadGen, no un diploma plano para imprimir.
-import skyLogrado from '../../assets/sky-logrado.png'
+import skyLogrado from '../../assets/sky-logrado.webp'
 
 function dibujarRectRedondeado(ctx, x, y, w, h, r) {
   ctx.beginPath()

@@ -17,15 +17,26 @@ import {
 } from 'firebase/firestore'
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
 import { db, auth, googleProvider } from '../firebase'
-import insigniaLeccionImg from '../assets/insignias/insignia-leccion.png'
-import insigniaLibretaImg from '../assets/insignias/insignia-libreta.png'
-import insigniaServicioImg from '../assets/insignias/insignia-servicio.png'
-import insigniaEspecialImg from '../assets/insignias/insignia-especial.png'
+import insigniaLeccionImg from '../assets/insignias/insignia-leccion.webp'
+import insigniaLibretaImg from '../assets/insignias/insignia-libreta.webp'
+import insigniaServicioImg from '../assets/insignias/insignia-servicio.webp'
+import insigniaEspecialImg from '../assets/insignias/insignia-especial.webp'
 
 export const IMAGENES_INSIGNIA_MANUAL = {
   libreta: insigniaLibretaImg,
   servicio: insigniaServicioImg,
   especial: insigniaEspecialImg,
+}
+
+// La insignia destacada se guarda en el perfil como una "foto" (id, nombre,
+// ícono…). La imagen se resuelve aquí por su id y no por la URL guardada,
+// porque esas URLs cambian cada vez que se actualiza el archivo de la
+// imagen — así una insignia destacada nunca se ve rota.
+export function imagenDeInsignia(snapshot) {
+  const id = snapshot?.id || ''
+  if (id.startsWith('leccion-')) return insigniaLeccionImg
+  if (id.startsWith('especial')) return insigniaEspecialImg
+  return IMAGENES_INSIGNIA_MANUAL[id] || null
 }
 
 // Insignias de rango por cantidad total de cápsulas completadas (ajustable
@@ -83,7 +94,7 @@ export const MARCOS_AVATAR = [
 
 const CONFIG_ID = 'config'
 const CONFIG_POR_DEFECTO = {
-  modoPreRegistro: true,
+  appPausada: false,
   codigoInvitacion: 'RADGEN2026',
   mostrarElegibilidadAJovenes: false,
   mostrarRankingAJovenes: false,
@@ -191,22 +202,22 @@ export async function cerrarSesion() {
 
 // ===== Configuración global (líder) =====
 
-export async function getModoPreRegistro() {
-  const config = await getConfig()
-  return config.modoPreRegistro
-}
-
-// Tiempo real: si la líder prende/apaga el currículo, cualquier joven con
-// la app abierta lo nota al instante, sin recargar. Devuelve la función
-// para desuscribirse.
-export function observarModoPreRegistro(callback) {
+// Interruptor general: mientras esté pausada, ningún joven ve currículo
+// (lecciones, insignias, ranking) — solo puede entrar a su perfil. Sirve
+// tanto para el lanzamiento inicial como para pausar todo de golpe si la
+// líder necesita hacer ajustes sin que nadie vea algo a medias.
+//
+// Tiempo real: si la líder pausa/reactiva, cualquier joven con la app
+// abierta lo nota al instante, sin recargar. Devuelve la función para
+// desuscribirse.
+export function observarAppPausada(callback) {
   return onSnapshot(doc(db, 'radgenEduConfig', CONFIG_ID), (snap) => {
-    callback(snap.exists() ? snap.data().modoPreRegistro !== false : true)
+    callback(snap.exists() ? snap.data().appPausada === true : false)
   })
 }
 
-export async function setModoPreRegistro(valor) {
-  await setDoc(doc(db, 'radgenEduConfig', CONFIG_ID), { modoPreRegistro: valor }, { merge: true })
+export async function setAppPausada(valor) {
+  await setDoc(doc(db, 'radgenEduConfig', CONFIG_ID), { appPausada: valor }, { merge: true })
   return valor
 }
 
@@ -827,6 +838,21 @@ export async function getActividadReciente(limite = 8) {
 
 // Calcula todas las insignias (por cápsula, por serie, por rango) y la
 // elegibilidad de voluntariado/misiones de un joven específico.
+// Puro: a partir de las cápsulas que ya completó un joven, dice si cumple
+// los requisitos de cada actividad. Se usa tanto para un joven como para
+// todo el grupo a la vez (panel de líder) sin volver a leer nada.
+export function calcularElegibilidad(completadasIds, requisitos, lecciones) {
+  function evaluar(track) {
+    const requeridas = requisitos[track] || []
+    const faltantes = requeridas.filter((id) => !completadasIds.has(id))
+    return {
+      apto: faltantes.length === 0,
+      faltantes: faltantes.map((id) => lecciones.find((l) => l.id === id)?.titulo || id),
+    }
+  }
+  return { voluntariado: evaluar('voluntariado'), misiones: evaluar('misiones') }
+}
+
 export async function getInsigniasDe(uid) {
   const [lecciones, asignaciones, requisitos] = await Promise.all([
     getLecciones(),
@@ -862,14 +888,6 @@ export async function getInsigniasDe(uid) {
   const nivelActual = [...NIVELES].reverse().find((n) => totalCompletadas >= n.minimo) || null
   const siguienteNivel = NIVELES.find((n) => totalCompletadas < n.minimo) || null
 
-  function evaluarElegibilidad(track) {
-    const requeridas = requisitos[track] || []
-    const faltantes = requeridas.filter((id) => !completadasIds.has(id))
-    return {
-      apto: faltantes.length === 0,
-      faltantes: faltantes.map((id) => lecciones.find((l) => l.id === id)?.titulo || id),
-    }
-  }
 
   return {
     totalCompletadas,
@@ -880,10 +898,7 @@ export async function getInsigniasDe(uid) {
     progresoNivel: siguienteNivel
       ? { actual: totalCompletadas, meta: siguienteNivel.minimo }
       : null,
-    elegibilidad: {
-      voluntariado: evaluarElegibilidad('voluntariado'),
-      misiones: evaluarElegibilidad('misiones'),
-    },
+    elegibilidad: calcularElegibilidad(completadasIds, requisitos, lecciones),
   }
 }
 
@@ -1390,7 +1405,20 @@ export async function crearDuelo({ retadorUid, retadoUid }) {
   }
 }
 
+function dueloSinTerminar(d) {
+  return !d.respuestas?.[d.retadorUid] || !d.respuestas?.[d.retadoUid]
+}
+
 async function crearDueloInterno({ retadorUid, retadoUid }) {
+  // Si ya tienen un duelo sin terminar entre los dos (en cualquier
+  // dirección), se reusa en vez de crear otro — evita duplicados por un
+  // doble clic o por retarse mutuamente al mismo tiempo.
+  const mios = await getDuelosDe(retadorUid)
+  const pendiente = mios.find(
+    (d) => (d.retadorUid === retadoUid || d.retadoUid === retadoUid) && dueloSinTerminar(d),
+  )
+  if (pendiente) return { ok: true, dueloId: pendiente.id, existente: true }
+
   const [lecciones, mias, suyas] = await Promise.all([
     getLecciones(),
     leerSeguro(query(collection(db, 'radgenAsignaciones'), where('asignadoA', '==', retadorUid))),
@@ -1419,6 +1447,51 @@ async function crearDueloInterno({ retadorUid, retadoUid }) {
     fecha: new Date().toISOString(),
   })
   return { ok: true, dueloId: ref.id }
+}
+
+// Para la pantalla de Compañeros: todos los demás jóvenes, cuántas
+// preguntas de quiz tienen en común contigo (hacen falta 3 para un duelo)
+// y si ya tienen un duelo abierto entre los dos. Solo datos cosméticos de
+// cada quien — nada de XP ni lugares, que eso depende de si la líder
+// decidió mostrar el ranking.
+export async function getCompaneros(uid) {
+  const [jovenes, lecciones, asignaciones, duelos] = await Promise.all([
+    getJovenes(),
+    getLecciones(),
+    leerSeguro(collection(db, 'radgenAsignaciones')),
+    getDuelosDe(uid),
+  ])
+  const preguntasPorLeccion = new Map(lecciones.map((l) => [l.id, l.quiz?.length || 0]))
+  const completadasDe = new Map()
+  asignaciones.forEach((a) => {
+    if (a.estado !== 'completado') return
+    if (!completadasDe.has(a.asignadoA)) completadasDe.set(a.asignadoA, new Set())
+    completadasDe.get(a.asignadoA).add(a.leccionId)
+  })
+  const mias = completadasDe.get(uid) || new Set()
+
+  return jovenes
+    .filter((j) => j.uid !== uid)
+    .map((joven) => {
+      const suyas = completadasDe.get(joven.uid) || new Set()
+      let preguntasEnComun = 0
+      mias.forEach((id) => {
+        if (suyas.has(id)) preguntasEnComun += preguntasPorLeccion.get(id) || 0
+      })
+      const dueloAbierto =
+        duelos.find((d) => (d.retadorUid === joven.uid || d.retadoUid === joven.uid) && dueloSinTerminar(d)) || null
+      const duelosTerminados = duelos.filter(
+        (d) => (d.retadorUid === joven.uid || d.retadoUid === joven.uid) && !dueloSinTerminar(d),
+      )
+      return {
+        joven,
+        preguntasEnComun,
+        puedeRetar: preguntasEnComun >= 3,
+        dueloAbierto,
+        victorias: duelosTerminados.filter((d) => ganadorDeDuelo(d) === uid).length,
+        derrotas: duelosTerminados.filter((d) => ganadorDeDuelo(d) === joven.uid).length,
+      }
+    })
 }
 
 export async function getDuelo(dueloId) {
@@ -1536,6 +1609,10 @@ export async function responderComentario({ asignacionId, comentarioId, respuest
     respuestaFecha: new Date().toISOString(),
   })
   return getComentariosDe(asignacionId)
+}
+
+export async function eliminarComentario(comentarioId) {
+  await deleteDoc(doc(db, 'radgenComentarios', comentarioId))
 }
 
 export async function getComentariosPendientes() {

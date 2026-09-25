@@ -1,8 +1,8 @@
-import skySaludando from '../../assets/sky-saludando.png'
-import skyEstudiando from '../../assets/sky-estudiando.png'
-import skyCaminando from '../../assets/sky-caminando.png'
-import skyRelajado from '../../assets/sky-relajado.png'
-import skyLogrado from '../../assets/sky-logrado.png'
+import skySaludando from '../../assets/sky-saludando.webp'
+import skyEstudiando from '../../assets/sky-estudiando.webp'
+import skyCaminando from '../../assets/sky-caminando.webp'
+import skyRelajado from '../../assets/sky-relajado.webp'
+import skyLogrado from '../../assets/sky-logrado.webp'
 
 // Sky, la mascota de RadGen. Cinco artes reales, una por pose. Se usa
 // chica y en flujo normal del documento (nunca posicionada encima del

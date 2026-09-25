@@ -21,6 +21,7 @@ import {
 import { useEffect, useState } from 'react'
 import Sky from '../components/Sky'
 import Avatar from '../components/Avatar'
+import BotonAccion from '../components/BotonAccion'
 import TarjetaExperiencia from '../components/TarjetaExperiencia'
 import RachaBadge from '../components/RachaBadge'
 import TareaPersonal from '../components/TareaPersonal'
@@ -252,14 +253,13 @@ export default function PerfilJovenScreen({ usuario }) {
                 {otorgando === b.id ? 'Otorgando…' : '+ Otorgar'}
               </button>
               {b.desbloqueada && (
-                <button
-                  type="button"
+                <BotonAccion
                   className="re-medalla__certificado"
                   style={{ marginTop: 6 }}
                   onClick={() => descargarCertificadoManual(b, b.ultimoMotivo)}
                 >
                   🎓 Certificado
-                </button>
+                </BotonAccion>
               )}
               {b.registros.length > 0 && (
                 <button
@@ -336,13 +336,12 @@ export default function PerfilJovenScreen({ usuario }) {
                         {new Date(r.fecha).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </p>
                       {r.motivo && <p className="re-medalla__progreso">"{r.motivo}"</p>}
-                      <button
-                        type="button"
+                      <BotonAccion
                         className="re-medalla__certificado"
                         onClick={() => descargarCertificadoManual(especial, r.motivo, `-${r.id}`)}
                       >
                         🎓 Certificado
-                      </button>
+                      </BotonAccion>
                       <button
                         type="button"
                         className="re-medalla__certificado"

@@ -1,6 +1,6 @@
 // Resumen de una serie terminada, estilo "Wrapped": una imagen 1080x1920
 // para historias con los números de cómo le fue al joven en esa serie.
-import skyLogrado from '../../assets/sky-logrado.png'
+import skyLogrado from '../../assets/sky-logrado.webp'
 
 function rect(ctx, x, y, w, h, r) {
   ctx.beginPath()

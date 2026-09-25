@@ -1,7 +1,7 @@
 // Genera una tarjeta de insignia como imagen (Canvas) para compartir en
 // una historia de Instagram — formato 9:16 exacto (1080x1920), sin
 // dependencias externas.
-import skyLogrado from '../../assets/sky-logrado.png'
+import skyLogrado from '../../assets/sky-logrado.webp'
 
 function dibujarRectRedondeado(ctx, x, y, w, h, r) {
   ctx.beginPath()

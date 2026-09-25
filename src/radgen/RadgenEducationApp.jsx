@@ -1,28 +1,43 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { observarSesion, observarModoPreRegistro } from './store'
+import { observarSesion, observarAppPausada } from './store'
 import LoginScreen from './screens/LoginScreen'
 import LessonListScreen from './screens/LessonListScreen'
-import LessonDetailScreen from './screens/LessonDetailScreen'
-import LeaderDashboard from './screens/LeaderDashboard'
-import BadgesScreen from './screens/BadgesScreen'
-import ProyectorScreen from './screens/ProyectorScreen'
-import PerfilJovenScreen from './screens/PerfilJovenScreen'
-import LessonEditorScreen from './screens/LessonEditorScreen'
-import LeccionPreviewScreen from './screens/LeccionPreviewScreen'
-import SeriePreviewScreen from './screens/SeriePreviewScreen'
-import PerfilScreen from './screens/PerfilScreen'
-import PerfilPublicoScreen from './screens/PerfilPublicoScreen'
-import PreRegistroScreen from './screens/PreRegistroScreen'
-import AsistenciaScreen from './screens/AsistenciaScreen'
-import DueloScreen from './screens/DueloScreen'
+
+// Entrar y ver tus lecciones va directo; el resto de pantallas (sobre todo
+// las de líder: panel, editor, proyector) se descarga solo al abrirlas, para
+// que un joven en su celular no baje código que nunca va a usar.
+const LessonDetailScreen = lazy(() => import('./screens/LessonDetailScreen'))
+const LeaderDashboard = lazy(() => import('./screens/LeaderDashboard'))
+const BadgesScreen = lazy(() => import('./screens/BadgesScreen'))
+const ProyectorScreen = lazy(() => import('./screens/ProyectorScreen'))
+const PerfilJovenScreen = lazy(() => import('./screens/PerfilJovenScreen'))
+const LessonEditorScreen = lazy(() => import('./screens/LessonEditorScreen'))
+const LeccionPreviewScreen = lazy(() => import('./screens/LeccionPreviewScreen'))
+const SeriePreviewScreen = lazy(() => import('./screens/SeriePreviewScreen'))
+const PerfilScreen = lazy(() => import('./screens/PerfilScreen'))
+const PerfilPublicoScreen = lazy(() => import('./screens/PerfilPublicoScreen'))
+const AppPausadaScreen = lazy(() => import('./screens/AppPausadaScreen'))
+const AsistenciaScreen = lazy(() => import('./screens/AsistenciaScreen'))
+const DueloScreen = lazy(() => import('./screens/DueloScreen'))
+const MemorizarVersiculoScreen = lazy(() => import('./screens/MemorizarVersiculoScreen'))
+const CompanerosScreen = lazy(() => import('./screens/CompanerosScreen'))
+
 import TopBar from './components/TopBar'
 import Sky from './components/Sky'
 import './radgen.css'
 
+function CargandoPantalla() {
+  return (
+    <div className="re-shell" style={{ textAlign: 'center' }}>
+      <Sky size={72} pose="estudiando" animado />
+    </div>
+  )
+}
+
 export default function RadgenEducationApp() {
   const [usuario, setUsuario] = useState(undefined) // undefined = verificando sesión
-  const [modoPreRegistro, setModoPreRegistro] = useState(true)
+  const [pausado, setPausado] = useState(false)
   const location = useLocation()
   const esProyector = location.pathname.endsWith('/proyector')
 
@@ -32,7 +47,7 @@ export default function RadgenEducationApp() {
   }, [])
 
   useEffect(() => {
-    const unsub = observarModoPreRegistro(setModoPreRegistro)
+    const unsub = observarAppPausada(setPausado)
     return unsub
   }, [])
 
@@ -48,13 +63,13 @@ export default function RadgenEducationApp() {
     return elemento
   }
 
-  // Mientras dure el pre-registro, un joven solo puede ver/editar su perfil
+  // Mientras la app esté pausada, un joven solo puede ver/editar su perfil
   // — el currículo (lecciones, insignias) queda oculto hasta que la líder
-  // lo active desde su panel.
+  // la reactive desde Ajustes.
   function requiereCurriculoActivo(elemento) {
     const bloqueado = requiereSesion('joven', elemento)
     if (bloqueado !== elemento) return bloqueado
-    if (modoPreRegistro) return <Navigate to="/radgen/education/pre-registro" replace />
+    if (pausado) return <Navigate to="/radgen/education/pausado" replace />
     return elemento
   }
 
@@ -69,74 +84,86 @@ export default function RadgenEducationApp() {
   if (esProyector) {
     return (
       <div className="radgen-edu">
-        <Routes>
-          <Route path="/proyector" element={requiereSesion('lider', <ProyectorScreen />)} />
-        </Routes>
+        <Suspense fallback={<CargandoPantalla />}>
+          <Routes>
+            <Route path="/proyector" element={requiereSesion('lider', <ProyectorScreen />)} />
+          </Routes>
+        </Suspense>
       </div>
     )
   }
 
   return (
     <div className="radgen-edu">
-      <TopBar usuario={usuario} onSesion={setUsuario} modoPreRegistro={modoPreRegistro} />
+      <TopBar usuario={usuario} onSesion={setUsuario} pausado={pausado} />
       <div className="re-page">
-        <Routes>
-          <Route path="/" element={<LoginScreen onSesion={setUsuario} />} />
-          <Route
-            path="/lecciones"
-            element={requiereCurriculoActivo(<LessonListScreen usuario={usuario} />)}
-          />
-          <Route
-            path="/leccion/:asignacionId"
-            element={requiereCurriculoActivo(<LessonDetailScreen usuario={usuario} />)}
-          />
-          <Route
-            path="/insignias"
-            element={requiereCurriculoActivo(<BadgesScreen usuario={usuario} onActualizar={setUsuario} />)}
-          />
-          <Route
-            path="/joven/:uid"
-            element={requiereCurriculoActivo(<PerfilPublicoScreen usuario={usuario} />)}
-          />
-          <Route
-            path="/duelo/:dueloId"
-            element={requiereCurriculoActivo(<DueloScreen usuario={usuario} />)}
-          />
-          <Route path="/asistencia/:codigo" element={<AsistenciaScreen usuario={usuario} />} />
-          <Route
-            path="/pre-registro"
-            element={requiereSesion('joven', <PreRegistroScreen usuario={usuario} />)}
-          />
-          <Route
-            path="/perfil"
-            element={requiereSesion(null, <PerfilScreen usuario={usuario} onActualizar={setUsuario} />)}
-          />
-          <Route
-            path="/lider"
-            element={requiereSesion('lider', <LeaderDashboard usuario={usuario} />)}
-          />
-          <Route
-            path="/lider/joven/:uid"
-            element={requiereSesion('lider', <PerfilJovenScreen usuario={usuario} />)}
-          />
-          <Route
-            path="/lider/leccion/nueva"
-            element={requiereSesion('lider', <LessonEditorScreen />)}
-          />
-          <Route
-            path="/lider/leccion/:leccionId/editar"
-            element={requiereSesion('lider', <LessonEditorScreen />)}
-          />
-          <Route
-            path="/lider/leccion/:leccionId/preview"
-            element={requiereSesion('lider', <LeccionPreviewScreen />)}
-          />
-          <Route
-            path="/lider/serie/:serieId/preview"
-            element={requiereSesion('lider', <SeriePreviewScreen />)}
-          />
-          <Route path="*" element={<Navigate to="/radgen/education" replace />} />
-        </Routes>
+        <Suspense fallback={<CargandoPantalla />}>
+          <Routes>
+            <Route path="/" element={<LoginScreen onSesion={setUsuario} />} />
+            <Route
+              path="/lecciones"
+              element={requiereCurriculoActivo(<LessonListScreen usuario={usuario} />)}
+            />
+            <Route
+              path="/leccion/:asignacionId"
+              element={requiereCurriculoActivo(<LessonDetailScreen usuario={usuario} />)}
+            />
+            <Route
+              path="/leccion/:asignacionId/memorizar"
+              element={requiereCurriculoActivo(<MemorizarVersiculoScreen usuario={usuario} />)}
+            />
+            <Route
+              path="/companeros"
+              element={requiereCurriculoActivo(<CompanerosScreen usuario={usuario} />)}
+            />
+            <Route
+              path="/insignias"
+              element={requiereCurriculoActivo(<BadgesScreen usuario={usuario} onActualizar={setUsuario} />)}
+            />
+            <Route
+              path="/joven/:uid"
+              element={requiereCurriculoActivo(<PerfilPublicoScreen usuario={usuario} />)}
+            />
+            <Route
+              path="/duelo/:dueloId"
+              element={requiereCurriculoActivo(<DueloScreen usuario={usuario} />)}
+            />
+            <Route path="/asistencia/:codigo" element={<AsistenciaScreen usuario={usuario} />} />
+            <Route
+              path="/pausado"
+              element={requiereSesion('joven', <AppPausadaScreen usuario={usuario} />)}
+            />
+            <Route
+              path="/perfil"
+              element={requiereSesion(null, <PerfilScreen usuario={usuario} onActualizar={setUsuario} />)}
+            />
+            <Route
+              path="/lider"
+              element={requiereSesion('lider', <LeaderDashboard usuario={usuario} />)}
+            />
+            <Route
+              path="/lider/joven/:uid"
+              element={requiereSesion('lider', <PerfilJovenScreen usuario={usuario} />)}
+            />
+            <Route
+              path="/lider/leccion/nueva"
+              element={requiereSesion('lider', <LessonEditorScreen />)}
+            />
+            <Route
+              path="/lider/leccion/:leccionId/editar"
+              element={requiereSesion('lider', <LessonEditorScreen />)}
+            />
+            <Route
+              path="/lider/leccion/:leccionId/preview"
+              element={requiereSesion('lider', <LeccionPreviewScreen />)}
+            />
+            <Route
+              path="/lider/serie/:serieId/preview"
+              element={requiereSesion('lider', <SeriePreviewScreen />)}
+            />
+            <Route path="*" element={<Navigate to="/radgen/education" replace />} />
+          </Routes>
+        </Suspense>
       </div>
     </div>
   )

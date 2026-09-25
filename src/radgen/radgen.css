@@ -64,99 +64,10 @@
   line-height: 1.05;
 }
 
-.re-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-  padding: 0.7rem 1.75rem;
-  background: var(--rg-ink);
-  border-bottom: var(--rg-bw) solid var(--rg-paper);
-  box-shadow: 0 5px 0 var(--rg-blue);
-}
-
-.re-topbar__logo-link {
-  display: inline-flex;
-  align-items: center;
-  transition: transform 0.15s ease;
-}
-
-.re-topbar__logo-link:hover {
-  transform: scale(1.04) rotate(-1deg);
-}
-
-.re-topbar__logo {
-  height: 58px;
-  width: auto;
-  display: block;
-}
-
 .re-login-logo {
   height: 130px;
   width: auto;
   margin: 0 auto;
-}
-
-.re-topbar__nav {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.re-topbar__links {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.re-topbar__cuenta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-.re-navlink {
-  font-family: 'Montserrat', sans-serif;
-  font-weight: 800;
-  text-transform: uppercase;
-  font-size: 0.72rem;
-  letter-spacing: 0.05em;
-  color: var(--rg-paper);
-  text-decoration: none;
-  padding: 0.5rem 0.9rem;
-  border-radius: 999px;
-  border: 2px solid transparent;
-  opacity: 0.75;
-  transition: opacity 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
-}
-
-.re-navlink:hover {
-  opacity: 1;
-  border-color: var(--rg-blue-light);
-}
-
-.re-navlink.activo {
-  opacity: 1;
-  background: var(--rg-blue);
-  border-color: var(--rg-ink);
-}
-
-.re-topbar__usuario {
-  font-family: 'Inter', sans-serif;
-  font-weight: 700;
-  font-size: 0.78rem;
-  color: var(--rg-paper);
-  opacity: 0.75;
-  white-space: nowrap;
 }
 
 .re-card {
@@ -174,7 +85,7 @@
   box-shadow: 6px 6px 0 var(--rg-red);
 }
 
-.re-preregistro-tarjeta {
+.re-pausa-tarjeta {
   max-width: 440px;
   margin: 3rem auto 0;
   padding: 2.5rem 2rem;
@@ -191,7 +102,7 @@
   font-size: 0.85rem;
 }
 
-.re-preregistro-banner {
+.re-pausa-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -200,7 +111,7 @@
   padding: 1.3rem 1.6rem;
 }
 
-.re-preregistro-banner__titulo {
+.re-pausa-banner__titulo {
   font-family: 'Montserrat', sans-serif;
   font-weight: 900;
   text-transform: uppercase;
@@ -208,7 +119,7 @@
   margin: 0 0 4px;
 }
 
-.re-preregistro-banner__texto {
+.re-pausa-banner__texto {
   margin: 0;
   font-size: 0.82rem;
   opacity: 0.75;
@@ -1749,42 +1660,6 @@
 }
 
 @media (max-width: 640px) {
-  .re-topbar {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-    column-gap: 10px;
-    row-gap: 0.6rem;
-    padding: 0.6rem 1rem;
-  }
-
-  .re-topbar__logo {
-    height: 42px;
-  }
-
-  /* La nav en sí desaparece como caja: sus hijos (links y cuenta) pasan a
-     ser ítems directos del flex de re-topbar, para poder reordenarlos. */
-  .re-topbar__nav {
-    display: contents;
-  }
-
-  .re-topbar__links {
-    order: 3;
-    flex-basis: 100%;
-    justify-content: center;
-    padding-top: 0.5rem;
-    border-top: 1.5px solid rgba(245, 243, 238, 0.15);
-  }
-
-  .re-topbar__cuenta {
-    order: 2;
-  }
-
-  .re-topbar__usuario {
-    font-size: 0.7rem;
-  }
-
   .re-tabs--lider {
     display: none;
   }
@@ -3398,6 +3273,14 @@ a.re-aviso:hover {
   flex-wrap: wrap;
   padding: 1.3rem 1.6rem;
   background: linear-gradient(135deg, #f6efff, var(--rg-paper));
+  color: var(--rg-ink);
+  text-decoration: none;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+a.re-memorizar--invitacion:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 3px 3px 0 #9333e3;
 }
 
 .re-memorizar__titulo {
@@ -3903,4 +3786,471 @@ a.re-aviso:hover {
 .re-asistencia-codigo .re-input::placeholder {
   text-transform: none;
   letter-spacing: 0;
+}
+
+/* ----- Compañeros (entrada a los duelos) ----- */
+
+.re-shell--medio {
+  max-width: 880px;
+}
+
+.re-companeros__intro {
+  font-weight: 600;
+  opacity: 0.85;
+  margin: 0 0 1.4rem;
+  max-width: 560px;
+}
+
+.re-companeros {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: 14px;
+}
+
+.re-companero {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 14px;
+  border: var(--rg-bw) solid var(--rg-ink);
+  background: var(--rg-paper);
+  color: var(--rg-ink);
+  padding: 12px 14px;
+  box-shadow: 5px 5px 0 var(--rg-blue);
+  animation: re-fade-up 0.35s ease both;
+}
+
+.re-companero--turno {
+  background: linear-gradient(135deg, #f3e8ff, var(--rg-paper) 70%);
+  box-shadow: 5px 5px 0 #9333e3;
+}
+
+.re-companero__identidad {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+  text-decoration: none;
+  color: inherit;
+}
+
+.re-companero__identidad:hover .re-companero__nombre {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.re-companero__texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.re-companero__nombre {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.re-companero__sub {
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.re-companero__marcador {
+  margin-top: 2px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #6b21a8;
+}
+
+.re-companero__accion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.re-companero__accion .re-duelo-error {
+  max-width: 180px;
+  font-size: 0.72rem;
+}
+
+.re-companero__bloqueado {
+  font-size: 0.68rem;
+  font-weight: 700;
+  opacity: 0.55;
+  max-width: 120px;
+  line-height: 1.3;
+}
+
+a.re-btn--duelo,
+.re-btn--duelo {
+  color: #fff;
+}
+
+.re-aviso--sutil {
+  background: transparent;
+  color: var(--rg-paper);
+  border-style: dashed;
+  border-color: rgba(245, 243, 238, 0.35);
+  box-shadow: none;
+}
+
+a.re-aviso--sutil:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: #b98cff;
+  background: rgba(147, 51, 227, 0.12);
+}
+
+/* ----- Inactivos (Seguimiento) ----- */
+
+.re-resumen-grupo__dato--inactivo { box-shadow: 4px 4px 0 #9aa4b8; }
+
+.re-card--inactivos {
+  box-shadow: 6px 6px 0 #9aa4b8;
+}
+
+.re-nuevo-item--inactivo:hover {
+  box-shadow: 3px 3px 0 #9aa4b8;
+}
+
+.re-badge--inactivo {
+  background: #e6e9ef;
+  color: var(--rg-ink);
+}
+
+/* ----- Botones que trabajan un momento (certificados, resúmenes) ----- */
+
+.re-medalla__certificado:disabled,
+.re-hero-rango__certificado:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+@media (max-width: 560px) {
+  .re-companeros { grid-template-columns: minmax(0, 1fr); }
+  .re-companero { padding: 10px 12px; gap: 10px; }
+  .re-companero__identidad { gap: 10px; }
+  .re-companero__accion .re-btn--sm { padding: 0.5rem 0.8rem; }
+  .re-resumen-grupo__etiqueta { font-size: 0.7rem; }
+}
+
+/* =====================================================================
+   Barra de navegación
+   Computadora: una fila (logo · secciones · cuenta).
+   Celular: arriba logo + cuenta; las secciones en una barra fija abajo.
+   ===================================================================== */
+
+.re-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 0.6rem 1.75rem;
+  background: var(--rg-ink);
+  border-bottom: var(--rg-bw) solid var(--rg-paper);
+  box-shadow: 0 5px 0 var(--rg-blue);
+}
+
+.re-topbar__logo-link {
+  display: inline-flex;
+  align-items: center;
+  transition: transform 0.15s ease;
+}
+
+.re-topbar__logo-link:hover {
+  transform: scale(1.04) rotate(-1deg);
+}
+
+.re-topbar__logo {
+  height: 52px;
+  width: auto;
+  display: block;
+}
+
+.re-topbar__secciones {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(245, 243, 238, 0.07);
+  border: 1.5px solid rgba(245, 243, 238, 0.12);
+}
+
+.re-navlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  color: var(--rg-paper);
+  text-decoration: none;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  opacity: 0.72;
+  white-space: nowrap;
+  transition: opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.re-navlink:hover {
+  opacity: 1;
+  background: rgba(245, 243, 238, 0.08);
+}
+
+.re-navlink.activo {
+  opacity: 1;
+  background: var(--rg-blue);
+  border-color: var(--rg-ink);
+  box-shadow: 2px 2px 0 var(--rg-paper);
+}
+
+.re-topbar__cuenta {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+}
+
+/* ----- Menú de la cuenta (avatar) ----- */
+
+.re-cuenta {
+  position: relative;
+}
+
+.re-cuenta__boton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  border: 2px solid rgba(245, 243, 238, 0.18);
+  background: transparent;
+  color: var(--rg-paper);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.re-cuenta__boton:hover,
+.re-cuenta__boton.activo {
+  border-color: var(--rg-blue-light);
+  background: rgba(245, 243, 238, 0.06);
+}
+
+.re-cuenta__nombre {
+  font-weight: 700;
+  font-size: 0.8rem;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.re-cuenta__flecha {
+  opacity: 0.7;
+  transition: transform 0.15s ease;
+}
+
+.re-cuenta__boton.activo .re-cuenta__flecha {
+  transform: rotate(180deg);
+}
+
+.re-cuenta__menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 230px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border-radius: 14px;
+  border: var(--rg-bw) solid var(--rg-ink);
+  background: var(--rg-paper);
+  color: var(--rg-ink);
+  box-shadow: 5px 5px 0 var(--rg-blue);
+  animation: re-menu-in 0.14s ease-out;
+}
+
+@keyframes re-menu-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.re-cuenta__cabecera {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px 10px;
+  margin-bottom: 4px;
+  border-bottom: 1.5px solid rgba(15, 15, 18, 0.1);
+  min-width: 0;
+}
+
+.re-cuenta__nombre-completo {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+.re-cuenta__correo {
+  font-size: 0.72rem;
+  opacity: 0.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.re-cuenta__opcion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--rg-ink);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.88rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.re-cuenta__opcion:hover {
+  background: rgba(58, 123, 255, 0.12);
+}
+
+.re-cuenta__opcion--salir {
+  color: #c62828;
+}
+
+.re-cuenta__opcion--salir:hover {
+  background: rgba(255, 59, 59, 0.12);
+}
+
+/* ----- Pestañas con íconos (celular y iPad) -----
+   Van arriba, dentro del encabezado, y no en una barra fija abajo: varios
+   navegadores de celular ponen su propia barra abajo y la taparían. */
+
+.re-topbar__pestanas {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .re-topbar {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      'logo cuenta'
+      'pestanas pestanas';
+    row-gap: 6px;
+    padding: 0.5rem 1.25rem 0.35rem;
+  }
+
+  .re-topbar__logo-link { grid-area: logo; }
+  .re-topbar__cuenta { grid-area: cuenta; }
+  .re-topbar__secciones { display: none; }
+
+  .re-topbar__pestanas {
+    grid-area: pestanas;
+    display: flex;
+    justify-content: space-around;
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+    padding-top: 4px;
+    border-top: 1.5px solid rgba(245, 243, 238, 0.12);
+  }
+
+  .re-pestana {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 3px 0;
+    color: var(--rg-paper);
+    text-decoration: none;
+    opacity: 0.6;
+    transition: opacity 0.15s ease;
+  }
+
+  .re-pestana:hover,
+  .re-pestana.activo {
+    opacity: 1;
+  }
+
+  .re-pestana__icono {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 28px;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    transition: background-color 0.15s ease;
+  }
+
+  .re-pestana.activo .re-pestana__icono {
+    background: var(--rg-blue);
+    border-color: var(--rg-paper);
+  }
+
+  .re-pestana__etiqueta {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 800;
+    font-size: clamp(0.5rem, 2.55vw, 0.68rem);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 760px) {
+  .re-topbar {
+    padding: 0.45rem 0.75rem 0.3rem;
+  }
+
+  .re-topbar__logo {
+    height: 38px;
+  }
+
+  .re-cuenta__nombre {
+    max-width: 90px;
+  }
+
+  .re-asistencia-codigo {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .re-asistencia-codigo .re-btn {
+    padding: 0.55rem 0.75rem;
+  }
 }

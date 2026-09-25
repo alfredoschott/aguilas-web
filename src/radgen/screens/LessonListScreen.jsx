@@ -226,6 +226,13 @@ export default function LessonListScreen({ usuario }) {
           body: `"${porVencer.leccion?.titulo}" vale más si la haces hoy.`,
         })
       }
+      const retoRecibido = du.find((d) => d.retadoUid === usuario.uid && !d.respuestas?.[usuario.uid])
+      if (retoRecibido) {
+        const rival = js.find((j) => j.uid === retoRecibido.retadorUid)
+        mostrarNotificacion('duelo-recibido', '⚔️ Te retaron a un duelo', {
+          body: `${rival?.apodo || rival?.nombre || 'Un compañero'} te está esperando.`,
+        })
+      }
       if (rp.enPeligro && a.some((x) => x.estado !== 'completado')) {
         mostrarNotificacion(
           'racha-peligro',
@@ -403,11 +410,21 @@ export default function LessonListScreen({ usuario }) {
         )
       })}
 
+      {duelosPorJugar.length === 0 && completadas > 0 && (
+        <Link to="/radgen/education/companeros" className="re-aviso re-aviso--sutil">
+          <span className="re-aviso__icono">⚔️</span>
+          <span>
+            <strong>Reta a un compañero</strong> a un duelo de repaso
+          </span>
+          <span className="re-aviso__flecha">→</span>
+        </Link>
+      )}
+
       <form className="re-asistencia-codigo" onSubmit={enviarAsistencia}>
         <span className="re-asistencia-codigo__icono">📍</span>
         <input
           className="re-input"
-          placeholder="Código de la reunión (opcional)"
+          placeholder="Código de reunión"
           value={codigoAsistencia}
           onChange={(e) => {
             setCodigoAsistencia(e.target.value.toUpperCase())

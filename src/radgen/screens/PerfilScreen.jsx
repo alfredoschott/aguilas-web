@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { actualizarPerfil, getInsigniasDe, getRachaSemanas, getInsigniasManualesDe, getExperienciaDe, MARCOS_AVATAR } from '../store'
+import { actualizarPerfil, getInsigniasDe, getRachaSemanas, getInsigniasManualesDe, getExperienciaDe, MARCOS_AVATAR, imagenDeInsignia } from '../store'
 import { recortarYComprimir } from '../utils/imagenPerfil'
 import { sonidosActivos, setSonidosActivos, sonidoCompletar } from '../utils/sonidos'
 import { notificacionesSoportadas, permisoNotificaciones, pedirPermisoNotificaciones } from '../utils/notificaciones'
@@ -317,8 +317,8 @@ export default function PerfilScreen({ usuario, onActualizar }) {
           <h2 className="re-subtitulo">Insignia destacada</h2>
           <div className="re-insignia-destacada">
             <span className="re-insignia-destacada__icono">
-              {usuario.insigniaDestacada.imagen ? (
-                <img src={usuario.insigniaDestacada.imagen} alt="" />
+              {imagenDeInsignia(usuario.insigniaDestacada) ? (
+                <img src={imagenDeInsignia(usuario.insigniaDestacada)} alt="" />
               ) : (
                 usuario.insigniaDestacada.icono
               )}

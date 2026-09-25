@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   getAsignacionesDe,
   marcarCompletado,
@@ -8,7 +8,6 @@ import {
   obtenerBloques,
   agruparBloques,
   getExperienciaDe,
-  marcarVersiculoMemorizado,
   getXpConfig,
   getLecciones,
   getPausasCalendario,
@@ -18,7 +17,6 @@ import Celebracion from '../components/Celebracion'
 import QuizLeccion from '../components/QuizLeccion'
 import ComentariosLeccion from '../components/ComentariosLeccion'
 import Sky from '../components/Sky'
-import MemorizarVersiculo from '../components/MemorizarVersiculo'
 import { sonidoReto } from '../utils/sonidos'
 import { textoTiempoRestante, nivelUrgencia } from '../utils/tiempo'
 import { renderTextoFormateado } from '../utils/formatoTexto'
@@ -85,11 +83,6 @@ export default function LessonDetailScreen({ usuario }) {
   const bloquesReto = bloques.filter((b) => b.tipo === 'reto')
   const gruposContenido = agruparBloques(bloques.filter((b) => b.tipo !== 'reto'))
   const versiculo = bloques.find((b) => b.tipo === 'versiculo')
-
-  async function memorizado() {
-    await marcarVersiculoMemorizado(asignacion.id)
-    setAsignacion((prev) => ({ ...prev, versiculoMemorizado: true }))
-  }
 
   async function completarLeccion(quizScore) {
     const [antes, xpAntes] = await Promise.all([getInsigniasDe(usuario.uid), getExperienciaDe(usuario.uid)])
@@ -282,13 +275,22 @@ export default function LessonDetailScreen({ usuario }) {
       )}
 
       {paso === 'video' && completado && versiculo?.texto && xpCfg && (
-        <MemorizarVersiculo
-          texto={versiculo.texto}
-          referencia={versiculo.referencia}
-          yaMemorizado={!!asignacion.versiculoMemorizado}
-          xp={xpCfg.porVersiculoMemorizado}
-          onCompletar={memorizado}
-        />
+        <Link
+          to={`/radgen/education/leccion/${asignacion.id}/memorizar`}
+          className="re-card re-memorizar re-memorizar--invitacion"
+        >
+          <div>
+            <p className="re-memorizar__titulo">🧠 Memoriza el versículo</p>
+            <p className="re-memorizar__texto">
+              {asignacion.versiculoMemorizado
+                ? 'Ya lo memorizaste ✓ — repásalo cuando quieras, en una pantalla aparte para que no hagas trampa viéndolo aquí arriba.'
+                : `Complétalo sin verlo — en una pantalla aparte, para que sí tenga chiste. Gana +${xpCfg.porVersiculoMemorizado} XP.`}
+            </p>
+          </div>
+          <span className="re-btn re-btn--lleno re-btn--sm">
+            {asignacion.versiculoMemorizado ? 'Repasar' : '¡Jugar!'}
+          </span>
+        </Link>
       )}
 
       {paso === 'video' && completado && (
