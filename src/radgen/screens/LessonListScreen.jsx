@@ -16,13 +16,17 @@ import {
   ganadorDeDuelo,
   getJovenes,
   registrarAsistencia,
+  getExperienciaDe,
+  getSeries,
 } from '../store'
 import Sky from '../components/Sky'
 import TareaPersonal from '../components/TareaPersonal'
 import Avatar from '../components/Avatar'
+import MapaSerie from '../components/MapaSerie'
+import HeroSiguiente from '../components/HeroSiguiente'
 import { mostrarNotificacion } from '../utils/notificaciones'
 import { textoPlano } from '../utils/formatoTexto'
-import { HORA_MS, textoTiempoRestante, nivelUrgencia } from '../utils/tiempo'
+import { HORA_MS, textoTiempoRestante } from '../utils/tiempo'
 
 function inicioSemanaLocal(fecha) {
   const d = new Date(fecha)
@@ -58,12 +62,6 @@ function useMensajeMotivacional(asignaciones) {
     return null
   }, [asignaciones])
 }
-
-// Desplazamiento horizontal de cada parada del camino — un zigzag suave
-// (centro, derecha, centro, izquierda…) como el sendero de lecciones de
-// Duolingo. El valor real en píxeles lo decide el CSS con clamp(), así
-// que aquí solo se define la dirección.
-const PATRON_ZIGZAG = [0, 1, 0, -1]
 
 // Arma, por serie, el camino completo: las cápsulas ya asignadas (hechas o
 // pendientes) más las que todavía no se han asignado dentro de esa misma
@@ -106,10 +104,7 @@ function useCaminoPorSerie(asignaciones, leccionesActivas) {
 // checkbox de "cumplido".
 function useRetosPendientes(asignaciones) {
   return useMemo(
-    () =>
-      asignaciones.filter(
-        (a) => !a.retoCumplido && obtenerBloques(a.leccion).some((b) => b.tipo === 'reto'),
-      ),
+    () => asignaciones.filter((a) => !a.retoCumplido && obtenerBloques(a.leccion).some((b) => b.tipo === 'reto')),
     [asignaciones],
   )
 }
@@ -118,60 +113,46 @@ function RetoPendiente({ asignacion }) {
   const reto = obtenerBloques(asignacion.leccion).find((b) => b.tipo === 'reto')
   return (
     <Link to={`/radgen/education/leccion/${asignacion.id}`} className="re-reto-pendiente">
-      <span className="re-reto-pendiente__icono" aria-hidden="true">🎯</span>
+      <span className="re-reto-pendiente__icono" aria-hidden="true">
+        🎯
+      </span>
       <div className="re-reto-pendiente__cuerpo">
         <p className="re-reto-pendiente__leccion">{asignacion.leccion?.titulo}</p>
         {reto?.texto && <p className="re-reto-pendiente__texto">{textoPlano(reto.texto)}</p>}
       </div>
-      <span className="re-reto-pendiente__flecha" aria-hidden="true">→</span>
+      <span className="re-reto-pendiente__flecha" aria-hidden="true">
+        →
+      </span>
     </Link>
   )
 }
 
-// Chip bajo cada cápsula pendiente: cuánto vale ahora y cuánto le queda a
-// ese valor — lo que hace que valga la pena hacerla hoy y no "luego".
-function ChipValor({ valor }) {
-  if (!valor) return null
-  const porcentaje = Math.round(valor.factor * 100)
-  if (valor.enPausa) return <span className="re-chip-valor re-chip-valor--pausa">⏸ {porcentaje}%</span>
-  if (valor.msParaBajar === null) return <span className="re-chip-valor re-chip-valor--urgente">{porcentaje}%</span>
+// Tira de progreso bajo la tarjeta principal: nivel, racha y avance — lo
+// que antes estaba repartido en textos sueltos, ahora de un vistazo.
+function TiraProgreso({ experiencia, completadas, total }) {
+  const pct = experiencia ? Math.round((experiencia.xpEnNivelActual / experiencia.xpPorNivel) * 100) : 0
   return (
-    <span className={`re-chip-valor re-chip-valor--${nivelUrgencia(valor.msParaBajar)}`}>
-      ⚡ {porcentaje}% · {textoTiempoRestante(valor.msParaBajar)}
-    </span>
-  )
-}
-
-function NodoCamino({ nodo, offsetDir, esSiguiente, opacado, delay, valor }) {
-  const { leccion, asignacion, estado } = nodo
-  const claseEstado = `re-nodo--${estado}${esSiguiente ? ' re-nodo--siguiente' : ''}`
-
-  const contenido = (
-    <>
-      <div className={`re-nodo ${claseEstado}`}>
-        {estado === 'bloqueada' ? '🔒' : leccion.icono}
-        {estado === 'completada' && <span className="re-nodo__check" aria-hidden="true">✓</span>}
-      </div>
-      <p className="re-camino__titulo">{leccion.titulo}</p>
-      {estado === 'disponible' && <ChipValor valor={valor} />}
-      {esSiguiente && <span className="re-camino__etiqueta">EMPEZAR</span>}
-    </>
-  )
-
-  const estilo = { '--offset-dir': offsetDir, animationDelay: `${delay}s` }
-  const clasePara = `re-camino__parada ${estado === 'bloqueada' ? 're-camino__parada--bloqueada' : ''} ${opacado ? 're-camino__parada--opacada' : ''}`
-
-  if (estado === 'bloqueada') {
-    return (
-      <div className={clasePara} style={estilo} title="Se desbloquea cuando tu líder te la asigne">
-        {contenido}
-      </div>
-    )
-  }
-
-  return (
-    <Link to={`/radgen/education/leccion/${asignacion.id}`} className={clasePara} style={estilo}>
-      {contenido}
+    <Link to="/radgen/education/insignias" className="re-tira">
+      <span className="re-tira__dato re-tira__dato--nivel">
+        <span className="re-tira__insignia">{experiencia?.nivel ?? 1}</span>
+        <span className="re-tira__texto">
+          <span className="re-tira__etiqueta">Nivel · {experiencia?.xpTotal ?? 0} XP</span>
+          <span className="re-tira__barra">
+            <span style={{ width: `${pct}%` }} />
+          </span>
+        </span>
+      </span>
+      <span className="re-tira__dato">
+        <span className="re-tira__grande">🔥 {experiencia?.racha ?? 0}</span>
+        <span className="re-tira__etiqueta">{experiencia?.racha === 1 ? 'semana' : 'semanas'}</span>
+      </span>
+      <span className="re-tira__dato">
+        <span className="re-tira__grande">
+          {completadas}
+          <small>/{total}</small>
+        </span>
+        <span className="re-tira__etiqueta">cápsulas</span>
+      </span>
     </Link>
   )
 }
@@ -189,6 +170,8 @@ export default function LessonListScreen({ usuario }) {
   const [jovenes, setJovenes] = useState([])
   const [codigoAsistencia, setCodigoAsistencia] = useState('')
   const [mensajeAsistencia, setMensajeAsistencia] = useState(null)
+  const [experiencia, setExperiencia] = useState(null)
+  const [series, setSeries] = useState([])
   const [cargando, setCargando] = useState(true)
   const navigate = useNavigate()
 
@@ -203,7 +186,11 @@ export default function LessonListScreen({ usuario }) {
       getPausasCalendario(),
       getDuelosDe(usuario.uid),
       getJovenes(),
-    ]).then(([t, a, l, rp, lid, tl, pa, du, js]) => {
+      getExperienciaDe(usuario.uid),
+      getSeries(),
+    ]).then(([t, a, l, rp, lid, tl, pa, du, js, exp, se]) => {
+      setExperiencia(exp)
+      setSeries(se)
       setTareas(t)
       setAsignaciones(a)
       setLeccionesActivas(l)
@@ -234,11 +221,9 @@ export default function LessonListScreen({ usuario }) {
         })
       }
       if (rp.enPeligro && a.some((x) => x.estado !== 'completado')) {
-        mostrarNotificacion(
-          'racha-peligro',
-          '🔥 Tu racha está en riesgo',
-          { body: `Llevas ${rp.rachaPrevia} semana${rp.rachaPrevia === 1 ? '' : 's'} seguidas — completa una cápsula hoy para no perderla.` },
-        )
+        mostrarNotificacion('racha-peligro', '🔥 Tu racha está en riesgo', {
+          body: `Llevas ${rp.rachaPrevia} semana${rp.rachaPrevia === 1 ? '' : 's'} seguidas — completa una cápsula hoy para no perderla.`,
+        })
       }
     })
   }, [usuario.uid])
@@ -271,8 +256,26 @@ export default function LessonListScreen({ usuario }) {
 
   const terminoBusqueda = busqueda.trim().toLowerCase()
 
-  const valores = useMemo(() => calcularValorCapsulas(asignaciones, todasLecciones, pausas), [asignaciones, todasLecciones, pausas])
+  const serieInfo = useMemo(() => new Map(series.map((x) => [x.serieId, x])), [series])
+  const colorDe = (serieId) => serieInfo.get(serieId)?.color || '#3a7bff'
+
+  const valores = useMemo(
+    () => calcularValorCapsulas(asignaciones, todasLecciones, pausas),
+    [asignaciones, todasLecciones, pausas],
+  )
   const enPausa = calendarioEnPausa(pausas)
+
+  const siguiente = useMemo(() => {
+    for (const serie of camino) {
+      const indice = serie.nodos.findIndex((n) => n.leccion.id === siguienteLeccionId)
+      if (indice >= 0) {
+        return { nodo: serie.nodos[indice], serie, indice, total: serie.nodos.length, color: colorDe(serie.serieId) }
+      }
+    }
+    return null
+    // colorDe depende solo de serieInfo
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [camino, siguienteLeccionId, serieInfo])
 
   const capsulaUrgente = useMemo(() => {
     let mejor = null
@@ -287,7 +290,9 @@ export default function LessonListScreen({ usuario }) {
 
   const nombrePorUid = useMemo(() => new Map(jovenes.map((j) => [j.uid, j.apodo || j.nombre])), [jovenes])
   const duelosPorJugar = duelos.filter((d) => !d.respuestas?.[usuario.uid])
-  const duelosConResultado = duelos.filter((d) => d.reciente && Object.keys(d.respuestas || {}).length === 2).slice(0, 3)
+  const duelosConResultado = duelos
+    .filter((d) => d.reciente && Object.keys(d.respuestas || {}).length === 2)
+    .slice(0, 3)
 
   async function enviarAsistencia(e) {
     e.preventDefault()
@@ -317,203 +322,217 @@ export default function LessonListScreen({ usuario }) {
     )
   }
 
+  const hayAvisos =
+    (rachaPeligro.enPeligro && pendientes > 0) ||
+    enPausa ||
+    (capsulaUrgente && capsulaUrgente.asignacion.leccionId !== siguienteLeccionId) ||
+    duelosPorJugar.length > 0 ||
+    duelosConResultado.length > 0
+
   return (
-    <div className="re-shell">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 6 }}>
-        <h1 className="re-titulo-pagina" style={{ margin: 0 }}>Tus lecciones</h1>
-        <Sky size={72} pose={poseSky} animado={false} />
-      </div>
-
-      {lideres.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: '1.2rem' }}>
-          {lideres.map((l) => (
-            <Link
-              key={l.uid}
-              to={`/radgen/education/joven/${l.uid}`}
-              className="re-check-pill"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}
-            >
-              <Avatar nombre={l.nombre} foto={l.fotoPerfil} uid={l.uid} size={22} colorAcento={l.colorAcento} marco={l.marcoAvatar} />
-              Tu líder: {l.apodo || l.nombre}
-            </Link>
-          ))}
-        </div>
-      )}
-
-      <p style={{ fontWeight: 600, opacity: 0.85, marginBottom: mensajeMotivacional ? 6 : '1.5rem' }}>{mensajeSky}</p>
-      {mensajeMotivacional && (
-        <p style={{ fontWeight: 800, color: 'var(--rg-blue-light)', marginBottom: '1.5rem' }}>{mensajeMotivacional}</p>
-      )}
-
-      {rachaPeligro.enPeligro && pendientes > 0 && (
-        <div className="re-racha-peligro">
-          <span className="re-racha-peligro__icono" aria-hidden="true">🔥</span>
-          <div>
-            <p className="re-racha-peligro__titulo">
-              Tu racha de {rachaPeligro.rachaPrevia} semana{rachaPeligro.rachaPrevia === 1 ? '' : 's'} está en riesgo
-            </p>
-            <p className="re-racha-peligro__texto">Completa una cápsula esta semana para no perderla.</p>
-          </div>
-        </div>
-      )}
-
-      {enPausa && (
-        <div className="re-aviso re-aviso--pausa">
-          ⏸ <span>El calendario está en pausa — ninguna cápsula pierde valor mientras tanto.</span>
-        </div>
-      )}
-
-      {capsulaUrgente && (
-        <Link to={`/radgen/education/leccion/${capsulaUrgente.asignacion.id}`} className="re-aviso re-aviso--urgente">
-          <span className="re-aviso__icono">⚡</span>
-          <span>
-            <strong>{capsulaUrgente.asignacion.leccion?.titulo}</strong> baja al{' '}
-            {Math.round(
-              (capsulaUrgente.valor.factor === 1 ? 0.75 : capsulaUrgente.valor.factor === 0.75 ? 0.5 : 0.25) * 100,
-            )}
-            % en {textoTiempoRestante(capsulaUrgente.valor.msParaBajar)}. ¡Hazla hoy y gana todos sus puntos!
-          </span>
-          <span className="re-aviso__flecha">→</span>
-        </Link>
-      )}
-
-      {duelosPorJugar.map((d) => {
-        const rivalUid = d.retadorUid === usuario.uid ? d.retadoUid : d.retadorUid
-        const meRetaron = d.retadoUid === usuario.uid
-        return (
-          <Link key={d.id} to={`/radgen/education/duelo/${d.id}`} className="re-aviso re-aviso--duelo">
-            <span className="re-aviso__icono">⚔️</span>
-            <span>
-              {meRetaron ? (
-                <><strong>{nombrePorUid.get(rivalUid) || 'Alguien'}</strong> te retó a un duelo. ¡Acepta!</>
-              ) : (
-                <>Tu duelo contra <strong>{nombrePorUid.get(rivalUid) || 'tu rival'}</strong> está listo para jugar.</>
-              )}
-            </span>
-            <span className="re-aviso__flecha">→</span>
-          </Link>
-        )
-      })}
-
-      {duelosConResultado.map((d) => {
-        const rivalUid = d.retadorUid === usuario.uid ? d.retadoUid : d.retadorUid
-        const ganador = ganadorDeDuelo(d)
-        return (
-          <Link key={d.id} to={`/radgen/education/duelo/${d.id}`} className="re-aviso re-aviso--resultado">
-            <span className="re-aviso__icono">{ganador === usuario.uid ? '🏆' : ganador ? '⚔️' : '🤝'}</span>
-            <span>
-              Duelo vs <strong>{nombrePorUid.get(rivalUid) || 'rival'}</strong>:{' '}
-              {ganador === usuario.uid ? '¡ganaste!' : ganador ? 'perdiste — ¿revancha?' : 'empate'}
-            </span>
-            <span className="re-aviso__flecha">→</span>
-          </Link>
-        )
-      })}
-
-      {duelosPorJugar.length === 0 && completadas > 0 && (
-        <Link to="/radgen/education/companeros" className="re-aviso re-aviso--sutil">
-          <span className="re-aviso__icono">⚔️</span>
-          <span>
-            <strong>Reta a un compañero</strong> a un duelo de repaso
-          </span>
-          <span className="re-aviso__flecha">→</span>
-        </Link>
-      )}
-
-      <form className="re-asistencia-codigo" onSubmit={enviarAsistencia}>
-        <span className="re-asistencia-codigo__icono">📍</span>
-        <input
-          className="re-input"
-          placeholder="Código de reunión"
-          value={codigoAsistencia}
-          onChange={(e) => {
-            setCodigoAsistencia(e.target.value.toUpperCase())
-            setMensajeAsistencia(null)
-          }}
-          maxLength={8}
-        />
-        <button type="submit" className="re-btn re-btn--sm re-btn--lleno" disabled={!codigoAsistencia.trim()}>
-          Registrar
-        </button>
-      </form>
-      {mensajeAsistencia && <p className="re-duelo-error" style={{ marginTop: -8 }}>{mensajeAsistencia}</p>}
-
-      {retosPendientes.length > 0 && (
-        <div className="re-retos-card">
-          <div className="re-retos-card__cabecera">
-            <h2 className="re-retos-card__titulo">🎯 Retos de la semana</h2>
-            <span className="re-retos-card__contador">{retosPendientes.length}</span>
-          </div>
-          {retosPendientes.map((a) => (
-            <RetoPendiente key={a.id} asignacion={a} />
-          ))}
-        </div>
-      )}
-
-      {tareas.length > 0 && (
-        <div style={{ marginBottom: '1.5rem' }}>
-          <h2 className="re-subtitulo" style={{ color: 'var(--rg-paper)', marginBottom: '0.8rem' }}>
-            Tareas de tu líder
-          </h2>
-          {tareas.map((t) => (
-            <TareaPersonal key={t.id} tarea={t} onToggle={toggleTarea} />
-          ))}
-        </div>
-      )}
-
-      {completadas > 0 && (
-        <p style={{ textAlign: 'center', fontWeight: 700, marginBottom: '1.2rem', opacity: 0.8 }}>
-          {completadas} de {asignaciones.length} cápsulas completadas
-        </p>
-      )}
-
-      {asignaciones.length === 0 && (
-        <div className="re-card" style={{ textAlign: 'center' }}>
-          Todavía no tienes lecciones asignadas. Cuando tu líder te asigne una, aparecerá aquí.
-        </div>
-      )}
+    <div className="re-shell re-shell--lecciones">
+      <HeroSiguiente
+        siguiente={siguiente}
+        valor={siguiente ? valores.get(siguiente.nodo.asignacion.id) : null}
+        nombre={usuario.apodo || usuario.nombre}
+        pose={poseSky}
+        mensaje={mensajeSky}
+        sinLecciones={asignaciones.length === 0}
+      />
 
       {asignaciones.length > 0 && (
-        <input
-          className="re-input"
-          placeholder="Buscar lección…"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-        />
+        <TiraProgreso experiencia={experiencia} completadas={completadas} total={asignaciones.length} />
       )}
 
-      {camino.map((serie) => {
-        let indiceZigzag = 0
-        return (
-          <div key={serie.serieId} className="re-serie-grupo">
-            <div className="re-serie-grupo__header">
-              <h2 className="re-serie-grupo__titulo">{serie.serieTitulo}</h2>
-              <span className="re-serie-grupo__contador">
-                {serie.nodos.filter((n) => n.estado === 'completada').length}/{serie.nodos.length}
-              </span>
-            </div>
+      {mensajeMotivacional && <p className="re-lecciones__motivacion">{mensajeMotivacional}</p>}
 
-            <div className="re-camino">
-              {serie.nodos.map((nodo, i) => {
-                const offsetDir = PATRON_ZIGZAG[indiceZigzag % PATRON_ZIGZAG.length]
-                indiceZigzag += 1
-                const opacado = terminoBusqueda.length > 0 && !nodo.leccion.titulo.toLowerCase().includes(terminoBusqueda)
+      <div className="re-lecciones">
+        <div className="re-lecciones__mapa">
+          {asignaciones.length === 0 && (
+            <div className="re-card" style={{ textAlign: 'center' }}>
+              Todavía no tienes lecciones asignadas. Cuando tu líder te asigne una, aparecerá aquí.
+            </div>
+          )}
+
+          {todasLecciones.length > 8 && asignaciones.length > 0 && (
+            <input
+              className="re-input"
+              placeholder="Buscar lección…"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+            />
+          )}
+
+          {camino.map((serie) => (
+            <MapaSerie
+              key={serie.serieId}
+              serie={serie}
+              color={colorDe(serie.serieId)}
+              portada={serieInfo.get(serie.serieId)?.portada}
+              siguienteId={siguienteLeccionId}
+              valores={valores}
+              terminoBusqueda={terminoBusqueda}
+            />
+          ))}
+        </div>
+
+        <aside className="re-lecciones__lateral">
+          {hayAvisos && (
+            <div className="re-lateral__grupo">
+              <h2 className="re-lateral__titulo">Para hoy</h2>
+
+              {rachaPeligro.enPeligro && pendientes > 0 && (
+                <div className="re-racha-peligro">
+                  <span className="re-racha-peligro__icono" aria-hidden="true">
+                    🔥
+                  </span>
+                  <div>
+                    <p className="re-racha-peligro__titulo">
+                      Tu racha de {rachaPeligro.rachaPrevia} semana{rachaPeligro.rachaPrevia === 1 ? '' : 's'} está en
+                      riesgo
+                    </p>
+                    <p className="re-racha-peligro__texto">Completa una cápsula esta semana para no perderla.</p>
+                  </div>
+                </div>
+              )}
+
+              {enPausa && (
+                <div className="re-aviso re-aviso--pausa">
+                  ⏸ <span>El calendario está en pausa — ninguna cápsula pierde valor mientras tanto.</span>
+                </div>
+              )}
+
+              {capsulaUrgente && capsulaUrgente.asignacion.leccionId !== siguienteLeccionId && (
+                <Link
+                  to={`/radgen/education/leccion/${capsulaUrgente.asignacion.id}`}
+                  className="re-aviso re-aviso--urgente"
+                >
+                  <span className="re-aviso__icono">⚡</span>
+                  <span>
+                    <strong>{capsulaUrgente.asignacion.leccion?.titulo}</strong> baja de valor en{' '}
+                    {textoTiempoRestante(capsulaUrgente.valor.msParaBajar)}.
+                  </span>
+                  <span className="re-aviso__flecha">→</span>
+                </Link>
+              )}
+
+              {duelosPorJugar.map((d) => {
+                const rivalUid = d.retadorUid === usuario.uid ? d.retadoUid : d.retadorUid
+                const meRetaron = d.retadoUid === usuario.uid
                 return (
-                  <NodoCamino
-                    key={nodo.leccion.id}
-                    nodo={nodo}
-                    offsetDir={offsetDir}
-                    esSiguiente={nodo.leccion.id === siguienteLeccionId}
-                    opacado={opacado}
-                    delay={i * 0.05}
-                    valor={nodo.asignacion ? valores.get(nodo.asignacion.id) : null}
-                  />
+                  <Link key={d.id} to={`/radgen/education/duelo/${d.id}`} className="re-aviso re-aviso--duelo">
+                    <span className="re-aviso__icono">⚔️</span>
+                    <span>
+                      {meRetaron ? (
+                        <>
+                          <strong>{nombrePorUid.get(rivalUid) || 'Alguien'}</strong> te retó a un duelo. ¡Acepta!
+                        </>
+                      ) : (
+                        <>
+                          Tu duelo contra <strong>{nombrePorUid.get(rivalUid) || 'tu rival'}</strong> está listo.
+                        </>
+                      )}
+                    </span>
+                    <span className="re-aviso__flecha">→</span>
+                  </Link>
+                )
+              })}
+
+              {duelosConResultado.map((d) => {
+                const rivalUid = d.retadorUid === usuario.uid ? d.retadoUid : d.retadorUid
+                const ganador = ganadorDeDuelo(d)
+                return (
+                  <Link key={d.id} to={`/radgen/education/duelo/${d.id}`} className="re-aviso re-aviso--resultado">
+                    <span className="re-aviso__icono">{ganador === usuario.uid ? '🏆' : ganador ? '⚔️' : '🤝'}</span>
+                    <span>
+                      Duelo vs <strong>{nombrePorUid.get(rivalUid) || 'rival'}</strong>:{' '}
+                      {ganador === usuario.uid ? '¡ganaste!' : ganador ? 'perdiste — ¿revancha?' : 'empate'}
+                    </span>
+                    <span className="re-aviso__flecha">→</span>
+                  </Link>
                 )
               })}
             </div>
-          </div>
-        )
-      })}
+          )}
+
+          {retosPendientes.length > 0 && (
+            <div className="re-retos-card">
+              <div className="re-retos-card__cabecera">
+                <h2 className="re-retos-card__titulo">🎯 Retos de la semana</h2>
+                <span className="re-retos-card__contador">{retosPendientes.length}</span>
+              </div>
+              {retosPendientes.map((a) => (
+                <RetoPendiente key={a.id} asignacion={a} />
+              ))}
+            </div>
+          )}
+
+          {tareas.length > 0 && (
+            <div className="re-lateral__grupo">
+              <h2 className="re-lateral__titulo">Tareas de tu líder</h2>
+              {tareas.map((t) => (
+                <TareaPersonal key={t.id} tarea={t} onToggle={toggleTarea} />
+              ))}
+            </div>
+          )}
+
+          {duelosPorJugar.length === 0 && completadas > 0 && (
+            <Link to="/radgen/education/companeros" className="re-aviso re-aviso--sutil">
+              <span className="re-aviso__icono">⚔️</span>
+              <span>
+                <strong>Reta a un compañero</strong> a un duelo de repaso
+              </span>
+              <span className="re-aviso__flecha">→</span>
+            </Link>
+          )}
+        </aside>
+
+        <div className="re-lecciones__extras">
+          <form className="re-asistencia-codigo" onSubmit={enviarAsistencia}>
+            <span className="re-asistencia-codigo__icono">📍</span>
+            <input
+              className="re-input"
+              placeholder="Código"
+              aria-label="Código de reunión para registrar tu asistencia"
+              value={codigoAsistencia}
+              onChange={(e) => {
+                setCodigoAsistencia(e.target.value.toUpperCase())
+                setMensajeAsistencia(null)
+              }}
+              maxLength={8}
+            />
+            <button type="submit" className="re-btn re-btn--sm re-btn--lleno" disabled={!codigoAsistencia.trim()}>
+              Registrar
+            </button>
+          </form>
+          {mensajeAsistencia && (
+            <p className="re-duelo-error" style={{ marginTop: -8 }}>
+              {mensajeAsistencia}
+            </p>
+          )}
+
+          {lideres.length > 0 && (
+            <div className="re-lateral__lideres">
+              {lideres.map((l) => (
+                <Link key={l.uid} to={`/radgen/education/joven/${l.uid}`} className="re-lider-pill">
+                  <Avatar
+                    nombre={l.nombre}
+                    foto={l.fotoPerfil}
+                    uid={l.uid}
+                    size={28}
+                    colorAcento={l.colorAcento}
+                    marco={l.marcoAvatar}
+                  />
+                  <span>
+                    <small>Tu líder</small>
+                    {l.apodo || l.nombre}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
