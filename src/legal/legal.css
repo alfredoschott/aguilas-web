@@ -304,3 +304,8 @@
   .formato { padding: 0; }
   .formato__acciones { display: none; }
 }
+.legal__contenido > p + p,
+.legal__contenido > ul + p,
+.legal__contenido > p + ul {
+  margin-top: 0.8rem;
+}

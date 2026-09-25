@@ -4,7 +4,7 @@
 export const RESPONSABLE = {
   nombre: 'Águilas Centro Familiar Cristiano Tizayuca',
   nombreCorto: 'Águilas CFC',
-  domicilio: 'Tizayuca, Hidalgo, México',
+  domicilio: 'Laminación, Col. Tepeyac, C.P. 43800, Tizayuca, Hidalgo, México',
   whatsapp: '771 110 7903',
   whatsappUrl: 'https://wa.me/527711107903',
   correo: '', // Si se agrega un correo, aparece solo en el aviso.
