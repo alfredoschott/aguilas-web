@@ -53,6 +53,7 @@ import {
 } from '../store'
 import QRCode from 'qrcode'
 import Sky from '../components/Sky'
+import { SITIO_URL } from '../../legal/datosResponsable'
 import Avatar from '../components/Avatar'
 import { PodioRanking, TablaRanking, RankingEquipos } from '../components/Ranking'
 import Toast from '../components/Toast'
@@ -1235,7 +1236,7 @@ function SeccionEquipos({ jovenes, ranking, equipos, setEquipos }) {
 function QrReunion({ codigo, grande }) {
   const [src, setSrc] = useState('')
   useEffect(() => {
-    const url = `${window.location.origin}/radgen/education/asistencia/${codigo}`
+    const url = `${SITIO_URL}/radgen/education/asistencia/${codigo}`
     QRCode.toDataURL(url, { width: grande ? 720 : 320, margin: 1, color: { dark: '#0F0F12', light: '#FFFFFF' } }).then(setSrc)
   }, [codigo, grande])
   return src ? <img src={src} alt={`Código QR de asistencia ${codigo}`} className={grande ? 're-qr re-qr--grande' : 're-qr'} /> : null

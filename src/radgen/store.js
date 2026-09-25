@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore'
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
 import { db, auth, googleProvider } from '../firebase'
-import { VERSION_AVISO } from '../legal/datosResponsable'
+import { VERSION_AVISO, SITIO_URL } from '../legal/datosResponsable'
 import insigniaLeccionImg from '../assets/insignias/insignia-leccion.webp'
 import insigniaLibretaImg from '../assets/insignias/insignia-libreta.webp'
 import insigniaServicioImg from '../assets/insignias/insignia-servicio.webp'
@@ -1778,7 +1778,7 @@ async function llamarAutorizacion(cuerpo) {
 }
 
 export function enlaceDeAutorizacion(token) {
-  return `${window.location.origin}/autorizacion/${token}`
+  return `${SITIO_URL}/autorizacion/${token}`
 }
 
 // El joven (sin jovenUid) o la líder (con jovenUid) obtienen el enlace.

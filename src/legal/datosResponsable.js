@@ -10,5 +10,9 @@ export const RESPONSABLE = {
   correo: '', // Si se agrega un correo, aparece solo en el aviso.
 }
 
+// Dominio público: los enlaces que se mandan por WhatsApp siempre apuntan
+// aquí, aunque se generen desde localhost o una vista previa.
+export const SITIO_URL = 'https://www.aguilascfctizayuca.com'
+
 export const FECHA_AVISO = '25 de septiembre de 2026'
 export const VERSION_AVISO = '2026-09-25'
