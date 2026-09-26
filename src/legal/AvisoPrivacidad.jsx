@@ -144,26 +144,15 @@ export default function AvisoPrivacidad() {
         <h2 id="terceros">6. Con quién compartimos tus datos</h2>
         <p>
           <strong>No vendemos ni rentamos tus datos</strong>, ni los compartimos con nadie para publicidad. Para que el
-          sitio funcione usamos estos servicios, que tratan los datos solo por encargo nuestro:
+          sitio y la plataforma funcionen usamos proveedores de infraestructura tecnológica (alojamiento web, base de
+          datos, inicio de sesión y almacenamiento de imágenes), que tratan los datos solo por encargo nuestro y bajo
+          sus propias medidas de seguridad. También usamos un servicio de video para las cápsulas y un servicio de
+          mapas para mostrar nuestra ubicación.
         </p>
-        <ul>
-          <li>
-            <strong>Google Firebase</strong>: base de datos, inicio de sesión con Google y almacenamiento de fotos.
-          </li>
-          <li>
-            <strong>Vercel</strong>: aloja el sitio.
-          </li>
-          <li>
-            <strong>YouTube</strong> (en modo de privacidad mejorada) y <strong>Google Maps</strong>: videos de las
-            cápsulas y el mapa de ubicación.
-          </li>
-          <li>
-            <strong>Google Fonts</strong>: las tipografías del sitio.
-          </li>
-          <li>
-            <strong>WhatsApp, Facebook e Instagram</strong>: solo si tú das clic en un enlace hacia ellos.
-          </li>
-        </ul>
+        <p>
+          Si tú das clic en un enlace hacia <strong>WhatsApp, Facebook</strong> o <strong>Instagram</strong>, esa
+          plataforma trata tus datos conforme a su propio aviso de privacidad, no al nuestro.
+        </p>
         <p>
           Algunos de estos servicios guardan información fuera de México. Solo compartiríamos datos con una autoridad si
           la ley nos lo exige.

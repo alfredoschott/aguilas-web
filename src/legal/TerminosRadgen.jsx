@@ -60,9 +60,12 @@ export default function TerminosRadgen() {
 
         <h2>5. El contenido</h2>
         <p>
-          Las cápsulas, videos, imágenes y a Sky los hicieron los líderes y el equipo de {RESPONSABLE.nombreCorto}.
+          Las cápsulas, videos, imágenes y a Sky los hicieron los líderes y el equipo de {RESPONSABLE.nombreCorto}.{' '}
+          <strong>
+            © {new Date().getFullYear()} {RESPONSABLE.nombre}. Todos los derechos reservados.
+          </strong>{' '}
           Puedes compartir tus insignias, tu carta y tus certificados en tus redes; el resto del contenido es para
-          usarse dentro de la plataforma.
+          usarse dentro de la plataforma y no puede copiarse ni redistribuirse sin permiso.
         </p>
 
         <h2>6. Tu privacidad</h2>

@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom'
+const AÑO_ACTUAL = new Date().getFullYear()
+
 function Footer() {
   const links = [
     { label: 'Nosotros', href: '#nosotros' },
@@ -87,7 +89,7 @@ function Footer() {
         gap: '1rem',
       }}>
         <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: '#8f8f8f' }}>
-          2026 Águilas Centro Familiar Cristiano Tizayuca
+          © {AÑO_ACTUAL} Águilas Centro Familiar Cristiano Tizayuca. Todos los derechos reservados.
         </p>
         <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: '#8f8f8f', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           <span>Tizayuca, Hidalgo, México</span>

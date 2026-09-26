@@ -806,7 +806,7 @@ function RadGen() {
         <div className="footer-brand">
           <img src="/radgen-logo.png" alt="Logo RadGen" />
           <span className="footer-brand-name">Radical Generation México</span>
-          <span className="footer-brand-copy">© 2026 Águilas Centro Familiar Cristiano Tizayuca</span>
+          <span className="footer-brand-copy">© {new Date().getFullYear()} Águilas Centro Familiar Cristiano Tizayuca. Todos los derechos reservados.</span>
           <span className="footer-brand-copy footer-brand-legal">
             <Link to="/privacidad">Aviso de privacidad</Link> · <Link to="/terminos">Términos de RadGen Education</Link>
           </span>
