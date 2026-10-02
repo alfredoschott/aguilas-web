@@ -69,6 +69,20 @@
   ],
   "rewrites": [
     {
+      "source": "/favicon.ico",
+      "has": [
+        {
+          "type": "host",
+          "value": "(www\\.)?radgenmx\\.com"
+        }
+      ],
+      "destination": "/radgen-favicon.png"
+    },
+    {
+      "source": "/favicon.ico",
+      "destination": "/ACFC.png"
+    },
+    {
       "source": "/robots.txt",
       "has": [
         {

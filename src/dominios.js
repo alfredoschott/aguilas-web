@@ -63,6 +63,7 @@ export function aplicarIdentidadRadgen() {
   const icono = document.createElement('link')
   icono.rel = 'icon'
   icono.type = 'image/png'
+  icono.sizes = '192x192'
   icono.href = '/radgen-favicon.png'
   document.head.appendChild(icono)
   etiqueta('link[rel="apple-touch-icon"]', { tag: 'link', attrs: { rel: 'apple-touch-icon' } })?.setAttribute('href', '/radgen-apple-touch.png')

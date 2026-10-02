@@ -47,7 +47,7 @@ function aplicarMeta(html, meta) {
   salida = poner(salida, 'name', 'apple-mobile-web-app-title', 'RadGen')
   salida = poner(salida, 'name', 'theme-color', '#0f0f12')
   return salida
-    .replace(/<link rel="icon"[^>]*>/, '<link rel="icon" type="image/png" href="/radgen-favicon.png" />')
+    .replace(/<link rel="icon"[^>]*>/, '<link rel="icon" type="image/png" sizes="192x192" href="/radgen-favicon.png" />')
     .replace(/<link rel="apple-touch-icon"[^>]*>/, '<link rel="apple-touch-icon" href="/radgen-apple-touch.png" />')
     .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, `<script type="application/ld+json">${JSON.stringify(JSON_LD_RADGEN)}</script>`)
 }
