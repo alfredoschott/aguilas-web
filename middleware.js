@@ -9,7 +9,7 @@ const META_RADGEN = {
   title: 'RadGen MX | Una generación con identidad y propósito',
   description:
     'RadGen es el ministerio de jóvenes de Águilas CFC Tizayuca: fe real, amigos de verdad y un propósito que vale la pena. Conoce RadGen Education, la plataforma para crecer en tu fe.',
-  image: 'https://radgenmx.com/radgen-og.jpg',
+  image: 'https://radgenmx.com/radgen-portada.jpg',
   imageWidth: '1200',
   imageHeight: '630',
   url: 'https://radgenmx.com/',
@@ -19,7 +19,7 @@ const META_RADGEN = {
 // La raíz de aguilascfctizayuca.com (la iglesia) no se toca.
 const esDominioRadgen = (host) => /(^|\.)radgenmx\.com$/.test(host)
 
-const JSON_LD_RADGEN = {"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "@id": "https://radgenmx.com/#sitio", "url": "https://radgenmx.com/", "name": "RadGen MX", "alternateName": ["RadGen", "RadGen Education"], "inLanguage": "es-MX"}, {"@type": "Organization", "@id": "https://radgenmx.com/#organizacion", "name": "RadGen MX", "alternateName": "RadGen", "url": "https://radgenmx.com/", "logo": "https://radgenmx.com/radgen-icon-512.png", "image": "https://radgenmx.com/radgen-og.jpg", "description": "Ministerio de jóvenes de Águilas CFC Tizayuca, Hidalgo, México.", "parentOrganization": {"@type": "Church", "name": "Águilas Centro Familiar Cristiano Tizayuca", "url": "https://www.aguilascfctizayuca.com/"}, "sameAs": ["https://www.instagram.com/radgen.mx/"]}]}
+const JSON_LD_RADGEN = {"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "@id": "https://radgenmx.com/#sitio", "url": "https://radgenmx.com/", "name": "RadGen MX", "alternateName": ["RadGen", "RadGen Education"], "inLanguage": "es-MX"}, {"@type": "Organization", "@id": "https://radgenmx.com/#organizacion", "name": "RadGen MX", "alternateName": "RadGen", "url": "https://radgenmx.com/", "logo": "https://radgenmx.com/radgen-icon-512.png", "image": "https://radgenmx.com/radgen-portada.jpg", "description": "Ministerio de jóvenes de Águilas CFC Tizayuca, Hidalgo, México.", "parentOrganization": {"@type": "Church", "name": "Águilas Centro Familiar Cristiano Tizayuca", "url": "https://www.aguilascfctizayuca.com/"}, "sameAs": ["https://www.instagram.com/radgen.mx/"]}]}
 
 const escapar = (t) => t.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 
