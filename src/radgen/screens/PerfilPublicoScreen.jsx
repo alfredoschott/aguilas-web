@@ -60,7 +60,7 @@ export default function PerfilPublicoScreen({ usuario }) {
     setErrorDuelo('')
     try {
       const r = await crearDuelo({ retadorUid: usuario.uid, retadoUid: uid })
-      if (r.ok) navigate(`/radgen/education/duelo/${r.dueloId}`)
+      if (r.ok) navigate(`/education/duelo/${r.dueloId}`)
       else setErrorDuelo(r.error)
     } finally {
       setRetando(false)
@@ -134,7 +134,7 @@ export default function PerfilPublicoScreen({ usuario }) {
       {esMiPropioPerfil && (
         <div className="re-card" style={{ textAlign: 'center' }}>
           <p style={{ margin: 0, opacity: 0.75 }}>Así te ven los demás. ¿Quieres cambiar algo?</p>
-          <button className="re-btn re-btn--lleno" style={{ marginTop: 12 }} onClick={() => navigate('/radgen/education/perfil')}>
+          <button className="re-btn re-btn--lleno" style={{ marginTop: 12 }} onClick={() => navigate('/education/perfil')}>
             Editar mi perfil
           </button>
         </div>

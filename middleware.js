@@ -1,21 +1,23 @@
 export const config = {
-  matcher: ['/radgen'],
+  matcher: ['/', '/radgen'],
 }
 
 // Meta tags específicas por ruta. Se usan para que WhatsApp/Instagram/Facebook
 // (que no ejecutan JS y solo leen el HTML crudo) muestren la previsualización
 // correcta en vez de la de la página principal (la iglesia).
-const ROUTE_META = {
-  '/radgen': {
+const META_RADGEN = {
     title: 'RadGen Education | Águilas CFC Tizayuca',
     description:
       'Plataforma de discipulado gamificado para los jóvenes de Águilas CFC: misiones, insignias y niveles para crecer en la fe.',
-    image: 'https://www.aguilascfctizayuca.com/radgen-education-logo.png',
+    image: 'https://radgenmx.com/radgen-education-logo.png',
     imageWidth: '900',
     imageHeight: '900',
-    url: 'https://www.aguilascfctizayuca.com/radgen',
-  },
+    url: 'https://radgenmx.com/',
 }
+
+// RadGen vive en radgenmx.com; la raíz de ese dominio es su presentación.
+// La raíz de aguilascfctizayuca.com (la iglesia) no se toca.
+const esDominioRadgen = (host) => /(^|\.)radgenmx\.com$/.test(host)
 
 class MetaRewriter {
   constructor(meta) {
@@ -61,9 +63,9 @@ class MetaRewriter {
 // petición normal en vez de responder con un error.
 export default async function middleware(request) {
   try {
-    const { pathname } = new URL(request.url)
-    const meta = ROUTE_META[pathname]
-    if (!meta) return
+    const { pathname, hostname } = new URL(request.url)
+    if (!esDominioRadgen(hostname) || pathname !== '/') return
+    const meta = META_RADGEN
 
     const response = await fetch(new URL('/index.html', request.url))
     if (!response.ok) return

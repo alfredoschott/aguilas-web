@@ -69,7 +69,7 @@ export default function LessonDetailScreen({ usuario }) {
     return (
       <div className="re-shell">
         <div className="re-card">Esta lección no existe o no está asignada a ti.</div>
-        <button className="re-btn" onClick={() => navigate('/radgen/education/lecciones')}>
+        <button className="re-btn" onClick={() => navigate('/education/lecciones')}>
           ← Volver a mis lecciones
         </button>
       </div>
@@ -103,7 +103,7 @@ export default function LessonDetailScreen({ usuario }) {
         titulo: '¡Subiste de rango!',
         detalle: detalleQuiz + `Ya eres ${subioDeRango.nombre} — sigue así.`,
         textoBoton: 'Ver mis insignias',
-        destino: '/radgen/education/insignias',
+        destino: '/education/insignias',
         insignia: { nombre: subioDeRango.nombre, icono: subioDeRango.icono },
         ...extra,
       })
@@ -112,7 +112,7 @@ export default function LessonDetailScreen({ usuario }) {
         titulo: '¡Insignia desbloqueada!',
         detalle: detalleQuiz + nuevas.map((n) => `${n.icono} ${n.nombre}`).join(' · '),
         textoBoton: 'Ver mis insignias',
-        destino: '/radgen/education/insignias',
+        destino: '/education/insignias',
         insignia: nuevas[0],
         ...extra,
       })
@@ -121,7 +121,7 @@ export default function LessonDetailScreen({ usuario }) {
         titulo: '¡Lección completada!',
         detalle: detalleQuiz + 'Sigue así, cada cápsula suma para tus insignias.',
         textoBoton: 'Continuar',
-        destino: '/radgen/education/lecciones',
+        destino: '/education/lecciones',
         ...extra,
       })
     }
@@ -275,7 +275,7 @@ export default function LessonDetailScreen({ usuario }) {
 
       {paso === 'video' && completado && versiculo?.texto && xpCfg && (
         <Link
-          to={`/radgen/education/leccion/${asignacion.id}/memorizar`}
+          to={`/education/leccion/${asignacion.id}/memorizar`}
           className="re-card re-memorizar re-memorizar--invitacion"
         >
           <div>

@@ -56,9 +56,9 @@ export default function RadgenEducationApp() {
   const esAdmin = usuario?.email === 'schottalfredo@gmail.com'
 
   function requiereSesion(rolNecesario, elemento) {
-    if (!usuario) return <Navigate to="/radgen/education" replace />
+    if (!usuario) return <Navigate to="/education" replace />
     if (rolNecesario && usuario.rol !== rolNecesario && !(rolNecesario === 'lider' && esAdmin)) {
-      return <Navigate to="/radgen/education" replace />
+      return <Navigate to="/education" replace />
     }
     return elemento
   }
@@ -76,7 +76,7 @@ export default function RadgenEducationApp() {
   function requiereCurriculoActivo(elemento) {
     const bloqueado = requiereSesion('joven', elemento)
     if (bloqueado !== elemento) return bloqueado
-    if (pausado) return <Navigate to="/radgen/education/pausado" replace />
+    if (pausado) return <Navigate to="/education/pausado" replace />
     return elemento
   }
 
@@ -169,7 +169,7 @@ export default function RadgenEducationApp() {
               path="/lider/serie/:serieId/preview"
               element={requiereSesion('lider', <SeriePreviewScreen />)}
             />
-            <Route path="*" element={<Navigate to="/radgen/education" replace />} />
+            <Route path="*" element={<Navigate to="/education" replace />} />
           </Routes>
         </Suspense>
       </div>

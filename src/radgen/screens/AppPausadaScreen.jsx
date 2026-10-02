@@ -20,7 +20,7 @@ export default function AppPausadaScreen({ usuario }) {
           Tu líder está haciendo algunos ajustes. En cuanto reactive el currículo, tus lecciones vuelven a aparecer
           aquí mismo — no tienes que hacer nada más.
         </p>
-        <Link to="/radgen/education/perfil" className="re-btn re-btn--lleno">
+        <Link to="/education/perfil" className="re-btn re-btn--lleno">
           Personaliza tu perfil mientras tanto
         </Link>
       </div>

@@ -4,13 +4,12 @@ import { Award, BookOpen, ChevronDown, LayoutDashboard, LogOut, Swords, UserRoun
 import { cerrarSesion } from '../store'
 import Avatar from './Avatar'
 import logo from '../../assets/radgen-education-logo.png'
+import { urlRadgen } from '../../dominios'
 
-// En producción, /radgen vive en el mismo dominio que esta app. En
-// desarrollo local, cada una corre en su propio servidor (ver
-// aguilas-web-iglesia, puerto 5180) — así que aquí apuntamos ahí.
-const URL_RADGEN = import.meta.env.DEV ? 'http://localhost:5180/radgen' : '/radgen'
+// La presentación de RadGen vive en la raíz de radgenmx.com.
+const URL_RADGEN = urlRadgen()
 
-const BASE = '/radgen/education'
+const BASE = '/education'
 
 const SECCION_COMPANEROS = {
   ruta: `${BASE}/companeros`,

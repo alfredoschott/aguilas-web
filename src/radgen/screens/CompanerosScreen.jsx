@@ -32,7 +32,7 @@ function TarjetaCompanero({ companero, uid, onRetar, error, soyLider }) {
 
   return (
     <div className={`re-companero ${meToca ? 're-companero--turno' : ''} ${esLider ? 're-companero--lider' : ''}`}>
-      <Link to={`/radgen/education/joven/${joven.uid}`} className="re-companero__identidad">
+      <Link to={`/education/joven/${joven.uid}`} className="re-companero__identidad">
         <Avatar
           nombre={joven.nombre}
           foto={joven.fotoPerfil}
@@ -60,7 +60,7 @@ function TarjetaCompanero({ companero, uid, onRetar, error, soyLider }) {
         {dueloAbierto && (
           <>
             <Link
-              to={`/radgen/education/duelo/${dueloAbierto.id}`}
+              to={`/education/duelo/${dueloAbierto.id}`}
               className={`re-btn re-btn--sm ${meToca ? 're-btn--lleno re-btn--duelo' : ''}`}
             >
               {meToca ? '⚔️ Jugar' : '⏳ Esperando'}
@@ -118,7 +118,7 @@ export default function CompanerosScreen({ usuario }) {
   async function retar(retadoUid) {
     setErrores((prev) => ({ ...prev, [retadoUid]: null }))
     const r = await crearDuelo({ retadorUid: usuario.uid, retadoUid })
-    if (r.ok) navigate(`/radgen/education/duelo/${r.dueloId}`)
+    if (r.ok) navigate(`/education/duelo/${r.dueloId}`)
     else setErrores((prev) => ({ ...prev, [retadoUid]: r.error }))
   }
 

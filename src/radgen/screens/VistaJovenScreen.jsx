@@ -5,7 +5,7 @@ import Esqueleto from '../components/Esqueleto'
 import MapaSerie from '../components/MapaSerie'
 import LessonListScreen from './LessonListScreen'
 
-const vistaPrevia = (nodo) => `/radgen/education/lider/leccion/${nodo.leccion.id}/preview`
+const vistaPrevia = (nodo) => `/education/lider/leccion/${nodo.leccion.id}/preview`
 
 // Todo el currículo publicado como lo recorrería un joven desde cero, con
 // cada cápsula abierta en su vista previa de solo lectura.

@@ -126,7 +126,7 @@ export default function DueloScreen({ usuario }) {
     return (
       <div className="re-shell">
         <div className="re-card">Este duelo no existe o no es tuyo.</div>
-        <Link to="/radgen/education/companeros" className="re-btn">← Compañeros</Link>
+        <Link to="/education/companeros" className="re-btn">← Compañeros</Link>
       </div>
     )
   }
@@ -149,7 +149,7 @@ export default function DueloScreen({ usuario }) {
 
   return (
     <div className="re-shell">
-      <Link to="/radgen/education/companeros" className="re-vinculo re-vinculo--volver" style={{ marginBottom: 16, display: 'inline-block' }}>
+      <Link to="/education/companeros" className="re-vinculo re-vinculo--volver" style={{ marginBottom: 16, display: 'inline-block' }}>
         ← Compañeros
       </Link>
       <div className="re-card re-duelo" style={{ position: 'relative', overflow: 'hidden' }}>
@@ -169,7 +169,7 @@ export default function DueloScreen({ usuario }) {
                 ? `${nombreRival} no alcanzó a jugar en ${DIAS_TEXTO}. Nadie gana puntos, y ya pueden volver a retarse.`
                 : `Pasaron ${DIAS_TEXTO} sin que se completara. Nadie gana puntos, y ya pueden volver a retarse.`}
             </p>
-            <Link to="/radgen/education/companeros" className="re-btn re-btn--lleno re-btn--duelo re-btn--bloque">
+            <Link to="/education/companeros" className="re-btn re-btn--lleno re-btn--duelo re-btn--bloque">
               ⚔️ Retar de nuevo
             </Link>
           </div>

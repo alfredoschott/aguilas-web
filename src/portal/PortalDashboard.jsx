@@ -10,6 +10,7 @@ import ActividadReciente from './ActividadReciente'
 import NotificacionesBell from './NotificacionesBell'
 import { IconoMinisterio } from './ministeriosConfig'
 import './portal.css'
+import { urlEducation } from '../dominios'
 
 export default function PortalDashboard() {
   const navigate = useNavigate()
@@ -91,9 +92,7 @@ export default function PortalDashboard() {
   // flexible en vez de exigir un valor exacto.
   const puedeVerRadgenEducation =
     puedeVerAdmin || (userData?.rol === 'lider' && userData?.ministerio?.toLowerCase().includes('radgen'))
-  const URL_RADGEN_EDUCATION = import.meta.env.DEV
-    ? 'http://localhost:5173/radgen/education'
-    : '/radgen/education'
+  const URL_RADGEN_EDUCATION = urlEducation()
 
   const colorMinisterioPropio = userData?.rol === 'lider' && userData?.ministerio ? ministerios[userData.ministerio]?.color : null
   const esRolDirectivo = userData?.rol === 'pastor' || userData?.rol === 'administrativo' || userData?.rol === 'primera_mesa'

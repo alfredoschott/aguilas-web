@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import LinkSitio from './LinkSitio'
+import { urlRadgen } from '../dominios'
 
 const SECCIONES_NAV = ['servicios', 'nosotros', 'valores', 'contacto']
 
@@ -99,10 +101,10 @@ function Navbar({ logoVisible }) {
           <a href="#valores" onClick={() => handleNavClick('#valores')} className={`nav-pill${seccionActiva === 'valores' ? ' active' : ''}`}>Valores</a>
           <a href="#contacto" onClick={() => handleNavClick('#contacto')} className={`nav-pill${seccionActiva === 'contacto' ? ' active' : ''}`}>Contacto</a>
           <Link to="/lideres" onClick={() => setMenuAbierto(false)} className="nav-pill">Líderes</Link>
-          <Link to="/radgen" onClick={() => setMenuAbierto(false)} className="nav-pill-radgen">
+          <LinkSitio to={urlRadgen()} onClick={() => setMenuAbierto(false)} className="nav-pill-radgen">
             <span className="nav-pill-radgen__dot" />
             RadGen Mx
-          </Link>
+          </LinkSitio>
         </div>
 
         <button
@@ -165,10 +167,10 @@ function Navbar({ logoVisible }) {
         <a href="#valores" onClick={() => handleNavClick('#valores')} className={`nav-pill-movil${seccionActiva === 'valores' ? ' active' : ''}`}>Valores</a>
         <a href="#contacto" onClick={() => handleNavClick('#contacto')} className={`nav-pill-movil${seccionActiva === 'contacto' ? ' active' : ''}`}>Contacto</a>
         <Link to="/lideres" onClick={() => setMenuAbierto(false)} className="nav-pill-movil">Líderes</Link>
-        <Link to="/radgen" onClick={() => setMenuAbierto(false)} className="nav-pill-radgen-movil">
+        <LinkSitio to={urlRadgen()} onClick={() => setMenuAbierto(false)} className="nav-pill-radgen-movil">
           <span className="nav-pill-radgen__dot" />
           RadGen Mx
-        </Link>
+        </LinkSitio>
       </div>
     </>
   )

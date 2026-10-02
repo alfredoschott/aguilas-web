@@ -32,7 +32,7 @@ export default function MemorizarVersiculoScreen({ usuario }) {
     return (
       <div className="re-shell">
         <div className="re-card">Esta lección no existe o no está asignada a ti.</div>
-        <button className="re-btn" onClick={() => navigate('/radgen/education/lecciones')}>
+        <button className="re-btn" onClick={() => navigate('/education/lecciones')}>
           ← Volver a mis lecciones
         </button>
       </div>
@@ -44,7 +44,7 @@ export default function MemorizarVersiculoScreen({ usuario }) {
   // Nada que memorizar todavía (falta completar la lección o no tiene
   // versículo) — de vuelta a la lección en vez de mostrar una pantalla vacía.
   if (asignacion.estado !== 'completado' || !versiculo?.texto) {
-    return <Navigate to={`/radgen/education/leccion/${asignacionId}`} replace />
+    return <Navigate to={`/education/leccion/${asignacionId}`} replace />
   }
 
   async function memorizado() {

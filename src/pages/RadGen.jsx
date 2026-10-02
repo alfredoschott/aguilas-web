@@ -23,6 +23,8 @@ import {
   X,
 } from 'lucide-react'
 import RadGenSplash from '../components/RadGenSplash'
+import LinkSitio from '../components/LinkSitio'
+import { urlIglesia } from '../dominios'
 
 const SKY_POSES = [
   '/sky-mascota.png',
@@ -732,11 +734,11 @@ function RadGen() {
           <a href="#faq">FAQ</a>
         </div>
         <div className="nav-actions">
-          <Link to="/" className="btn btn-outline nav-back">
+          <LinkSitio to={urlIglesia()} className="btn btn-outline nav-back">
             <ArrowLeft size={15} strokeWidth={2.5} />
             <span>Águilas CFC</span>
-          </Link>
-          <Link to="/radgen/education" className="btn btn-blue">Education</Link>
+          </LinkSitio>
+          <Link to="/education" className="btn btn-blue">Education</Link>
         </div>
       </nav>
 
@@ -929,7 +931,7 @@ function EducacionDestacada() {
           ))}
         </div>
 
-        <Link to="/radgen/education" className="edu-cta edu-in" style={{ '--i': 3 }}>
+        <Link to="/education" className="edu-cta edu-in" style={{ '--i': 3 }}>
           Entrar a RadGen Education <span className="edu-cta-flecha">→</span>
         </Link>
 

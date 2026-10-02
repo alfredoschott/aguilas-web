@@ -194,7 +194,7 @@ function TarjetaMarcos({ nivel, usuario }) {
         </span>
       </div>
       <p style={{ marginTop: 0, marginBottom: 16, opacity: 0.75 }}>
-        Se desbloquean subiendo de nivel. Elige el tuyo en <Link to="/radgen/education/perfil" className="re-vinculo">tu perfil</Link>.
+        Se desbloquean subiendo de nivel. Elige el tuyo en <Link to="/education/perfil" className="re-vinculo">tu perfil</Link>.
         {siguiente && ` Siguiente: ${siguiente.nombre} en el nivel ${siguiente.nivel}.`}
       </p>
       <div className="re-marcos-grid">
@@ -212,7 +212,7 @@ function TarjetaMarcos({ nivel, usuario }) {
   )
 }
 
-const rutaPerfilJoven = (uid) => `/radgen/education/joven/${uid}`
+const rutaPerfilJoven = (uid) => `/education/joven/${uid}`
 
 // Cada colección es un estante de una vitrina de trofeos: lo que ya ganaste
 // brilla sobre la repisa y lo que falta se ve como silueta.

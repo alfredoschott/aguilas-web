@@ -49,7 +49,7 @@ export default function LeccionPreviewScreen() {
 
       <LeccionContenidoLectura leccion={leccion} />
 
-      <Link to={`/radgen/education/lider/leccion/${leccion.id}/editar`} className="re-btn re-btn--lleno re-btn--bloque">
+      <Link to={`/education/lider/leccion/${leccion.id}/editar`} className="re-btn re-btn--lleno re-btn--bloque">
         Editar esta lección
       </Link>
     </div>

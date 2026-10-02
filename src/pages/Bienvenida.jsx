@@ -5,6 +5,8 @@ import { VERSION_AVISO } from '../legal/datosResponsable'
 import { db } from '../firebase'
 import { crearNotificacionVisita } from '../portal/notificaciones'
 import { ArrowLeft, ArrowRight, Users, Flame } from 'lucide-react'
+import LinkSitio from '../components/LinkSitio'
+import { urlRadgen } from '../dominios'
 
 const HORARIOS = [
   { dia: 'Domingo', hora: '9:45 AM' },
@@ -368,14 +370,14 @@ function ModoRadgen({ onVolver }) {
           />
         </div>
 
-        <Link to="/radgen" className="bienvenida-btn-radgen" style={{
+        <LinkSitio to={urlRadgen()} className="bienvenida-btn-radgen" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
           background: '#0F0F12', color: '#F5F3EE', border: '3px solid #F5F3EE', borderRadius: '999px',
           padding: '14px', fontFamily: 'Montserrat, sans-serif', fontWeight: 900, fontSize: '13px',
           textTransform: 'uppercase', textDecoration: 'none', boxShadow: '5px 5px 0 #3a7bff',
         }}>
           Ver todo sobre RadGen <ArrowRight size={15} strokeWidth={2.5} />
-        </Link>
+        </LinkSitio>
 
         <div style={{ marginTop: '2rem' }}>
           <RedesMini

@@ -53,7 +53,7 @@ import {
 } from '../store'
 import QRCode from 'qrcode'
 import Sky from '../components/Sky'
-import { SITIO_URL } from '../../legal/datosResponsable'
+import { URL_RADGEN_SITIO } from '../../dominios'
 import Avatar from '../components/Avatar'
 import { PodioRanking, TablaRanking, RankingEquipos } from '../components/Ranking'
 import Toast from '../components/Toast'
@@ -174,7 +174,7 @@ function PanelCursos({ series, lecciones, refrescarLecciones }) {
             Crea, edita y organiza el currículo — sin escribir código.
           </p>
         </div>
-        <Link to="/radgen/education/lider/leccion/nueva" className="re-btn re-btn--lleno re-btn--sm">
+        <Link to="/education/lider/leccion/nueva" className="re-btn re-btn--lleno re-btn--sm">
           + Nueva lección
         </Link>
       </div>
@@ -282,7 +282,7 @@ function PanelCursos({ series, lecciones, refrescarLecciones }) {
                     ↓
                   </button>
                 </div>
-                <Link to={`/radgen/education/lider/serie/${s.serieId}/preview`} className="re-vinculo">
+                <Link to={`/education/lider/serie/${s.serieId}/preview`} className="re-vinculo">
                   👁 Vista previa
                 </Link>
               </div>
@@ -325,10 +325,10 @@ function PanelCursos({ series, lecciones, refrescarLecciones }) {
                     {l.youtubeId ? ' · Con video' : ' · Sin video'}
                   </p>
                   <div style={{ display: 'flex', gap: 14, marginTop: 6, flexWrap: 'wrap' }}>
-                    <Link to={`/radgen/education/lider/leccion/${l.id}/editar`} className="re-vinculo">
+                    <Link to={`/education/lider/leccion/${l.id}/editar`} className="re-vinculo">
                       Editar
                     </Link>
-                    <Link to={`/radgen/education/lider/leccion/${l.id}/preview`} className="re-vinculo">
+                    <Link to={`/education/lider/leccion/${l.id}/preview`} className="re-vinculo">
                       👁 Vista previa
                     </Link>
                     <button className="re-vinculo" onClick={() => duplicar(l.id)}>
@@ -561,7 +561,7 @@ function haceCuanto(fechaIso) {
 // (vienen de `ranking` y `tabla`, que el panel padre ya cargó una sola vez).
 function TarjetaPersona({ joven, totalCompletadas, totalAsignaciones, nivelActual, racha, pendientes, xpTotal, inactivo, diasSinActividad }) {
   return (
-    <Link to={`/radgen/education/lider/joven/${joven.uid}`} className={`re-persona-card ${totalAsignaciones === 0 ? 're-persona-card--sin-asignar' : ''}`}>
+    <Link to={`/education/lider/joven/${joven.uid}`} className={`re-persona-card ${totalAsignaciones === 0 ? 're-persona-card--sin-asignar' : ''}`}>
       <div className="re-persona-card__cabecera">
         <div className="re-persona-card__identidad">
           <Avatar nombre={joven.nombre} foto={joven.fotoPerfil} uid={joven.uid} size={40} colorAcento={joven.colorAcento} />
@@ -783,7 +783,7 @@ function PanelSeguimiento({ jovenes, tabla, ranking }) {
           </p>
           <div className="re-nuevos-lista">
             {inactivos.map((d) => (
-              <Link key={d.joven.uid} to={`/radgen/education/lider/joven/${d.joven.uid}`} className="re-nuevo-item re-nuevo-item--inactivo">
+              <Link key={d.joven.uid} to={`/education/lider/joven/${d.joven.uid}`} className="re-nuevo-item re-nuevo-item--inactivo">
                 <Avatar nombre={d.joven.nombre} foto={d.joven.fotoPerfil} uid={d.joven.uid} size={36} colorAcento={d.joven.colorAcento} />
                 <span className="re-nuevo-item__texto">
                   <strong>{d.joven.nombre}</strong>
@@ -804,7 +804,7 @@ function PanelSeguimiento({ jovenes, tabla, ranking }) {
           <h2 className="re-subtitulo">🆕 Se unieron recientemente</h2>
           <div className="re-nuevos-lista">
             {nuevos.map((d) => (
-              <Link key={d.joven.uid} to={`/radgen/education/lider/joven/${d.joven.uid}`} className="re-nuevo-item">
+              <Link key={d.joven.uid} to={`/education/lider/joven/${d.joven.uid}`} className="re-nuevo-item">
                 <Avatar nombre={d.joven.nombre} foto={d.joven.fotoPerfil} uid={d.joven.uid} size={36} colorAcento={d.joven.colorAcento} />
                 <span className="re-nuevo-item__texto">
                   <strong>{d.joven.nombre}</strong>
@@ -893,7 +893,7 @@ function PanelElegibilidad({ elegibilidadPorJoven, lecciones, requisitos, cambia
               {elegibilidadPorJoven.map(({ joven, insignias }) => (
                 <tr key={joven.uid}>
                   <td>
-                    <Link to={`/radgen/education/lider/joven/${joven.uid}`} className="re-vinculo re-vinculo--nombre">
+                    <Link to={`/education/lider/joven/${joven.uid}`} className="re-vinculo re-vinculo--nombre">
                       {joven.nombre}
                     </Link>
                   </td>
@@ -1094,14 +1094,14 @@ function PanelNotasYPreguntas({ usuario, jovenes, pendientes, refrescarPendiente
   )
 }
 
-const rutaPerfilLider = (uid) => `/radgen/education/lider/joven/${uid}`
+const rutaPerfilLider = (uid) => `/education/lider/joven/${uid}`
 
 function SeccionRanking({ ranking }) {
   return (
     <div className="re-card re-card--ranking">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
         <h2 className="re-subtitulo" style={{ margin: 0 }}>Ranking del grupo</h2>
-        <Link to="/radgen/education/proyector" target="_blank" className="re-btn re-btn--sm">
+        <Link to="/education/proyector" target="_blank" className="re-btn re-btn--sm">
           🖥️ Modo proyector
         </Link>
       </div>
@@ -1236,7 +1236,7 @@ function SeccionEquipos({ jovenes, ranking, equipos, setEquipos }) {
 function QrReunion({ codigo, grande }) {
   const [src, setSrc] = useState('')
   useEffect(() => {
-    const url = `${SITIO_URL}/radgen/education/asistencia/${codigo}`
+    const url = `${URL_RADGEN_SITIO}/education/asistencia/${codigo}`
     QRCode.toDataURL(url, { width: grande ? 720 : 320, margin: 1, color: { dark: '#0F0F12', light: '#FFFFFF' } }).then(setSrc)
   }, [codigo, grande])
   return src ? <img src={src} alt={`Código QR de asistencia ${codigo}`} className={grande ? 're-qr re-qr--grande' : 're-qr'} /> : null
@@ -1548,7 +1548,7 @@ function ActividadReciente({ actividad, onReaccionar }) {
       <div className="re-actividad__lista">
         {actividad.map((fila) => (
           <div key={fila.id} className="re-actividad__fila">
-            <Link to={`/radgen/education/lider/joven/${fila.joven?.uid}`} className="re-actividad__enlace">
+            <Link to={`/education/lider/joven/${fila.joven?.uid}`} className="re-actividad__enlace">
               <Avatar nombre={fila.joven?.nombre} foto={fila.joven?.fotoPerfil} uid={fila.joven?.uid} size={30} />
               <span className="re-actividad__texto">
                 <strong>{fila.joven?.nombre}</strong> completó <strong>{fila.leccion?.titulo}</strong>
@@ -1758,7 +1758,7 @@ export default function LeaderDashboard({ usuario }) {
         const rivalUid = d.retadorUid === usuario.uid ? d.retadoUid : d.retadorUid
         const rival = jovenes.find((j) => j.uid === rivalUid)
         return (
-          <Link key={d.id} to={`/radgen/education/duelo/${d.id}`} className="re-aviso re-aviso--duelo">
+          <Link key={d.id} to={`/education/duelo/${d.id}`} className="re-aviso re-aviso--duelo">
             <span className="re-aviso__icono">⚔️</span>
             <span>
               {d.retadoUid === usuario.uid ? (

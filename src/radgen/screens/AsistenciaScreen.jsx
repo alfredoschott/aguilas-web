@@ -16,7 +16,7 @@ export default function AsistenciaScreen({ usuario }) {
   useEffect(() => {
     if (!usuario) {
       guardarAsistenciaPendiente(codigo)
-      navigate('/radgen/education', { replace: true })
+      navigate('/education', { replace: true })
       return
     }
     if (usuario.rol !== 'joven' || yaIntento.current) return
@@ -36,7 +36,7 @@ export default function AsistenciaScreen({ usuario }) {
         <div className="re-card" style={{ textAlign: 'center' }}>
           <Sky size={80} pose="relajado" animado={false} />
           <p style={{ fontWeight: 700 }}>Este código es para que los jóvenes registren su asistencia.</p>
-          <Link to="/radgen/education/lider?tab=asistencia" className="re-btn re-btn--lleno">Ir a asistencia</Link>
+          <Link to="/education/lider?tab=asistencia" className="re-btn re-btn--lleno">Ir a asistencia</Link>
         </div>
       </div>
     )
@@ -70,7 +70,7 @@ export default function AsistenciaScreen({ usuario }) {
             <p style={{ fontWeight: 600 }}>{resultado.error}</p>
           </>
         )}
-        <Link to="/radgen/education/lecciones" className="re-btn re-btn--lleno re-btn--bloque">
+        <Link to="/education/lecciones" className="re-btn re-btn--lleno re-btn--bloque">
           Ir a mis lecciones
         </Link>
       </div>

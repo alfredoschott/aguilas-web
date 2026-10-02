@@ -8,7 +8,7 @@ export default function TerminosRadgen() {
   return (
     <main className="legal">
       <article className="legal__contenido">
-        <Link to="/radgen/education" className="legal__volver">
+        <Link to="/education" className="legal__volver">
           <ArrowLeft size={16} aria-hidden="true" /> Volver a RadGen Education
         </Link>
 

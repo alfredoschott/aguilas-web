@@ -254,7 +254,7 @@ export default function LessonEditorScreen() {
       }
       limpiarBorradorLeccion(claveBorrador)
       setMensaje('Guardado.')
-      setTimeout(() => navigate('/radgen/education/lider?tab=cursos'), 600)
+      setTimeout(() => navigate('/education/lider?tab=cursos'), 600)
     } finally {
       setGuardando(false)
     }
@@ -299,7 +299,7 @@ export default function LessonEditorScreen() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
         <h1 className="re-titulo-pagina" style={{ margin: 0 }}>{existente ? 'Editar lección' : 'Nueva lección'}</h1>
         {existente && (
-          <Link to={`/radgen/education/lider/leccion/${existente.id}/preview`} className="re-btn re-btn--sm">
+          <Link to={`/education/lider/leccion/${existente.id}/preview`} className="re-btn re-btn--sm">
             👁 Vista previa
           </Link>
         )}

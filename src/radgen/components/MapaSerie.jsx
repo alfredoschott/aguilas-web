@@ -59,7 +59,7 @@ function Parada({ nodo, i, esSiguiente, valor, opacado, color, enlaceDe }) {
 
   // En la vista de supervisión, `enlaceDe` manda todo a la vista previa de
   // solo lectura (incluso lo bloqueado); para el joven, lo bloqueado no abre.
-  const destino = enlaceDe ? enlaceDe(nodo) : estado === 'bloqueada' ? null : `/radgen/education/leccion/${asignacion.id}`
+  const destino = enlaceDe ? enlaceDe(nodo) : estado === 'bloqueada' ? null : `/education/leccion/${asignacion.id}`
   if (!destino) {
     return (
       <div className={clase} style={estilo} title="Se desbloquea cuando tu líder te la asigne">

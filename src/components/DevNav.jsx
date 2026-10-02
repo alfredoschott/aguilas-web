@@ -6,8 +6,9 @@ import { useState } from 'react'
 const PAGINAS = [
   { emoji: '🏠', nombre: 'Inicio', url: '/' },
   { emoji: '🦅', nombre: 'RadGen', url: '/radgen' },
-  { emoji: '🎓', nombre: 'RadGen Education', url: '/radgen/education' },
+  { emoji: '🎓', nombre: 'RadGen Education', url: '/education' },
   { emoji: '🔐', nombre: 'Portal líderes', url: '/lideres' },
+  { emoji: '🌐', nombre: 'Sitio RadGen (radgen.localhost)', url: `http://radgen.localhost:${window.location.port}/` },
 ]
 
 export default function DevNav() {

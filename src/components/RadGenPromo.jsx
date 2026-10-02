@@ -1,6 +1,7 @@
-import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import useReveal from '../hooks/useReveal'
+import LinkSitio from './LinkSitio'
+import { urlRadgen } from '../dominios'
 
 function RadGenPromo() {
   const refCard = useReveal()
@@ -76,10 +77,10 @@ function RadGenPromo() {
           }}>
             Es el espacio para adolescentes y jóvenes de Águilas CFC: fe real, amigos de verdad y un propósito que vale la pena.
           </p>
-          <Link to="/radgen" className="radgen-promo-btn">
+          <LinkSitio to={urlRadgen()} className="radgen-promo-btn">
             Conocer RadGen MX
             <ArrowRight size={16} strokeWidth={2.5} />
-          </Link>
+          </LinkSitio>
         </div>
       </div>
     </section>

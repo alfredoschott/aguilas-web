@@ -116,7 +116,7 @@ function useRetosPendientes(asignaciones) {
 function RetoPendiente({ asignacion, destino }) {
   const reto = obtenerBloques(asignacion.leccion).find((b) => b.tipo === 'reto')
   return (
-    <Link to={destino || `/radgen/education/leccion/${asignacion.id}`} className="re-reto-pendiente">
+    <Link to={destino || `/education/leccion/${asignacion.id}`} className="re-reto-pendiente">
       <span className="re-reto-pendiente__icono" aria-hidden="true">
         🎯
       </span>
@@ -137,7 +137,7 @@ function TiraProgreso({ experiencia, completadas, total, supervision }) {
   const pct = experiencia ? Math.round((experiencia.xpEnNivelActual / experiencia.xpPorNivel) * 100) : 0
   const Contenedor = supervision ? 'div' : Link
   return (
-    <Contenedor {...(supervision ? {} : { to: '/radgen/education/insignias' })} className="re-tira">
+    <Contenedor {...(supervision ? {} : { to: '/education/insignias' })} className="re-tira">
       <span className="re-tira__dato re-tira__dato--nivel">
         <span className="re-tira__insignia">{experiencia?.nivel ?? 1}</span>
         <span className="re-tira__texto">
@@ -164,7 +164,7 @@ function TiraProgreso({ experiencia, completadas, total, supervision }) {
 
 // Vista previa de solo lectura de una cápsula, para cuando la líder mira
 // el mapa "como si fuera un joven": nada cuenta como progreso real.
-const vistaPrevia = (nodo) => `/radgen/education/lider/leccion/${nodo.leccion.id}/preview`
+const vistaPrevia = (nodo) => `/education/lider/leccion/${nodo.leccion.id}/preview`
 
 // `supervision`: la líder ve exactamente lo que ve este joven, pero de solo
 // lectura — sin notificaciones, sin registrar asistencia, sin marcar tareas.
@@ -319,7 +319,7 @@ export default function LessonListScreen({ usuario, supervision = false, onActua
     e.preventDefault()
     if (!codigoAsistencia.trim()) return
     const r = await registrarAsistencia({ codigo: codigoAsistencia, jovenUid: usuario.uid })
-    if (r.ok) navigate(`/radgen/education/asistencia/${codigoAsistencia.trim().toUpperCase()}`)
+    if (r.ok) navigate(`/education/asistencia/${codigoAsistencia.trim().toUpperCase()}`)
     else setMensajeAsistencia(r.error)
   }
 
@@ -440,7 +440,7 @@ export default function LessonListScreen({ usuario, supervision = false, onActua
                   to={
                     supervision
                       ? vistaPrevia({ leccion: capsulaUrgente.asignacion.leccion })
-                      : `/radgen/education/leccion/${capsulaUrgente.asignacion.id}`
+                      : `/education/leccion/${capsulaUrgente.asignacion.id}`
                   }
                   className="re-aviso re-aviso--urgente"
                 >
@@ -457,7 +457,7 @@ export default function LessonListScreen({ usuario, supervision = false, onActua
                 const rivalUid = d.retadorUid === usuario.uid ? d.retadoUid : d.retadorUid
                 const meRetaron = d.retadoUid === usuario.uid
                 return (
-                  <Link key={d.id} to={`/radgen/education/duelo/${d.id}`} className="re-aviso re-aviso--duelo">
+                  <Link key={d.id} to={`/education/duelo/${d.id}`} className="re-aviso re-aviso--duelo">
                     <span className="re-aviso__icono">⚔️</span>
                     <span>
                       {meRetaron ? (
@@ -479,7 +479,7 @@ export default function LessonListScreen({ usuario, supervision = false, onActua
                 const rivalUid = d.retadorUid === usuario.uid ? d.retadoUid : d.retadorUid
                 const ganador = ganadorDeDuelo(d)
                 return (
-                  <Link key={d.id} to={`/radgen/education/duelo/${d.id}`} className="re-aviso re-aviso--resultado">
+                  <Link key={d.id} to={`/education/duelo/${d.id}`} className="re-aviso re-aviso--resultado">
                     <span className="re-aviso__icono">{ganador === usuario.uid ? '🏆' : ganador ? '⚔️' : '🤝'}</span>
                     <span>
                       Duelo vs <strong>{nombrePorUid.get(rivalUid) || 'rival'}</strong>:{' '}
@@ -518,7 +518,7 @@ export default function LessonListScreen({ usuario, supervision = false, onActua
           )}
 
           {!supervision && duelosPorJugar.length === 0 && completadas > 0 && (
-            <Link to="/radgen/education/companeros" className="re-aviso re-aviso--sutil">
+            <Link to="/education/companeros" className="re-aviso re-aviso--sutil">
               <span className="re-aviso__icono">⚔️</span>
               <span>
                 <strong>Reta a un compañero</strong> a un duelo de repaso
@@ -557,7 +557,7 @@ export default function LessonListScreen({ usuario, supervision = false, onActua
           {lideres.length > 0 && (
             <div className="re-lateral__lideres">
               {lideres.map((l) => (
-                <Link key={l.uid} to={`/radgen/education/joven/${l.uid}`} className="re-lider-pill">
+                <Link key={l.uid} to={`/education/joven/${l.uid}`} className="re-lider-pill">
                   <Avatar
                     nombre={l.nombre}
                     foto={l.fotoPerfil}

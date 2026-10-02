@@ -145,7 +145,7 @@ export default function PerfilScreen({ usuario, onActualizar }) {
         {bio && <p className="re-bio-card">"{bio}"</p>}
       </div>
 
-      <Link to={`/radgen/education/joven/${usuario.uid}`} className="re-card re-card--enlace-carta">
+      <Link to={`/education/joven/${usuario.uid}`} className="re-card re-card--enlace-carta">
         <span className="re-card--enlace-carta__icono" aria-hidden="true">🃏</span>
         <span>
           <strong>Tu carta coleccionable</strong>

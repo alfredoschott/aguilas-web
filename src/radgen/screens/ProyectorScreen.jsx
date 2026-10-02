@@ -4,7 +4,7 @@ import { PodioRanking, RankingEquipos } from '../components/Ranking'
 import Avatar from '../components/Avatar'
 import logo from '../../assets/radgen-education-logo.png'
 
-const rutaPerfil = (uid) => `/radgen/education/lider/joven/${uid}`
+const rutaPerfil = (uid) => `/education/lider/joven/${uid}`
 
 export default function ProyectorScreen() {
   const [ranking, setRanking] = useState([])

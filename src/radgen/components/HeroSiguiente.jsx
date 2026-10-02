@@ -32,7 +32,7 @@ export default function HeroSiguiente({ siguiente, valor, nombre, pose, mensaje,
             {sinLecciones ? mensaje : 'Completaste todo lo que tienes. Tu próxima cápsula aparece aquí en cuanto tu líder la libere.'}
           </p>
           {!sinLecciones && !supervision && (
-            <Link to="/radgen/education/companeros" className="re-btn re-btn--lleno re-btn--duelo re-hero-sig__cta">
+            <Link to="/education/companeros" className="re-btn re-btn--lleno re-btn--duelo re-hero-sig__cta">
               ⚔️ Mientras tanto, reta a alguien
             </Link>
           )}
@@ -57,7 +57,7 @@ export default function HeroSiguiente({ siguiente, valor, nombre, pose, mensaje,
         <p className="re-hero-sig__serie">{serie.serieTitulo.replace(/^Serie:\s*/i, '')}</p>
         {linea && <span className={`re-hero-sig__valor re-hero-sig__valor--${linea.clase}`}>{linea.texto}</span>}
         <Link
-          to={enlaceLeccion ? enlaceLeccion(nodo) : `/radgen/education/leccion/${nodo.asignacion.id}`}
+          to={enlaceLeccion ? enlaceLeccion(nodo) : `/education/leccion/${nodo.asignacion.id}`}
           className="re-hero-sig__cta re-hero-sig__cta--empezar"
         >
           {supervision ? 'Ver cápsula' : 'Empezar'}

@@ -82,7 +82,7 @@ export default function SeriePreviewScreen() {
               return (
                 <Link
                   key={l.id}
-                  to={`/radgen/education/lider/leccion/${l.id}/preview`}
+                  to={`/education/lider/leccion/${l.id}/preview`}
                   className="re-camino__parada"
                   style={{ '--offset-dir': offsetDir, animationDelay: `${i * 0.05}s` }}
                 >

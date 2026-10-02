@@ -6,9 +6,9 @@ import logo from '../../assets/radgen-education-logo.png'
 import { tomarAsistenciaPendiente } from '../utils/asistenciaPendiente'
 
 function destinoTrasEntrar(usuario) {
-  if (usuario.rol === 'lider') return '/radgen/education/lider'
+  if (usuario.rol === 'lider') return '/education/lider'
   const codigo = tomarAsistenciaPendiente()
-  return codigo ? `/radgen/education/asistencia/${codigo}` : '/radgen/education/lecciones'
+  return codigo ? `/education/asistencia/${codigo}` : '/education/lecciones'
 }
 
 export default function LoginScreen({ onSesion }) {

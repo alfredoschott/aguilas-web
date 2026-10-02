@@ -1,4 +1,42 @@
 {
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.radgenmx.com" }],
+      "destination": "https://radgenmx.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/radgen/education/:path*",
+      "has": [{ "type": "host", "value": "(www\\.)?aguilascfctizayuca\\.com" }],
+      "destination": "https://radgenmx.com/education/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/education/:path*",
+      "has": [{ "type": "host", "value": "(www\\.)?aguilascfctizayuca\\.com" }],
+      "destination": "https://radgenmx.com/education/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/radgen",
+      "has": [{ "type": "host", "value": "(www\\.)?aguilascfctizayuca\\.com" }],
+      "destination": "https://radgenmx.com/",
+      "permanent": true
+    },
+    {
+      "source": "/radgen/education/:path*",
+      "has": [{ "type": "host", "value": "(www\\.)?radgenmx\\.com" }],
+      "destination": "/education/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/radgen",
+      "has": [{ "type": "host", "value": "(www\\.)?radgenmx\\.com" }],
+      "destination": "/",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
