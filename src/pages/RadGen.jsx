@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, doc, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
@@ -24,7 +24,15 @@ import {
 } from 'lucide-react'
 import RadGenSplash from '../components/RadGenSplash'
 
-const SKY_POSES = ['/sky-mascota.png', '/sky-mascota-2.png', '/sky-mascota-3.png']
+const SKY_POSES = [
+  '/sky-mascota.png',
+  '/sky-mascota-2.png',
+  '/sky-mascota-3.png',
+  '/sky-4.webp',
+  '/sky-5.webp',
+  '/sky-6.webp',
+  '/sky-7.webp',
+]
 const SKY_FRASES = [
   '¡Soy Sky! 🦅',
   '¿Ya te apuntaste? 👀',
@@ -32,6 +40,8 @@ const SKY_FRASES = [
   'Vamos que se puede 🔥',
   'Toca de nuevo 😎',
 ]
+
+const EDU_SKYS = ['/sky-estudiando.png', '/sky-5.webp', '/sky-7.webp', '/sky-6.webp', '/sky-4.webp']
 
 const QUIZ = [
   {
@@ -225,8 +235,8 @@ function RadGen() {
         .radgen-nb .btn-insta:hover, .radgen-nb .btn-insta:active{ transform:translate(3px,3px); box-shadow:2px 2px 0 var(--red); }
 
         .radgen-nb .hero{
-          display:flex; align-items:center; gap:56px; flex-wrap:wrap;
-          padding: 64px 5% 80px; position: relative; z-index: 1;
+          display:flex; align-items:center; gap:44px; flex-wrap:wrap;
+          padding: 44px 5% 36px; position: relative; z-index: 1;
         }
         .radgen-nb .hero-copy{ flex:1 1 440px; min-width:300px; }
         .radgen-nb .tag-pill{
@@ -264,8 +274,8 @@ function RadGen() {
         .radgen-nb .badge-1{ top:-20px; left:-24px; background: var(--red); color: var(--paper); transform: rotate(-4deg); }
         .radgen-nb .badge-2{ top:26px; right:-22px; background: var(--blue); color: var(--paper); transform: rotate(4deg); }
 
-        .radgen-nb section{ padding: 60px 5%; position: relative; z-index: 1; }
-        .radgen-nb .section-head{ max-width:640px; margin:0 auto 40px; }
+        .radgen-nb section{ padding: 34px 5%; position: relative; z-index: 1; }
+        .radgen-nb .section-head{ max-width:640px; margin:0 auto 26px; }
         .radgen-nb .section-head h2{ font-size: clamp(24px,3.2vw,34px); margin-bottom:10px; }
         .radgen-nb .section-head p{ color:#C9C8C4; font-size:15px; font-weight:500; }
         .radgen-nb .eyebrow{
@@ -330,7 +340,7 @@ function RadGen() {
         .radgen-nb .row-item span{ font-size:13.5px; font-weight:700; color: var(--ink); }
         .radgen-nb .vision-hint{ font-size:11.5px; font-weight:600; color:#7c7a76; text-align:center; margin-top:10px; }
 
-        .radgen-nb .pilares-head{ text-align:center; max-width:520px; margin:0 auto 44px; }
+        .radgen-nb .pilares-head{ text-align:center; max-width:520px; margin:0 auto 26px; }
         .radgen-nb .pilar-tag{
           display:inline-block; background: var(--red); color: var(--paper); border: 2.5px solid var(--ink);
           border-radius:999px; padding:6px 16px; font-weight:800; font-size:12px; text-transform:uppercase;
@@ -355,18 +365,27 @@ function RadGen() {
         .radgen-nb .pilar-row span{ font-size:11.5px; font-weight:600; color:#4c4c4c; line-height:1.3; }
 
         .radgen-nb .edu-card{
-          max-width: 980px; margin: 0 auto; position: relative;
-          background: var(--blue); border: var(--bw) solid var(--paper); border-radius: 28px;
+          max-width: 1120px; margin: 0 auto; position: relative;
+          background: linear-gradient(135deg, #3f78f5 0%, var(--blue) 55%, #2f62d8 100%);
+          border: var(--bw) solid var(--paper); border-radius: 28px;
           box-shadow: 12px 12px 0 var(--red);
-          padding: 40px 6%; overflow: hidden;
-          display:flex; align-items:center; justify-content:center; gap:44px;
+          padding: 44px 5% 44px 5.5%; overflow: hidden;
+          display:grid; grid-template-columns: minmax(0,1fr) minmax(0,1.12fr); align-items:center; gap:26px 40px;
+          grid-template-areas: 'cabeza lado' 'cta lado' 'feat feat';
         }
         .radgen-nb .edu-card::before{
           content:''; position:absolute; inset:0;
           background-image: radial-gradient(rgba(245,243,238,0.14) 1.5px, transparent 1.5px);
           background-size: 18px 18px; pointer-events:none;
         }
-        .radgen-nb .edu-texto{ position:relative; text-align:left; }
+        .radgen-nb .edu-card::after{
+          content:''; position:absolute; width:380px; height:380px; right:-120px; top:-140px;
+          border-radius:50%; background: radial-gradient(circle, rgba(245,243,238,0.22), transparent 68%);
+          pointer-events:none; animation: eduResplandor 6s ease-in-out infinite;
+        }
+        @keyframes eduResplandor{ 0%,100%{ transform:scale(1); opacity:.8; } 50%{ transform:scale(1.18); opacity:1; } }
+
+        .radgen-nb .edu-cabeza{ grid-area:cabeza; position:relative; z-index:1; text-align:left; align-self:end; }
         .radgen-nb .edu-badge{
           position: relative; display:inline-flex; align-items:center; gap:8px;
           background: var(--red); color:var(--paper); border: 2.5px solid var(--paper);
@@ -374,49 +393,106 @@ function RadGen() {
           text-transform:uppercase; letter-spacing:0.04em; font-family:'Montserrat',sans-serif;
           margin-bottom:18px; transform: rotate(-2deg);
         }
-        .radgen-nb .edu-logo{
-          position:relative; display:block; height:130px; width:auto; margin-bottom:20px;
-          filter: drop-shadow(4px 5px 0 rgba(0,0,0,0.25));
-        }
-        .radgen-nb .edu-card h2{ position: relative; font-size: clamp(26px,3.4vw,38px); margin-bottom:14px; }
-        .radgen-nb .edu-card p{ position: relative; color:#EAF0FF; max-width:420px; margin:0 0 6px; font-size:15px; font-weight:600; }
-
         .radgen-nb .edu-badge-glow{ animation: eduBadgePulso 2s ease-in-out infinite; }
         @keyframes eduBadgePulso{
           0%,100%{ box-shadow: 0 0 0 0 rgba(245,243,238,0.55); }
           50%{ box-shadow: 0 0 0 8px rgba(245,243,238,0); }
         }
-
-        .radgen-nb .edu-features{
-          position:relative; display:flex; flex-wrap:wrap; gap:10px; margin:16px 0 6px;
+        .radgen-nb .edu-titulo{ display:flex; align-items:center; gap:16px; margin-bottom:12px; }
+        .radgen-nb .edu-logo{
+          flex-shrink:0; height:82px; width:auto;
+          filter: drop-shadow(4px 5px 0 rgba(0,0,0,0.25));
+          animation: eduLogoBalanceo 5s ease-in-out infinite; transform-origin: 50% 80%;
         }
+        @keyframes eduLogoBalanceo{ 0%,100%{ transform:rotate(-3deg); } 50%{ transform:rotate(3deg) translateY(-3px); } }
+        .radgen-nb .edu-card h2{
+          font-size: clamp(30px,3.6vw,46px); line-height:0.98; margin:0; text-transform:uppercase;
+          text-shadow: 3px 3px 0 rgba(0,0,0,0.22);
+        }
+        .radgen-nb .edu-card h2 span{ display:block; color:#FFE16B; }
+        .radgen-nb .edu-card .edu-lema{ color:#EAF0FF; max-width:460px; margin:0; font-size:15.5px; font-weight:600; line-height:1.5; }
+
+        .radgen-nb .edu-features{ grid-area:feat; position:relative; z-index:1; display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin:0; }
         .radgen-nb .edu-feature{
-          display:inline-flex; align-items:center; gap:6px;
-          background: rgba(245,243,238,0.14); border: 2px solid var(--paper); color:var(--paper);
-          border-radius:999px; padding:6px 14px; font-weight:800; font-size:12.5px;
-          font-family:'Montserrat',sans-serif; text-transform:uppercase; letter-spacing:0.02em;
-          transition: transform 0.15s ease, background-color 0.15s ease;
+          display:flex; align-items:center; gap:12px; padding:10px 12px;
+          background: rgba(10,16,40,0.28); border: 2px solid var(--paper); border-radius:14px;
+          box-shadow: 4px 4px 0 rgba(0,0,0,0.25);
+          transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
         }
-        .radgen-nb .edu-feature:hover{ transform:translateY(-2px); background: rgba(245,243,238,0.26); }
+                .radgen-nb .edu-feature:hover{ transform:translate(-2px,-3px) rotate(-1deg); box-shadow:6px 7px 0 rgba(0,0,0,0.3); background: rgba(10,16,40,0.4); }
+        .radgen-nb .edu-feature-ico{
+          flex-shrink:0; width:40px; height:40px; border-radius:11px; display:grid; place-items:center;
+          font-size:20px; background: var(--paper); border:2px solid var(--ink);
+          transition: transform 0.25s ease;
+        }
+        .radgen-nb .edu-feature:hover .edu-feature-ico{ transform: rotate(-12deg) scale(1.12); }
+        .radgen-nb .edu-feature b{ display:block; font-family:'Montserrat',sans-serif; font-weight:900; font-size:13px; text-transform:uppercase; letter-spacing:0.02em; color:var(--paper); }
+        .radgen-nb .edu-feature small{ display:block; font-size:11.5px; font-weight:600; color:#CFDCFF; line-height:1.25; margin-top:1px; }
 
-        .radgen-nb .edu-cta{ margin-top:16px; }
-        .radgen-nb .edu-cta-flecha{ display:inline-block; transition: transform 0.15s ease; }
-        .radgen-nb .edu-cta:hover .edu-cta-flecha{ transform: translateX(4px); }
+        .radgen-nb .edu-cta{
+          grid-area:cta; align-self:start; justify-self:start; z-index:1;
+          position:relative; overflow:hidden; display:inline-flex; align-items:center; gap:14px;
+          background: #FFE16B; color: var(--ink); border: var(--bw) solid var(--ink); border-radius:16px;
+          padding:10px 10px 10px 24px; text-decoration:none;
+          font-family:'Montserrat',sans-serif; font-weight:900; font-size:15px; text-transform:uppercase; letter-spacing:0.02em;
+          box-shadow: 6px 6px 0 var(--ink);
+          transition: transform 0.12s ease, box-shadow 0.12s ease;
+          animation: eduCtaLatido 2.6s ease-in-out infinite;
+        }
+        .radgen-nb .edu-cta::after{
+          content:''; position:absolute; top:0; bottom:0; width:42px; left:-70px;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.75), transparent);
+          transform: skewX(-20deg); animation: eduBrillo 3.4s ease-in-out infinite;
+        }
+        @keyframes eduBrillo{ 0%,55%{ left:-70px; } 100%{ left:120%; } }
+        @keyframes eduCtaLatido{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.03); } }
+        .radgen-nb .edu-cta:hover{ animation:none; transform:translate(3px,3px); box-shadow:3px 3px 0 var(--ink); }
+        .radgen-nb .edu-cta-flecha{
+          display:grid; place-items:center; width:38px; height:38px; border-radius:11px; font-size:20px;
+          background: var(--red); color: var(--paper); border:2px solid var(--ink);
+          transition: transform 0.2s ease;
+        }
+        .radgen-nb .edu-cta:hover .edu-cta-flecha{ transform: translateX(4px) rotate(-8deg); }
 
-        .radgen-nb .edu-sky-wrap{ position:relative; flex-shrink:0; }
-        .radgen-nb .edu-sky{
-          position: relative; height:220px; width:auto;
-          filter: drop-shadow(6px 8px 0 rgba(0,0,0,0.28));
-          animation: eduSkyFlotar 3.4s ease-in-out infinite;
+        .radgen-nb .edu-lado{ grid-area:lado; position:relative; z-index:1; padding:8px 0; }
+        .radgen-nb .edu-video-wrap{ position:relative; transform: rotate(2.5deg); transition: transform 0.3s ease; }
+        .radgen-nb .edu-video-wrap:hover{ transform: rotate(0deg) scale(1.02); }
+        .radgen-nb .edu-video{
+          position:relative; width:100%; aspect-ratio:16/9; background:#000;
+          border:var(--bw) solid var(--paper); border-radius:16px; overflow:hidden;
+          box-shadow:8px 8px 0 rgba(0,0,0,0.3);
         }
-        @keyframes eduSkyFlotar{
-          0%,100%{ transform: translateY(0) rotate(-1.5deg); }
-          50%{ transform: translateY(-12px) rotate(1.5deg); }
-        }
+        .radgen-nb .edu-video iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
         .radgen-nb .edu-float-badge{
-          top:-14px; right:-18px; transform: rotate(5deg);
+          top:-16px; right:-12px; transform: rotate(5deg);
           background: var(--red); color: var(--paper); font-size:12px;
           animation: eduSkyFlotar 3.4s ease-in-out infinite reverse;
+        }
+        .radgen-nb .edu-sky-btn{
+          position:absolute; right:-22px; bottom:-26px; z-index:2; padding:0; border:0; background:none; cursor:pointer;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .radgen-nb .edu-sky{
+          display:block; height:130px; width:auto;
+          filter: drop-shadow(5px 6px 0 rgba(0,0,0,0.28));
+          animation: eduSkyFlotar 3.4s ease-in-out infinite, eduSkyCambio 0.4s cubic-bezier(.3,1.6,.5,1);
+          transition: transform 0.15s ease;
+        }
+        .radgen-nb .edu-sky-btn:hover .edu-sky{ filter: drop-shadow(5px 6px 0 rgba(0,0,0,0.28)) brightness(1.06); }
+        .radgen-nb .edu-sky-btn:active .edu-sky{ transform: scale(0.94); }
+        @keyframes eduSkyCambio{ from{ opacity:0; scale:0.7; } to{ opacity:1; scale:1; } }
+        @keyframes eduSkyFlotar{
+          0%,100%{ transform: translateY(0) rotate(-1.5deg); }
+          50%{ transform: translateY(-10px) rotate(1.5deg); }
+        }
+
+        /* entrada escalonada al llegar a la sección */
+        .radgen-nb .edu-card .edu-in{ opacity:0; transform: translateY(22px); }
+        .radgen-nb .edu-card.edu-visible .edu-in{ animation: eduEntra 0.6s cubic-bezier(.2,.8,.2,1) forwards; animation-delay: calc(var(--i, 0) * 90ms); }
+        @keyframes eduEntra{ to{ opacity:1; transform:none; } }
+        @media (prefers-reduced-motion: reduce){
+          .radgen-nb .edu-card *, .radgen-nb .edu-card::after{ animation:none !important; }
+          .radgen-nb .edu-card .edu-in{ opacity:1; transform:none; }
         }
 
         .radgen-nb .galeria-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
@@ -494,7 +570,7 @@ function RadGen() {
         .radgen-nb .registro-ok b{ display:block; font-family:'Montserrat',sans-serif; font-weight:900; font-size:18px; color:var(--ink); margin-bottom:6px; text-transform:uppercase; }
         .radgen-nb .registro-ok span{ color:#4c4c4c; font-size:14px; font-weight:600; }
 
-        .radgen-nb .cuenta-wrap{ padding: 0 5% 60px; position:relative; z-index:1; }
+        .radgen-nb .cuenta-wrap{ padding: 0 5% 20px; position:relative; z-index:1; }
         .radgen-nb .cuenta-card{
           max-width: 640px; margin:0 auto; text-align:center; position:relative;
           background: var(--red); border: var(--bw) solid var(--ink); border-radius:22px;
@@ -592,12 +668,12 @@ function RadGen() {
         }
 
         .radgen-nb .footer-cta{
-          text-align:center; padding: 80px 5% 50px; border-top: var(--bw) solid var(--paper);
+          text-align:center; padding: 52px 5% 40px; border-top: var(--bw) solid var(--paper);
         }
         .radgen-nb .footer-cta h2{ font-size: clamp(28px,3.8vw,44px); margin-bottom:20px; }
         .radgen-nb .footer-cta h2 span{ color:var(--blue-light); }
         .radgen-nb .footer-cta p{ color:#C9C8C4; margin-bottom:30px; font-size:15px; font-weight:500; }
-        .radgen-nb .footer-brand{ margin-top:64px; display:flex; flex-direction:column; align-items:center; gap:10px; }
+        .radgen-nb .footer-brand{ margin-top:40px; display:flex; flex-direction:column; align-items:center; gap:10px; }
         .radgen-nb .footer-brand img{ height:30px; width:auto; opacity:0.9; }
         .radgen-nb .footer-brand-name{ font-family:'Montserrat',sans-serif; font-weight:900; font-size:15px; color:var(--paper); letter-spacing:0.03em; text-transform:uppercase; }
         .radgen-nb .footer-brand-copy{ font-size:11.5px; color:#8a8a90; font-weight:700; letter-spacing:0.02em; }
@@ -616,13 +692,26 @@ function RadGen() {
           .radgen-nb .nav-links{ display:none; }
           .radgen-nb .galeria-grid{ grid-template-columns:1fr 1fr; }
           .radgen-nb .vision-grid{ grid-template-columns:1fr; gap:32px; }
-          .radgen-nb .edu-card{ flex-direction:column-reverse; text-align:center; padding:36px 7% 32px; gap:24px; }
-          .radgen-nb .edu-texto{ text-align:center; }
-          .radgen-nb .edu-logo{ height:100px; margin:0 auto 16px; }
-          .radgen-nb .edu-card p{ max-width:360px; margin:0 auto 6px; }
-          .radgen-nb .edu-features{ justify-content:center; }
-          .radgen-nb .edu-sky{ height:170px; }
-          .radgen-nb .edu-float-badge{ top:-10px; right:6px; }
+          .radgen-nb .edu-card{ grid-template-columns:1fr; grid-template-areas:'cabeza' 'feat' 'cta' 'lado'; padding:22px 14px 22px; gap:16px; text-align:center; box-shadow:8px 8px 0 var(--red); }
+          .radgen-nb .edu-cabeza{ text-align:center; align-self:auto; }
+          .radgen-nb .edu-badge{ margin-bottom:10px; padding:5px 12px; font-size:11px; }
+          .radgen-nb .edu-titulo{ justify-content:center; gap:10px; margin-bottom:8px; }
+          .radgen-nb .edu-logo{ height:54px; }
+          .radgen-nb .edu-card h2{ font-size:28px; text-align:left; }
+          .radgen-nb .edu-card .edu-lema{ margin:0 auto; font-size:13.5px; line-height:1.4; }
+          .radgen-nb .edu-features{ grid-template-columns:1fr 1fr; gap:8px; }
+          .radgen-nb .edu-feature:last-child{ grid-column:1 / -1; }
+          .radgen-nb .edu-feature{ gap:8px; padding:7px 9px; border-radius:12px; box-shadow:3px 3px 0 rgba(0,0,0,0.25); text-align:left; }
+          .radgen-nb .edu-feature-ico{ width:30px; height:30px; font-size:16px; border-radius:9px; }
+          .radgen-nb .edu-feature b{ font-size:11.5px; }
+          .radgen-nb .edu-feature small{ display:none; }
+          .radgen-nb .edu-cta{ justify-self:stretch; justify-content:space-between; font-size:13px; padding:8px 8px 8px 16px; box-shadow:4px 4px 0 var(--ink); }
+          .radgen-nb .edu-cta-flecha{ width:34px; height:34px; }
+          .radgen-nb .edu-lado{ padding:4px 0 34px; }
+          .radgen-nb .edu-video-wrap{ transform:rotate(1deg); }
+          .radgen-nb .edu-float-badge{ top:-12px; right:-2px; font-size:11px; }
+          .radgen-nb .edu-sky-btn{ right:0; bottom:-4px; }
+          .radgen-nb .edu-sky{ height:84px; }
         }
         @media (max-width:480px){
           .radgen-nb .nav-back span{ display:none; }
@@ -674,29 +763,7 @@ function RadGen() {
         <ProximaReunion />
       </div>
 
-      <section id="educacion">
-        <div className="edu-card">
-          <div className="edu-texto">
-            <span className="edu-badge edu-badge-glow">✅ Ya disponible</span>
-            <img src="/radgen-education-logo.png" alt="RadGen Education" className="edu-logo" />
-            <h2>RadGen Education</h2>
-            <p>Una plataforma para crecer en tu fe a tu ritmo. Entra con Google y empieza tus lecciones.</p>
-            <div className="edu-features">
-              <span className="edu-feature">🎓 Lecciones</span>
-              <span className="edu-feature">🏆 Insignias</span>
-              <span className="edu-feature">🔥 Rachas</span>
-              <span className="edu-feature">👑 Rangos</span>
-            </div>
-            <Link to="/radgen/education" className="btn btn-outline edu-cta">
-              Entrar a RadGen Education <span className="edu-cta-flecha">→</span>
-            </Link>
-          </div>
-          <div className="edu-sky-wrap">
-            <img src="/sky-estudiando.png" alt="Sky estudiando" className="edu-sky" />
-            <div className="float-badge edu-float-badge">🔥 Rachas semanales</div>
-          </div>
-        </div>
-      </section>
+      <EducacionDestacada />
 
       <section id="proposito">
         <div className="section-head">
@@ -813,6 +880,84 @@ function RadGen() {
         </div>
       </section>
     </div>
+  )
+}
+
+function EducacionDestacada() {
+  const ref = useRef(null)
+  const [visible, setVisible] = useState(false)
+  const [sky, setSky] = useState(0)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof IntersectionObserver === 'undefined') { setVisible(true); return }
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { setVisible(true); io.disconnect() }
+    }, { threshold: 0.2 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
+  const features = [
+    { ico: '🎓', t: 'Lecciones', d: 'A tu ritmo, cuando quieras' },
+    { ico: '🏆', t: 'Insignias', d: 'Gana logros al avanzar' },
+    { ico: '🔥', t: 'Rachas', d: 'Constancia semana a semana' },
+    { ico: '⚔️', t: 'Duelos', d: 'Rétate con tus compañeros' },
+    { ico: '👑', t: 'Rangos', d: 'Sube de nivel y destaca' },
+  ]
+
+  return (
+    <section id="educacion">
+      <div ref={ref} className={`edu-card${visible ? ' edu-visible' : ''}`}>
+        <div className="edu-cabeza">
+          <span className="edu-badge edu-badge-glow edu-in" style={{ '--i': 0 }}>✅ Ya disponible</span>
+          <div className="edu-titulo edu-in" style={{ '--i': 1 }}>
+            <img src="/radgen-education-logo.png" alt="" className="edu-logo" />
+            <h2>RadGen <span>Education</span></h2>
+          </div>
+          <p className="edu-lema edu-in" style={{ '--i': 2 }}>
+            Una plataforma para crecer en tu fe a tu ritmo. Entra con Google y empieza tus lecciones.
+          </p>
+        </div>
+
+        <div className="edu-features">
+          {features.map((f, n) => (
+            <div key={f.t} className="edu-feature edu-in" style={{ '--i': 4 + n }}>
+              <span className="edu-feature-ico">{f.ico}</span>
+              <span><b>{f.t}</b><small>{f.d}</small></span>
+            </div>
+          ))}
+        </div>
+
+        <Link to="/radgen/education" className="edu-cta edu-in" style={{ '--i': 3 }}>
+          Entrar a RadGen Education <span className="edu-cta-flecha">→</span>
+        </Link>
+
+        <div className="edu-lado edu-in" style={{ '--i': 3 }}>
+          <div className="edu-video-wrap">
+            <div className="edu-video">
+              <iframe
+                src="https://www.youtube-nocookie.com/embed/CMxcHEVCT1M?rel=0"
+                title="Presentación de RadGen Education"
+                loading="lazy"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+              />
+            </div>
+            <div className="float-badge edu-float-badge">▶️ Míralo aquí</div>
+          </div>
+          <button
+            type="button"
+            className="edu-sky-btn"
+            onClick={() => { setSky((n) => (n + 1) % EDU_SKYS.length); vibrar(10) }}
+            aria-label="Cambiar a Sky"
+          >
+            <img key={sky} src={EDU_SKYS[sky]} alt="" className="edu-sky" />
+          </button>
+        </div>
+      </div>
+    </section>
   )
 }
 
