@@ -64,6 +64,7 @@ class MetaRewriter {
 export default async function middleware(request) {
   try {
     const { pathname, hostname } = new URL(request.url)
+    console.log('[mw]', hostname, pathname)
     if (!esDominioRadgen(hostname) || pathname !== '/') return
     const meta = META_RADGEN
 

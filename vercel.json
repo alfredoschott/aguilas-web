@@ -1,9 +1,9 @@
 {
   "redirects": [
     {
-      "source": "/:path*",
+      "source": "/(.*)",
       "has": [{ "type": "host", "value": "www.radgenmx.com" }],
-      "destination": "https://radgenmx.com/:path*",
+      "destination": "https://radgenmx.com/$1",
       "permanent": true
     },
     {
