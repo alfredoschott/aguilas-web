@@ -1,18 +1,18 @@
 export const config = {
-  matcher: ['/', '/radgen'],
+  matcher: ['/'],
 }
 
 // Meta tags específicas por ruta. Se usan para que WhatsApp/Instagram/Facebook
 // (que no ejecutan JS y solo leen el HTML crudo) muestren la previsualización
 // correcta en vez de la de la página principal (la iglesia).
 const META_RADGEN = {
-    title: 'RadGen Education | Águilas CFC Tizayuca',
-    description:
-      'Plataforma de discipulado gamificado para los jóvenes de Águilas CFC: misiones, insignias y niveles para crecer en la fe.',
-    image: 'https://radgenmx.com/radgen-education-logo.png',
-    imageWidth: '900',
-    imageHeight: '900',
-    url: 'https://radgenmx.com/',
+  title: 'RadGen MX | Una generación con identidad y propósito',
+  description:
+    'RadGen es el ministerio de jóvenes de Águilas CFC Tizayuca: fe real, amigos de verdad y un propósito que vale la pena. Conoce RadGen Education, la plataforma para crecer en tu fe.',
+  image: 'https://radgenmx.com/radgen-og.jpg',
+  imageWidth: '1200',
+  imageHeight: '630',
+  url: 'https://radgenmx.com/',
 }
 
 // RadGen vive en radgenmx.com; la raíz de ese dominio es su presentación.
@@ -42,7 +42,12 @@ function aplicarMeta(html, meta) {
   salida = poner(salida, 'property', 'og:image:width', imageWidth)
   salida = poner(salida, 'property', 'og:image:height', imageHeight)
   salida = poner(salida, 'property', 'og:url', url)
+  salida = poner(salida, 'name', 'apple-mobile-web-app-title', 'RadGen')
+  salida = poner(salida, 'name', 'theme-color', '#0f0f12')
   return salida
+    .replace(/<link rel="icon"[^>]*>/, '<link rel="icon" type="image/png" href="/radgen-favicon.png" />')
+    .replace(/<link rel="apple-touch-icon"[^>]*>/, '<link rel="apple-touch-icon" href="/radgen-apple-touch.png" />')
+    .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, '')
 }
 
 // Esto es puramente cosmético (mejora cómo se ve el link al compartirlo) —

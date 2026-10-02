@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import RutasRaiz from './RutasRaiz.jsx'
 import DevNav from './components/DevNav.jsx'
+import { aplicarIdentidadRadgen } from './dominios.js'
 
 // Evita que el navegador restaure/salte a un scroll previo (o al hash de la
 // URL, ej. #servicios) antes de que el splash y el contenido terminen de
@@ -16,6 +17,7 @@ if (window.location.hash) {
   history.replaceState(null, '', window.location.pathname + window.location.search)
 }
 window.scrollTo(0, 0)
+aplicarIdentidadRadgen()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

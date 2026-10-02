@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { modoSitio, URL_RADGEN_SITIO } from './dominios'
+import { modoSitio, tituloRadgenPara, URL_RADGEN_SITIO } from './dominios'
 
 // Cada mitad del sitio se descarga solo cuando se visita: quien entra a
 // RadGen Education no baja el sitio de la iglesia ni el portal, y viceversa.
@@ -27,6 +27,12 @@ function IrARadgen() {
 
 export default function RutasRaiz() {
   const modo = modoSitio()
+  const { pathname } = useLocation()
+
+  useEffect(() => {
+    const titulo = tituloRadgenPara(pathname)
+    if (titulo) document.title = titulo
+  }, [pathname])
 
   return (
     <Suspense fallback={null}>
