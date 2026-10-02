@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /education
+
+Sitemap: https://radgenmx.com/sitemap.xml

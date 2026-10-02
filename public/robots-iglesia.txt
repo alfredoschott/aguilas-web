@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /lideres
+
+Sitemap: https://www.aguilascfctizayuca.com/sitemap.xml

@@ -19,6 +19,8 @@ const META_RADGEN = {
 // La raíz de aguilascfctizayuca.com (la iglesia) no se toca.
 const esDominioRadgen = (host) => /(^|\.)radgenmx\.com$/.test(host)
 
+const JSON_LD_RADGEN = {"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "@id": "https://radgenmx.com/#sitio", "url": "https://radgenmx.com/", "name": "RadGen MX", "alternateName": ["RadGen", "RadGen Education"], "inLanguage": "es-MX"}, {"@type": "Organization", "@id": "https://radgenmx.com/#organizacion", "name": "RadGen MX", "alternateName": "RadGen", "url": "https://radgenmx.com/", "logo": "https://radgenmx.com/radgen-icon-512.png", "image": "https://radgenmx.com/radgen-og.jpg", "description": "Ministerio de jóvenes de Águilas CFC Tizayuca, Hidalgo, México.", "parentOrganization": {"@type": "Church", "name": "Águilas Centro Familiar Cristiano Tizayuca", "url": "https://www.aguilascfctizayuca.com/"}, "sameAs": ["https://www.instagram.com/radgen.mx/"]}]}
+
 const escapar = (t) => t.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 
 // Cambia el atributo content de la etiqueta <meta> cuyo name/property es `clave`.
@@ -47,7 +49,7 @@ function aplicarMeta(html, meta) {
   return salida
     .replace(/<link rel="icon"[^>]*>/, '<link rel="icon" type="image/png" href="/radgen-favicon.png" />')
     .replace(/<link rel="apple-touch-icon"[^>]*>/, '<link rel="apple-touch-icon" href="/radgen-apple-touch.png" />')
-    .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, '')
+    .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, `<script type="application/ld+json">${JSON.stringify(JSON_LD_RADGEN)}</script>`)
 }
 
 // Esto es puramente cosmético (mejora cómo se ve el link al compartirlo) —
