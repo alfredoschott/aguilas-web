@@ -383,7 +383,7 @@ function ModoRadgen({ onVolver }) {
           <RedesMini
             claseCaja="bienvenida-red-box bienvenida-red-box--radgen"
             redes={[
-              { nombre: 'Instagram RadGen', href: 'https://www.instagram.com/radgen.mx/', svg: SVG_INSTAGRAM },
+              { nombre: 'Instagram RadGen', href: 'https://instagram.com/radgenmx?psln=MXJ2eHZ6MnZlZ3c5eg%3D%3D', svg: SVG_INSTAGRAM },
               { nombre: 'WhatsApp', href: 'https://wa.me/527711107903?text=Hola,%20soy%20nuevo%20en%20RadGen', svg: SVG_WHATSAPP },
             ]}
           />

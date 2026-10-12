@@ -750,7 +750,7 @@ function RadGen() {
           <div className="hero-actions">
             <a href="#registro" className="btn btn-blue">Ya quiero ir</a>
             <a href="#proposito" className="btn btn-outline">Conoce el ministerio</a>
-            <a href="https://www.instagram.com/radgen.mx/" target="_blank" rel="noopener noreferrer" className="btn btn-insta">
+            <a href="https://instagram.com/radgenmx?psln=MXJ2eHZ6MnZlZ3c5eg%3D%3D" target="_blank" rel="noopener noreferrer" className="btn btn-insta">
               <IconoInstagram size={15} /> Síguenos en Insta
             </a>
           </div>
@@ -764,8 +764,6 @@ function RadGen() {
       <div className="cuenta-wrap">
         <ProximaReunion />
       </div>
-
-      <EducacionDestacada />
 
       <section id="proposito">
         <div className="section-head">
@@ -841,8 +839,8 @@ function RadGen() {
         <GaleriaRadgen />
         <div className="insta-strip">
           <div className="insta-strip-top">
-            <span><IconoInstagram size={16} /> @radgen.mx</span>
-            <a href="https://www.instagram.com/radgen.mx/" target="_blank" rel="noopener noreferrer" className="btn btn-blue">Seguir</a>
+            <span><IconoInstagram size={16} /> @radgenmx</span>
+            <a href="https://instagram.com/radgenmx?psln=MXJ2eHZ6MnZlZ3c5eg%3D%3D" target="_blank" rel="noopener noreferrer" className="btn btn-blue">Seguir</a>
           </div>
           <div className="insta-tags">
             <span className="insta-tag">Reels</span>
@@ -867,6 +865,8 @@ function RadGen() {
         </div>
         <FaqAcordeon />
       </section>
+
+      <EducacionDestacada />
 
       <section className="footer-cta">
         <h2>Tu lugar en esta <span>generación</span></h2>
