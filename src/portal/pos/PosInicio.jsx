@@ -10,7 +10,7 @@ import FormConfigPos from './FormConfigPos'
 import PosCabecera from './PosCabecera'
 import { Anillo, Avatar, BarraEstado, Cantidad, Dinero, GraficaVentas } from './posUi'
 import { exportarReporteExcel, exportarReportePDF } from './exportarVenta'
-import { POS_BASE, accesoPos, calcularCorte, dinero, fechaLegible, nuevoId, normalizar, prepararConfig, redondear, useMinisterios } from './posUtils'
+import { POS_BASE, accesoPos, calcularCorte, dinero, idMinisterioUsuario, fechaLegible, nuevoId, normalizar, prepararConfig, redondear, useMinisterios } from './posUtils'
 import '../portal.css'
 import './pos.css'
 
@@ -20,10 +20,12 @@ const etiquetaCorta = (iso) => { const { m, d } = partes(iso); return `${d} ${ME
 
 export default function PosInicio() {
   const { userData, user } = usePortalAuth()
-  const { ministerios } = useMinisterios()
+  const { ministerios, cargado: ministeriosListos } = useMinisterios()
   const acceso = accesoPos(userData)
 
-  const [ministerio, setMinisterio] = useState(() => (acceso.directivo ? localStorage.getItem('pos_ministerio') || 'cocina' : userData?.ministerio || ''))
+  const [seleccion, setSeleccion] = useState(() => { try { return localStorage.getItem('pos_ministerio') || 'cocina' } catch { return 'cocina' } })
+  const propio = acceso.lider ? idMinisterioUsuario(userData, ministerios) : null
+  const ministerio = acceso.directivo ? seleccion : propio || ''
   const [tab, setTab] = useState('inicio')
   const [ventas, setVentas] = useState([])
   const [pedidos, setPedidos] = useState([])
@@ -43,7 +45,7 @@ export default function PosInicio() {
     if (!ministerio) return undefined
     const filtro = where('ministerio', '==', ministerio)
     const alErr = (e) => { console.error(e); setError('No se pudieron cargar los datos del POS. ¿Ya están publicadas las reglas de Firestore?') }
-    const u1 = onSnapshot(query(collection(db, 'pos_ventas'), filtro), (s) => setVentas(s.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))), alErr)
+    const u1 = onSnapshot(query(collection(db, 'pos_ventas'), filtro), (s) => setVentas(s.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || (b.creadoEn?.seconds || 0) - (a.creadoEn?.seconds || 0))), alErr)
     const u2 = onSnapshot(query(collection(db, 'pos_pedidos'), filtro), (s) => setPedidos(s.docs.map((d) => ({ id: d.id, ...d.data() }))), alErr)
     const u3 = onSnapshot(query(collection(db, 'pos_plantillas'), filtro), (s) => setPlantillas(s.docs.map((d) => ({ id: d.id, ...d.data() }))), alErr)
     return () => { u1(); u2(); u3() }
@@ -90,6 +92,17 @@ export default function PosInicio() {
   const serie = useMemo(() => ventas.slice(0, 8).reverse().map((v) => ({
     id: v.id, etiqueta: etiquetaCorta(v.fecha), cobrado: cortes[v.id]?.cobrado || 0, pendiente: cortes[v.id]?.pendiente || 0, pedidos: cortes[v.id]?.pedidos || 0,
   })), [ventas, cortes])
+
+  if (acceso.permitido && !acceso.directivo && !ministerio) {
+    return (
+      <div className="pos-page"><div className="pos-wrap">
+        <PosCabecera titulo="Ventas" sub="Punto de venta" volverA="/lideres/dashboard" />
+        {ministeriosListos
+          ? <p className="pos-empty">Tu usuario no tiene un ministerio válido asignado. Pide a Primera Mesa que lo revise para poder usar el POS.</p>
+          : <p className="pos-muted">Cargando…</p>}
+      </div></div>
+    )
+  }
 
   if (!acceso.permitido) {
     return <div className="pos-page"><p className="pos-empty">Tu cuenta no tiene acceso al POS de ventas. Es para líderes de ministerio, pastores y administrativos.</p></div>
@@ -162,7 +175,7 @@ export default function PosInicio() {
         <PosCabecera titulo="Ventas" ministerioId={ministerio} ministerioNombre={ministerios[ministerio]?.nombre || ministerio} sub="Punto de venta" volverA="/lideres/dashboard">
           {acceso.directivo && (
             <select className="pos-select" style={{ width: 'auto', borderRadius: 999 }} value={ministerio} aria-label="Ministerio"
-              onChange={(e) => { setMinisterio(e.target.value); try { localStorage.setItem('pos_ministerio', e.target.value) } catch { /* sin storage */ } }}>
+              onChange={(e) => { setSeleccion(e.target.value); try { localStorage.setItem('pos_ministerio', e.target.value) } catch { /* sin storage */ } }}>
               {Object.keys(ministerios).sort((a, b) => (ministerios[a].nombre || a).localeCompare(ministerios[b].nombre || b)).map((id) => <option key={id} value={id}>{ministerios[id].nombre || id}</option>)}
             </select>
           )}

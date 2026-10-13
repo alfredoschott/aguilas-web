@@ -1,0 +1,449 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================================
+    // FUNCIONES AUXILIARES
+    // ============================================================
+
+    function estaAutenticado() {
+      return request.auth != null;
+    }
+
+    function esCorreoLider(email) {
+      return exists(/databases/$(database)/documents/usuarios/$(email))
+        && get(/databases/$(database)/documents/usuarios/$(email)).data.rol == 'lider';
+    }
+
+    // Líder específico de RadGen: su ministerio contiene "radgen" (case-insensitive).
+    // schottalfredo@gmail.com (dueño del proyecto) siempre cuenta como líder de RadGen,
+    // aunque su cuenta de RadGen Education esté registrada como joven.
+    function esLiderRadgen() {
+      return estaAutenticado() && (
+        request.auth.token.email == 'schottalfredo@gmail.com' ||
+        (exists(/databases/$(database)/documents/usuarios/$(request.auth.token.email))
+          && get(/databases/$(database)/documents/usuarios/$(request.auth.token.email)).data.rol == 'lider'
+          && get(/databases/$(database)/documents/usuarios/$(request.auth.token.email)).data.ministerio.matches('(?i).*radgen.*'))
+      );
+    }
+
+    // POS de ventas — ¿el usuario pertenece a ese ministerio?
+    // Tolera cómo están guardados hoy los datos de `usuarios`: el ministerio puede venir
+    // como id ("mujeres"), con mayúsculas ("Mujeres"), con espacios ("ninos ") o con el
+    // nombre completo ("RadGen MX"). Se compara sin mayúsculas ni espacios, contra el id
+    // del ministerio o contra su nombre.
+    function perteneceAMinisterioPos(ministerio) {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.token.email)).data.ministerio is string
+        && (
+          get(/databases/$(database)/documents/usuarios/$(request.auth.token.email)).data.ministerio.trim().lower() == ministerio
+          || (
+            exists(/databases/$(database)/documents/ministerios/$(ministerio))
+            && get(/databases/$(database)/documents/ministerios/$(ministerio)).data.nombre.lower()
+              == get(/databases/$(database)/documents/usuarios/$(request.auth.token.email)).data.ministerio.trim().lower()
+          )
+        );
+    }
+
+    // POS de ventas — puede operar el POS de un ministerio: el dueño del proyecto, pastores
+    // y administrativos (todos los ministerios) o el líder de ESE ministerio (solo el suyo).
+    function puedePos(ministerio) {
+      return estaAutenticado() && 'email' in request.auth.token && (
+        request.auth.token.email == 'schottalfredo@gmail.com' ||
+        (
+          exists(/databases/$(database)/documents/usuarios/$(request.auth.token.email))
+          && (
+            get(/databases/$(database)/documents/usuarios/$(request.auth.token.email)).data.rol.trim().lower() in ['pastor', 'administrativo'] ||
+            (
+              get(/databases/$(database)/documents/usuarios/$(request.auth.token.email)).data.rol.trim().lower() == 'lider'
+              && perteneceAMinisterioPos(ministerio)
+            )
+          )
+        )
+      );
+    }
+
+    // ------------------------------------------------------------
+    // POS de ventas — dispositivos invitados por QR (sin cuenta)
+    // Entran con "inicio de sesión anónimo" y un código que el líder genera por venta.
+    // Un dispositivo solo opera UNA venta y solo mientras: el líder lo haya aprobado,
+    // el acceso siga encendido, no haya vencido, el código sea el vigente y la venta
+    // esté abierta. Si el líder apaga o renueva el QR, pierde el acceso de inmediato.
+    // ------------------------------------------------------------
+
+    function esAnonimo() {
+      return request.auth != null && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    function docDispositivo(ventaId) {
+      return /databases/$(database)/documents/pos_dispositivos/$(ventaId + '_' + request.auth.uid);
+    }
+
+    function docAcceso(ventaId) {
+      return /databases/$(database)/documents/pos_accesos/$(ventaId);
+    }
+
+    function esAyudante(ventaId) {
+      return esAnonimo()
+        && exists(docDispositivo(ventaId))
+        && get(docDispositivo(ventaId)).data.estado == 'aprobado'
+        && exists(docAcceso(ventaId))
+        && get(docAcceso(ventaId)).data.activo == true
+        && request.time < get(docAcceso(ventaId)).data.expiraEn
+        && get(docDispositivo(ventaId)).data.token == get(docAcceso(ventaId)).data.token
+        && get(/databases/$(database)/documents/pos_ventas/$(ventaId)).data.estado != 'cerrada';
+    }
+
+    function ayudantePuedeEditar(ventaId) {
+      return get(docDispositivo(ventaId)).data.get('puedeEditar', false) == true;
+    }
+
+    // Campos que cambian al cobrar (o al deshacer un cobro).
+    function soloCamposDeCobro() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['estado', 'metodo', 'recibido', 'cambio', 'verificado', 'pagadoEn', 'cobradoPor']);
+    }
+
+    // ============================================================
+    // TUS COLECCIONES EXISTENTES (sin cambios)
+    // ============================================================
+
+    match /anuncios/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == 'schottalfredo@gmail.com';
+    }
+
+    match /eventos/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == 'schottalfredo@gmail.com';
+    }
+
+    match /horarios/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == 'schottalfredo@gmail.com';
+    }
+
+    match /galeria/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == 'schottalfredo@gmail.com';
+    }
+
+    match /radgenRegistros/{docId} {
+      allow read: if request.auth != null && request.auth.token.email == 'schottalfredo@gmail.com';
+      allow create: if true;
+      allow update, delete: if request.auth != null && request.auth.token.email == 'schottalfredo@gmail.com';
+    }
+
+    match /radgenConfig/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == 'schottalfredo@gmail.com';
+    }
+
+    match /visitasNuevas/{docId} {
+      allow read: if request.auth != null && request.auth.token.email == 'schottalfredo@gmail.com';
+      allow create: if true;
+      allow update, delete: if request.auth != null && request.auth.token.email == 'schottalfredo@gmail.com';
+    }
+
+    match /usuarios/{email} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.email == 'schottalfredo@gmail.com';
+    }
+
+    match /ministerios/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.email == 'schottalfredo@gmail.com';
+    }
+
+    match /eventos_internos/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (request.auth.token.email == 'schottalfredo@gmail.com' || esCorreoLider(request.auth.token.email));
+    }
+
+    match /actividad_portal/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.token.email == 'schottalfredo@gmail.com';
+    }
+
+    match /avisos_portal/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (request.auth.token.email == 'schottalfredo@gmail.com' || esCorreoLider(request.auth.token.email));
+    }
+
+    match /notificaciones_portal/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /categorias_ministerio/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (request.auth.token.email == 'schottalfredo@gmail.com' || esCorreoLider(request.auth.token.email));
+    }
+
+    match /inventario_portal/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (request.auth.token.email == 'schottalfredo@gmail.com' || esCorreoLider(request.auth.token.email));
+    }
+
+    match /actividad_inventario/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.token.email == 'schottalfredo@gmail.com';
+    }
+
+    match /prestamos_inventario/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (request.auth.token.email == 'schottalfredo@gmail.com' || esCorreoLider(request.auth.token.email));
+    }
+
+    // ============================================================
+    // POS DE VENTAS (portal de líderes)
+    // Todo está atado al campo `ministerio` del documento (siempre el id en
+    // minúsculas, ej. "cocina"); el ministerio de un documento ya creado no
+    // se puede cambiar.
+    // ============================================================
+
+    // Una venta (sesión de venta del día). Un dispositivo invitado solo puede leer la suya.
+    match /pos_ventas/{ventaId} {
+      allow get: if esAyudante(ventaId) || puedePos(resource.data.ministerio);
+      allow list: if puedePos(resource.data.ministerio);
+      allow create: if puedePos(request.resource.data.ministerio);
+      allow update: if puedePos(resource.data.ministerio)
+        && request.resource.data.ministerio == resource.data.ministerio;
+      allow delete: if false;
+    }
+
+    // Pedidos (cobros). No se borran: se anulan, para conservar el rastro.
+    // Un dispositivo invitado de esa venta puede: leerlos, crear los suyos, cobrar pendientes
+    // y deshacer lo suyo durante 3 minutos; y, si el líder lo permitió, editar y anular.
+    match /pos_pedidos/{pedidoId} {
+      allow read: if esAyudante(resource.data.ventaId) || puedePos(resource.data.ministerio);
+
+      allow create: if (
+          esAyudante(request.resource.data.ventaId)
+          && request.resource.data.ministerio == get(/databases/$(database)/documents/pos_ventas/$(request.resource.data.ventaId)).data.ministerio
+          && request.resource.data.dispositivoUid == request.auth.uid
+          && request.resource.data.creadoEn == request.time
+          && request.resource.data.estado in ['pagado', 'pendiente']
+          && request.resource.data.total is number
+        ) || puedePos(request.resource.data.ministerio);
+
+      allow update: if (
+          esAyudante(resource.data.ventaId)
+          && request.resource.data.ventaId == resource.data.ventaId
+          && request.resource.data.ministerio == resource.data.ministerio
+          && (
+            // cobrar un pedido pendiente
+            (resource.data.estado == 'pendiente' && request.resource.data.estado == 'pagado' && soloCamposDeCobro())
+            // deshacer su propio pedido recién creado
+            || (resource.data.get('dispositivoUid', '') == request.auth.uid
+                && request.time < resource.data.creadoEn + duration.value(3, 'm'))
+            // deshacer su propio cobro recién hecho
+            || (resource.data.get('cobradoPor', '') == ('disp_' + request.auth.uid)
+                && resource.data.get('pagadoEn', null) != null
+                && request.time < resource.data.pagadoEn + duration.value(3, 'm')
+                && soloCamposDeCobro())
+            // permiso del líder para editar y anular
+            || ayudantePuedeEditar(resource.data.ventaId)
+          )
+        ) || (
+          puedePos(resource.data.ministerio)
+          && request.resource.data.ministerio == resource.data.ministerio
+        );
+
+      allow delete: if false;
+    }
+
+    // Plantillas reutilizables de cada ministerio.
+    match /pos_plantillas/{plantillaId} {
+      allow read: if puedePos(resource.data.ministerio);
+      allow create: if puedePos(request.resource.data.ministerio);
+      allow update: if puedePos(resource.data.ministerio)
+        && request.resource.data.ministerio == resource.data.ministerio;
+      allow delete: if puedePos(resource.data.ministerio);
+    }
+
+    // Nombres de clientes para el autocompletado. El id del documento
+    // es el id del ministerio (ej. "cocina").
+    match /pos_clientes/{ministerioId} {
+      allow read, write: if puedePos(ministerioId);
+    }
+
+    // Acceso por QR de una venta (un documento por venta, id = id de la venta). Contiene el
+    // código secreto: solo lo lee el personal del ministerio, nunca los dispositivos invitados.
+    match /pos_accesos/{ventaId} {
+      allow read: if puedePos(resource.data.ministerio);
+      allow create: if puedePos(request.resource.data.ministerio)
+        && request.resource.data.ventaId == ventaId
+        && request.resource.data.ministerio == get(/databases/$(database)/documents/pos_ventas/$(ventaId)).data.ministerio;
+      allow update: if puedePos(resource.data.ministerio)
+        && request.resource.data.ministerio == resource.data.ministerio;
+      allow delete: if puedePos(resource.data.ministerio);
+    }
+
+    // Dispositivos que pidieron entrar a cobrar. Id = "<idVenta>_<uid>".
+    match /pos_dispositivos/{dispId} {
+      // Cada dispositivo ve únicamente su propio registro (para saber si ya lo aprobaron).
+      allow get: if request.auth != null && dispId.matches('.*_' + request.auth.uid);
+      // El personal del ministerio ve los de su venta.
+      allow list: if puedePos(get(/databases/$(database)/documents/pos_ventas/$(resource.data.ventaId)).data.ministerio);
+
+      // Pedir acceso: solo con el código vigente del QR, con la venta abierta y en estado pendiente.
+      allow create: if esAnonimo()
+        && dispId == request.resource.data.ventaId + '_' + request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['ventaId', 'uid', 'nombre', 'token', 'estado', 'creadoEn'])
+        && request.resource.data.estado == 'pendiente'
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() >= 1
+        && request.resource.data.nombre.size() <= 40
+        && request.resource.data.creadoEn == request.time
+        && exists(docAcceso(request.resource.data.ventaId))
+        && get(docAcceso(request.resource.data.ventaId)).data.activo == true
+        && request.time < get(docAcceso(request.resource.data.ventaId)).data.expiraEn
+        && request.resource.data.token == get(docAcceso(request.resource.data.ventaId)).data.token
+        && get(/databases/$(database)/documents/pos_ventas/$(request.resource.data.ventaId)).data.estado != 'cerrada';
+
+      allow update: if (
+          // el líder aprueba, cambia permisos o desconecta
+          puedePos(get(/databases/$(database)/documents/pos_ventas/$(resource.data.ventaId)).data.ministerio)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado', 'puedeEditar', 'aprobadoPor', 'aprobadoEn', 'nombre'])
+        ) || (
+          // el dispositivo vuelve a pedir acceso con un QR nuevo (siempre queda pendiente)
+          esAnonimo()
+          && resource.data.uid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['token', 'estado', 'nombre'])
+          && request.resource.data.estado == 'pendiente'
+          && request.resource.data.nombre is string
+          && request.resource.data.nombre.size() >= 1
+          && request.resource.data.nombre.size() <= 40
+          && exists(docAcceso(resource.data.ventaId))
+          && get(docAcceso(resource.data.ventaId)).data.activo == true
+          && request.time < get(docAcceso(resource.data.ventaId)).data.expiraEn
+          && request.resource.data.token == get(docAcceso(resource.data.ventaId)).data.token
+        );
+
+      allow delete: if puedePos(get(/databases/$(database)/documents/pos_ventas/$(resource.data.ventaId)).data.ministerio);
+    }
+
+    // ============================================================
+    // RADGEN EDUCATION
+    // ============================================================
+
+    match /radgenPerfiles/{uid} {
+      allow read: if estaAutenticado();
+      allow create: if estaAutenticado() && request.auth.uid == uid;
+      allow update: if estaAutenticado() && (request.auth.uid == uid || esLiderRadgen());
+      allow delete: if esLiderRadgen();
+    }
+
+    match /radgenEduConfig/{docId} {
+      allow read: if true;
+      allow write: if esLiderRadgen();
+    }
+
+    match /radgenLecciones/{leccionId} {
+      allow read: if estaAutenticado();
+      allow write: if esLiderRadgen();
+    }
+
+    match /radgenSeries/{serieId} {
+      allow read: if estaAutenticado();
+      allow write: if esLiderRadgen();
+    }
+
+    match /radgenAsignaciones/{asignacionId} {
+      allow read: if estaAutenticado();
+      allow create: if esLiderRadgen();
+      allow update: if estaAutenticado() && (
+        esLiderRadgen() ||
+        (
+          request.auth.uid == resource.data.asignadoA &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['estado', 'fechaCompletado', 'quizScore', 'retoCumplido', 'bonoXp', 'versiculoMemorizado']) &&
+          (
+            !('bonoXp' in request.resource.data.diff(resource.data).affectedKeys()) ||
+            (request.resource.data.bonoXp is int && request.resource.data.bonoXp >= 0 && request.resource.data.bonoXp <= 5)
+          ) &&
+          (
+            !('versiculoMemorizado' in request.resource.data.diff(resource.data).affectedKeys()) ||
+            request.resource.data.versiculoMemorizado == true
+          )
+        )
+      );
+      allow delete: if esLiderRadgen();
+    }
+
+    match /radgenNotasLider/{notaId} {
+      allow read, write: if esLiderRadgen();
+    }
+
+    match /radgenComentarios/{comentarioId} {
+      allow read: if estaAutenticado();
+      allow create: if estaAutenticado();
+      allow update, delete: if estaAutenticado() && (request.auth.uid == resource.data.autorUid || esLiderRadgen());
+    }
+
+    match /radgenTareasPersonales/{tareaId} {
+      allow read: if estaAutenticado() && (request.auth.uid == resource.data.jovenUid || esLiderRadgen());
+      allow create: if esLiderRadgen();
+      allow update: if estaAutenticado() && (request.auth.uid == resource.data.jovenUid || esLiderRadgen());
+      allow delete: if esLiderRadgen();
+    }
+
+    // CORREGIDO: las insignias especiales ahora se muestran en el perfil
+    // público (visibles para otros jóvenes, no solo para su dueño o la
+    // líder) — la lectura tenía que abrirse igual que ya se hizo con
+    // radgenPerfiles/radgenAsignaciones, por la misma razón: antes solo
+    // parecía funcionar en pruebas porque la cuenta de prueba siempre pasa
+    // esLiderRadgen(). Otorgar y quitar siguen siendo solo de la líder.
+    match /radgenInsigniasManuales/{registroId} {
+      allow read: if estaAutenticado();
+      allow create: if esLiderRadgen();
+      allow update: if esLiderRadgen();
+      allow delete: if esLiderRadgen();
+    }
+
+    // NUEVO: reuniones para tomar asistencia con QR (opcional). El id del
+    // documento es el propio código (ej. "K7P2QX").
+    match /radgenReuniones/{codigo} {
+      allow read: if estaAutenticado();
+      allow write: if esLiderRadgen();
+    }
+
+    // NUEVO: asistencias. Id = "<codigo>_<uid>": cada joven solo puede
+    // registrarse una vez por reunión, solo a sí mismo, y solo mientras la
+    // reunión siga abierta. Solo la líder puede quitar una.
+    match /radgenAsistencias/{asistenciaId} {
+      allow read: if estaAutenticado();
+      allow create: if estaAutenticado() &&
+        request.resource.data.jovenUid == request.auth.uid &&
+        asistenciaId == request.resource.data.reunionCodigo + '_' + request.auth.uid &&
+        request.resource.data.keys().hasOnly(['reunionCodigo', 'jovenUid', 'fecha']) &&
+        exists(/databases/$(database)/documents/radgenReuniones/$(request.resource.data.reunionCodigo)) &&
+        get(/databases/$(database)/documents/radgenReuniones/$(request.resource.data.reunionCodigo)).data.activa == true;
+      allow update: if false;
+      allow delete: if esLiderRadgen();
+    }
+
+    // NUEVO: duelos de quiz entre jóvenes. Solo el retador lo crea (sin
+    // respuestas); después cada participante escribe UNA vez la suya.
+    match /radgenDuelos/{dueloId} {
+      allow read: if estaAutenticado();
+      allow create: if estaAutenticado() &&
+        request.resource.data.retadorUid == request.auth.uid &&
+        request.resource.data.retadoUid != request.auth.uid &&
+        request.resource.data.respuestas.size() == 0 &&
+        request.resource.data.preguntas.size() <= 10;
+      allow update: if estaAutenticado() &&
+        request.auth.uid in [resource.data.retadorUid, resource.data.retadoUid] &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['respuestas']) &&
+        request.resource.data.respuestas.diff(resource.data.respuestas).affectedKeys().hasOnly([request.auth.uid]) &&
+        !(request.auth.uid in resource.data.respuestas) &&
+        request.resource.data.respuestas[request.auth.uid].correctas is int &&
+        request.resource.data.respuestas[request.auth.uid].correctas >= 0 &&
+        request.resource.data.respuestas[request.auth.uid].correctas <= resource.data.preguntas.size();
+      allow delete: if esLiderRadgen();
+    }
+  }
+}

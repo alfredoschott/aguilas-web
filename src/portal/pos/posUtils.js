@@ -37,16 +37,27 @@ export function horaDe(ts) {
 export const normalizar = (s) =>
   (s || '').toString().trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
+// Los datos de `usuarios` no siempre vienen limpios ("Mujeres", "RadGen MX", "ninos ",
+// "lider "), así que el rol y el ministerio se comparan sin mayúsculas, acentos ni espacios.
 // Pastores y administrativos ven todos los ministerios; un líder solo el suyo.
 export function accesoPos(userData) {
-  const directivo = ['pastor', 'administrativo'].includes(userData?.rol)
-  const lider = userData?.rol === 'lider' && !!userData?.ministerio
+  const rol = normalizar(userData?.rol)
+  const directivo = ['pastor', 'administrativo'].includes(rol)
+  const lider = rol === 'lider' && !!normalizar(userData?.ministerio)
   return { directivo, lider, permitido: directivo || lider }
 }
 
-export function puedeVerMinisterio(userData, ministerioId) {
+// Id del ministerio de un usuario: acepta el id ("mujeres") o el nombre ("RadGen MX").
+export function idMinisterioUsuario(userData, ministerios) {
+  const n = normalizar(userData?.ministerio)
+  if (!n) return null
+  const ids = Object.keys(ministerios || {})
+  return ids.find((id) => normalizar(id) === n) || ids.find((id) => normalizar(ministerios[id]?.nombre) === n) || null
+}
+
+export function puedeVerMinisterio(userData, ministerioId, ministerios) {
   const { directivo, lider } = accesoPos(userData)
-  return directivo || (lider && userData.ministerio === ministerioId)
+  return directivo || (lider && idMinisterioUsuario(userData, ministerios) === ministerioId)
 }
 
 export function useMinisterios() {

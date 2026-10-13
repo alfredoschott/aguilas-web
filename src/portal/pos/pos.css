@@ -359,3 +359,33 @@
   .pos-edit-linea > .pos-linea-monto { grid-column: 2 / 4; grid-row: 1; }
   .pos-edit-linea > .pos-icon-btn { grid-column: 3 / 4; grid-row: 2; }
 }
+
+/* acceso por QR */
+.pos-lista-simple { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 10px; font-size: .9rem; color: var(--portal-label-text); }
+.pos-lista-simple li { display: flex; gap: 10px; align-items: flex-start; line-height: 1.4; }
+.pos-lista-simple svg { flex-shrink: 0; margin-top: 2px; color: var(--pos-accent); }
+.pos-acceso-qr { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.pos-qr { flex-shrink: 0; width: 200px; height: 200px; padding: 10px; box-sizing: border-box; border-radius: 16px; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 4px color-mix(in srgb, var(--pos-accent) 40%, transparent); }
+.pos-qr img { width: 100%; height: 100%; image-rendering: pixelated; }
+.pos-acceso-info { flex: 1; min-width: 220px; }
+.pos-dispositivo { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; border: 1px solid var(--portal-card-border); background: var(--pos-elev); flex-wrap: wrap; }
+.pos-dispositivo[data-estado="pendiente"] { border-color: color-mix(in srgb, var(--pos-pe) 60%, transparent); background: color-mix(in srgb, var(--pos-pe) 8%, var(--pos-elev)); animation: posIn .3s both; }
+.pos-dispositivo-info { flex: 1; min-width: 120px; }
+.pos-dispositivo-info strong { display: block; }
+.pos-dispositivo-info small { color: var(--portal-muted); font-size: .78rem; }
+.pos-dispositivo-acciones { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.pos-check-mini { display: flex; align-items: center; gap: 8px; font-size: .78rem; color: var(--portal-label-text); cursor: pointer; }
+.pos-check-mini input { width: 18px; height: 18px; accent-color: var(--pos-accent); }
+
+/* pantalla del dispositivo invitado */
+.pos-cobro-aviso { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 28px 20px; }
+.pos-cobro-aviso svg { color: var(--pos-accent); margin-bottom: 6px; }
+.pos-cobro-aviso p { margin: 4px 0; }
+.pos-cobro-aviso .pos-btn { margin-top: 14px; }
+@keyframes posEspera { 0%, 100% { transform: scale(1); opacity: .9; } 50% { transform: scale(1.12); opacity: 1; } }
+.pos-espera { width: 76px; height: 76px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--pos-pe) 16%, #141414); color: var(--pos-pe); animation: posEspera 1.8s ease-in-out infinite; margin-bottom: 8px; }
+.pos-espera svg { margin: 0; color: inherit; }
+@media (max-width: 640px) {
+  .pos-acceso-qr { justify-content: center; }
+  .pos-dispositivo-acciones { align-items: stretch; width: 100%; }
+}

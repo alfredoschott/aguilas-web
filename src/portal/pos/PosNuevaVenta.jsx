@@ -5,7 +5,7 @@ import { Copy, FilePlus2, History } from 'lucide-react'
 import { usePortalAuth } from '../PortalAuthContext'
 import FormConfigPos from './FormConfigPos'
 import PosCabecera from './PosCabecera'
-import { POS_BASE, accesoPos, hoyISO, nuevoId, prepararConfig, useMinisterios } from './posUtils'
+import { POS_BASE, accesoPos, hoyISO, idMinisterioUsuario, nuevoId, prepararConfig, useMinisterios } from './posUtils'
 import '../portal.css'
 import './pos.css'
 
@@ -18,7 +18,9 @@ export default function PosNuevaVenta() {
   const { ministerios } = useMinisterios()
   const acceso = accesoPos(userData)
 
-  const [ministerio, setMinisterio] = useState(acceso.directivo ? params.get('ministerio') || '' : userData?.ministerio || '')
+  const [elegido, setElegido] = useState(params.get('ministerio') || '')
+  const ministerio = acceso.directivo ? elegido : (acceso.lider && idMinisterioUsuario(userData, ministerios)) || ''
+  const setMinisterio = setElegido
   const [plantillas, setPlantillas] = useState([])
   const [ventasPrevias, setVentasPrevias] = useState([])
   const [origen, setOrigen] = useState(params.get('plantilla') ? `p:${params.get('plantilla')}` : params.get('copiar') ? `v:${params.get('copiar')}` : '')
@@ -38,7 +40,7 @@ export default function PosNuevaVenta() {
     ]).then(([p, v]) => {
       if (!vivo) return
       setPlantillas(p.docs.map((d) => ({ id: d.id, ...d.data() })))
-      setVentasPrevias(v.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')).slice(0, 6))
+      setVentasPrevias(v.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || (b.creadoEn?.seconds || 0) - (a.creadoEn?.seconds || 0)).slice(0, 6))
     }).catch((e) => { console.error(e); setError('No se pudieron cargar las plantillas.') })
     return () => { vivo = false }
   }, [ministerio])

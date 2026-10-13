@@ -3,10 +3,11 @@ import { useParams } from 'react-router-dom'
 import {
   addDoc, arrayUnion, collection, doc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where, db,
 } from './posFirestore'
-import { Settings, ShoppingCart, FileSpreadsheet, FileText, Lock, Unlock, X, Plus, Minus, User, Search, Check, Banknote, Landmark, ShoppingBag, ReceiptText, Undo2, Pencil, RotateCcw } from 'lucide-react'
+import { Settings, ShoppingCart, FileSpreadsheet, FileText, Lock, Unlock, X, Plus, Minus, User, Search, Check, Banknote, Landmark, ShoppingBag, ReceiptText, Undo2, Pencil, RotateCcw, QrCode, WifiOff } from 'lucide-react'
 import { usePortalAuth } from '../PortalAuthContext'
 import ModalCobro from './ModalCobro'
 import ModalEditarPedido from './ModalEditarPedido'
+import ModalAccesoCobro from './ModalAccesoCobro'
 import FormConfigPos from './FormConfigPos'
 import PosCabecera from './PosCabecera'
 import { Avatar, BarraEstado, CheckAnimado, Dinero, Dona } from './posUi'
@@ -18,10 +19,19 @@ import {
 import '../portal.css'
 import './pos.css'
 
+// Pantalla de la venta. La usan dos entradas: el líder (sesión normal del portal) y un
+// dispositivo de cobro invitado por QR (`ayudante`: { uid, nombre, puedeEditar }), que
+// solo puede vender, cobrar y ver los pedidos de ESTA venta.
 export default function PosVenta() {
   const { id } = useParams()
   const { userData, user } = usePortalAuth()
-  const { ministerios } = useMinisterios()
+  return <PosVentaNucleo id={id} userData={userData} email={user?.email?.toLowerCase() || ''} />
+}
+
+export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) {
+  const esAyudante = !!ayudante
+  const puedeEditarPedidos = !esAyudante || !!ayudante.puedeEditar
+  const { ministerios, cargado: ministeriosListos } = useMinisterios()
 
   const [venta, setVenta] = useState(undefined) // undefined = cargando, null = no existe
   const [pedidos, setPedidos] = useState([])
@@ -42,6 +52,11 @@ export default function PosVenta() {
   const [error, setError] = useState('')
   const [toast, setToast] = useState(null) // { m, fn }
   const [configDraft, setConfigDraft] = useState(null)
+  const [sinAcceso, setSinAcceso] = useState(false)
+  const [acceso, setAcceso] = useState(null)
+  const [dispositivos, setDispositivos] = useState([])
+  const [accesoAbierto, setAccesoAbierto] = useState(false)
+  const conocidos = useRef(null)
   const [filtro, setFiltro] = useState('todos')
   const [busqueda, setBusqueda] = useState('')
   const toastRef = useRef(null)
@@ -50,24 +65,34 @@ export default function PosVenta() {
   const popRef = useRef(null)
   const clienteRef = useRef(null)
 
-  const email = user?.email?.toLowerCase() || ''
   const accent = ministerios[venta?.ministerio]?.color || '#3DDC04'
   const ministerioId = venta?.ministerio
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'pos_ventas', id), (s) => setVenta(s.exists() ? { id: s.id, ...s.data() } : null), (e) => { console.error(e); setVenta(null) })
+    const unsub = onSnapshot(doc(db, 'pos_ventas', id), (s) => setVenta(s.exists() ? { id: s.id, ...s.data() } : null), (e) => { console.error(e); if (esAyudante) setSinAcceso(true); else setVenta(null) })
     return () => unsub()
-  }, [id])
+  }, [id, esAyudante])
 
   useEffect(() => {
     if (!ministerioId) return undefined
     const unsubPedidos = onSnapshot(query(collection(db, 'pos_pedidos'), where('ventaId', '==', id), where('ministerio', '==', ministerioId)),
-      (s) => setPedidos(s.docs.map((d) => ({ id: d.id, ...d.data() }))), (e) => { console.error(e); setError('No se pudieron cargar los pedidos.') })
+      (s) => setPedidos(s.docs.map((d) => ({ id: d.id, ...d.data() }))), (e) => { console.error(e); if (esAyudante) setSinAcceso(true); else setError('No se pudieron cargar los pedidos.') })
+    // Un dispositivo invitado solo ve los pedidos de esta venta (no deudas de otros días ni clientes).
+    if (esAyudante) return () => unsubPedidos()
     const unsubPend = onSnapshot(query(collection(db, 'pos_pedidos'), where('ministerio', '==', ministerioId), where('estado', '==', 'pendiente')),
       (s) => setPendientesMin(s.docs.map((d) => ({ id: d.id, ...d.data() }))), (e) => console.error(e))
     const unsubNombres = onSnapshot(doc(db, 'pos_clientes', ministerioId), (s) => setNombresGuardados(s.data()?.nombres || []), () => {})
-    return () => { unsubPedidos(); unsubPend(); unsubNombres() }
-  }, [id, ministerioId])
+    // Acceso por QR (solo el líder): estado del acceso y dispositivos conectados.
+    const unsubAcceso = onSnapshot(doc(db, 'pos_accesos', id), (s) => setAcceso(s.exists() ? s.data() : null), () => {})
+    const unsubDisp = onSnapshot(query(collection(db, 'pos_dispositivos'), where('ventaId', '==', id)), (s) => {
+      const lista = s.docs.map((d) => ({ id: d.id, ...d.data() }))
+      setDispositivos(lista)
+      const pendientes = new Set(lista.filter((d) => d.estado === 'pendiente').map((d) => d.id))
+      if (conocidos.current) lista.filter((d) => pendientes.has(d.id) && !conocidos.current.has(d.id)).forEach((d) => avisar(`${d.nombre} quiere conectarse a cobrar`))
+      conocidos.current = pendientes
+    }, () => {})
+    return () => { unsubPedidos(); unsubPend(); unsubNombres(); unsubAcceso(); unsubDisp() }
+  }, [id, ministerioId, esAyudante])
 
   useEffect(() => () => { clearTimeout(toastRef.current); clearTimeout(popRef.current) }, [])
 
@@ -107,23 +132,26 @@ export default function PosVenta() {
   const totalCarrito = redondear(lineas.reduce((a, l) => a + l.precio * l.cantidad, 0))
   const piezas = lineas.reduce((a, l) => a + l.cantidad, 0)
 
-  const vendedores = venta?.vendedores || []
-  const vendedorActual = vendedores.includes(vendedor) ? vendedor : vendedores[0] || userData?.nombre?.split(' ')[0] || ''
+  const vendedores = esAyudante ? [ayudante.nombre] : venta?.vendedores || []
+  const vendedorActual = esAyudante ? ayudante.nombre : vendedores.includes(vendedor) ? vendedor : vendedores[0] || userData?.nombre?.split(' ')[0] || ''
   const elegirVendedor = (v) => { setVendedor(v); try { localStorage.setItem(`pos_vendedor_${id}`, v) } catch { /* sin storage */ } }
+
+  // Un dispositivo invitado solo conoce las deudas de esta venta; el líder, las de todo el ministerio.
+  const pendientesBase = useMemo(() => (esAyudante ? pedidos.filter((p) => p.estado === 'pendiente') : pendientesMin), [esAyudante, pedidos, pendientesMin])
 
   const deudaCliente = useMemo(() => {
     const n = normalizar(cliente)
     if (!n) return null
-    const deudas = pendientesMin.filter((p) => normalizar(p.cliente) === n)
+    const deudas = pendientesBase.filter((p) => normalizar(p.cliente) === n)
     return deudas.length ? { n: deudas.length, total: redondear(deudas.reduce((a, p) => a + p.total, 0)) } : null
-  }, [cliente, pendientesMin])
+  }, [cliente, pendientesBase])
 
   const sugerencias = useMemo(() => {
     const todos = new Set(nombresGuardados)
     pedidos.forEach((p) => p.cliente && todos.add(p.cliente))
-    pendientesMin.forEach((p) => p.cliente && todos.add(p.cliente))
+    pendientesBase.forEach((p) => p.cliente && todos.add(p.cliente))
     return [...todos].sort((a, b) => a.localeCompare(b))
-  }, [nombresGuardados, pedidos, pendientesMin])
+  }, [nombresGuardados, pedidos, pendientesBase])
 
   const corte = useMemo(() => calcularCorte(pedidos), [pedidos])
   const cerrada = venta?.estado === 'cerrada'
@@ -184,8 +212,9 @@ export default function PosVenta() {
         ventaId: id, ministerio: venta.ministerio, folio: siguienteFolio, cliente: nombre, items: lineas, total: totalCarrito,
         estado: pago.estado, metodo: pago.metodo, recibido: pago.recibido, cambio: pago.cambio, verificado: pago.verificado,
         vendedor: vendedorActual, creadoPor: email, creadoEn: serverTimestamp(), pagadoEn: pago.estado === 'pagado' ? serverTimestamp() : null,
+        ...(esAyudante ? { dispositivoUid: ayudante.uid } : {}),
       })
-      setDoc(doc(db, 'pos_clientes', venta.ministerio), { nombres: arrayUnion(nombre) }, { merge: true }).catch(() => {})
+      if (!esAyudante) setDoc(doc(db, 'pos_clientes', venta.ministerio), { nombres: arrayUnion(nombre) }, { merge: true }).catch(() => {})
       const deshacer = async () => {
         try {
           await updateDoc(doc(db, 'pos_pedidos', ref.id), { estado: 'anulado', anuladoPor: email, anuladoEn: serverTimestamp() })
@@ -266,7 +295,10 @@ export default function PosVenta() {
     if (estado === 'cerrada' && corte.pendientes > 0 && !window.confirm(`Quedan ${corte.pendientes} pedido(s) sin cobrar (${dinero(corte.pendiente)}). Seguirán en “Por cobrar”. ¿Cerrar la venta?`)) return
     try {
       await updateDoc(doc(db, 'pos_ventas', id), { estado, ...(estado === 'cerrada' ? { cerradaEn: serverTimestamp() } : {}) })
-      if (estado === 'cerrada') avisar('Venta cerrada', () => cambiarEstadoVenta('abierta'))
+      if (estado === 'cerrada') {
+        if (acceso?.activo) updateDoc(doc(db, 'pos_accesos', id), { activo: false }).catch(() => {})
+        avisar('Venta cerrada', () => cambiarEstadoVenta('abierta'))
+      }
     } catch (e) { console.error(e); setError('No se pudo actualizar la venta.') }
   }
 
@@ -279,11 +311,24 @@ export default function PosVenta() {
     } catch (e) { console.error(e); setError('No se pudieron guardar los cambios.') }
   }
 
-  if (venta === undefined) return <div className="pos-page"><div className="pos-wrap"><p className="pos-muted">Cargando venta…</p></div></div>
-  if (venta === null || !puedeVerMinisterio(userData, venta.ministerio)) {
+  if (sinAcceso) {
+    return (
+      <div className="pos-page"><div className="pos-wrap" style={{ maxWidth: 520 }}>
+        <PosCabecera titulo="Acceso terminado" />
+        <div className="pos-card pos-cobro-aviso">
+          <WifiOff size={34} strokeWidth={1.6} />
+          <p>El líder apagó el acceso, venció el tiempo, cerraron la venta o se renovó el QR.</p>
+          <p className="pos-muted">Pídele al líder que te muestre un QR nuevo.</p>
+          {onReconectar && <button className="pos-btn pos-btn-primary pos-btn-lg pos-btn-block" onClick={onReconectar}>Volver a pedir acceso</button>}
+        </div>
+      </div></div>
+    )
+  }
+  if (venta === undefined || !ministeriosListos) return <div className="pos-page"><div className="pos-wrap"><p className="pos-muted">Cargando venta…</p></div></div>
+  if (venta === null || (!esAyudante && !puedeVerMinisterio(userData, venta.ministerio, ministerios))) {
     return (
       <div className="pos-page"><div className="pos-wrap">
-        <PosCabecera titulo="Venta no disponible" volverA={POS_BASE} />
+        <PosCabecera titulo="Venta no disponible" volverA={esAyudante ? undefined : POS_BASE} />
         <p className="pos-empty">Esta venta no existe o no tienes acceso.</p>
       </div></div>
     )
@@ -296,7 +341,8 @@ export default function PosVenta() {
     .filter((p) => !busqueda || normalizar(p.cliente).includes(normalizar(busqueda)))
     .sort((a, b) => (b.folio || 0) - (a.folio || 0))
 
-  const tabs = [['vender', 'Vender', null], ['pedidos', 'Pedidos', corte.pendientes || null], ['corte', 'Corte', null]]
+  const tabs = [['vender', 'Vender', null], ['pedidos', 'Pedidos', corte.pendientes || null], ...(esAyudante ? [] : [['corte', 'Corte', null]])]
+  const pendientesDisp = dispositivos.filter((d) => d.estado === 'pendiente').length
   const maxProd = Math.max(1, ...corte.porProducto.map(([, v]) => v.cantidad))
   const maxVend = Math.max(1, ...corte.porVendedor.map(([, v]) => v.vendido))
   const efectivoCaja = corte.efectivo + (venta.fondoInicial || 0)
@@ -304,11 +350,20 @@ export default function PosVenta() {
   return (
     <div className="pos-page" data-vender={tab === 'vender'} style={{ '--pos-accent': accent }}>
       <div className="pos-wrap">
-        <PosCabecera titulo={venta.nombre} ministerioId={venta.ministerio} ministerioNombre={ministerios[venta.ministerio]?.nombre} sub={`${fechaLegible(venta.fecha)}${venta.meta ? ` · ${venta.meta}` : ''}`} volverA={POS_BASE}>
+        <PosCabecera titulo={venta.nombre} ministerioId={venta.ministerio} ministerioNombre={ministerios[venta.ministerio]?.nombre} sub={`${fechaLegible(venta.fecha)}${venta.meta ? ` · ${venta.meta}` : ''}`} volverA={esAyudante ? undefined : POS_BASE}>
           {cerrada ? <span className="pos-badge"><Lock size={12} /> Cerrada</span> : <span className="pos-badge pos-badge-ok"><span className="pos-vivo" /> Abierta</span>}
-          <button className="pos-btn" onClick={() => setConfigDraft({ nombre: venta.nombre, fecha: venta.fecha, meta: venta.meta, fondoInicial: venta.fondoInicial || '', vendedores: venta.vendedores || [], productos: venta.productos || [] })}>
-            <Settings size={16} /> Editar
-          </button>
+          {esAyudante && <span className="pos-badge pos-badge-info"><User size={12} /> {ayudante.nombre}</span>}
+          {!esAyudante && (
+            <>
+              <button className="pos-btn" onClick={() => setAccesoAbierto(true)} aria-label="Invitar a cobrar con un código QR" style={{ position: 'relative' }}>
+                <QrCode size={16} /> Invitar a cobrar
+                {pendientesDisp > 0 && <span className="pos-tab-n" style={{ position: 'absolute', top: -7, right: -4 }}>{pendientesDisp}</span>}
+              </button>
+              <button className="pos-btn" onClick={() => setConfigDraft({ nombre: venta.nombre, fecha: venta.fecha, meta: venta.meta, fondoInicial: venta.fondoInicial || '', vendedores: venta.vendedores || [], productos: venta.productos || [] })}>
+                <Settings size={16} /> Editar
+              </button>
+            </>
+          )}
         </PosCabecera>
 
         {error && <div className="pos-error" role="alert">{error}</div>}
@@ -326,7 +381,7 @@ export default function PosVenta() {
           </div>
         </section>
 
-        <div className="pos-tabs pos-in" style={{ '--i': 3, '--n': 3, '--idx': tabs.findIndex(([k]) => k === tab) }} role="tablist">
+        <div className="pos-tabs pos-in" style={{ '--i': 3, '--n': tabs.length, '--idx': tabs.findIndex(([k]) => k === tab) }} role="tablist">
           <span className="pos-tabs-ind" />
           {tabs.map(([k, label, n]) => (
             <button key={k} role="tab" className="pos-tab" aria-selected={tab === k} onClick={() => setTab(k)}>
@@ -466,15 +521,15 @@ export default function PosVenta() {
                       {p.editadoEn && p.estado !== 'anulado' && <span className="pos-badge">Editado</span>}
                       <span>{p.vendedor}{p.vendedor && horaDe(p.creadoEn) ? ' · ' : ''}{horaDe(p.creadoEn)}</span>
                     </div>
-                    {p.estado === 'anulado' && (
+                    {p.estado === 'anulado' && puedeEditarPedidos && (
                       <div className="pos-pedido-acciones"><button className="pos-btn pos-btn-sm" onClick={() => restaurar(p)}><RotateCcw size={14} /> Restaurar pedido</button></div>
                     )}
                     {p.estado !== 'anulado' && (
                       <div className="pos-pedido-acciones">
-                        <button className="pos-btn pos-btn-sm" onClick={() => setEditando(p)}><Pencil size={14} /> Editar</button>
+                        {puedeEditarPedidos && <button className="pos-btn pos-btn-sm" onClick={() => setEditando(p)}><Pencil size={14} /> Editar</button>}
                         {p.estado === 'pendiente' && <button className="pos-btn pos-btn-primary pos-btn-sm" onClick={() => setCobrando({ tipo: 'pedido', pedido: p })}>Cobrar</button>}
-                        {p.estado === 'pagado' && p.metodo === 'transferencia' && <button className="pos-btn pos-btn-sm" onClick={() => alternarVerificado(p)}><Check size={14} /> {p.verificado ? 'Quitar verificado' : 'Marcar verificado'}</button>}
-                        <button className="pos-btn pos-btn-danger pos-btn-sm" onClick={() => anular(p)}>Anular</button>
+                        {puedeEditarPedidos && p.estado === 'pagado' && p.metodo === 'transferencia' && <button className="pos-btn pos-btn-sm" onClick={() => alternarVerificado(p)}><Check size={14} /> {p.verificado ? 'Quitar verificado' : 'Marcar verificado'}</button>}
+                        {puedeEditarPedidos && <button className="pos-btn pos-btn-danger pos-btn-sm" onClick={() => anular(p)}>Anular</button>}
                       </div>
                     )}
                   </div>
@@ -485,7 +540,7 @@ export default function PosVenta() {
         )}
 
         {/* ---------------- CORTE ---------------- */}
-        {tab === 'corte' && (
+        {tab === 'corte' && !esAyudante && (
           <div className="pos-pila">
             <section className="pos-caja pos-in">
               <div className="pos-cifra-label">Efectivo que debe haber en caja</div>
@@ -565,6 +620,10 @@ export default function PosVenta() {
           onCerrar={() => setCobrando(null)}
           onConfirmar={(pago) => (cobrando.tipo === 'nuevo' ? guardarPedido(pago) : cobrarPendiente(cobrando.pedido, pago))}
         />
+      )}
+
+      {accesoAbierto && !esAyudante && (
+        <ModalAccesoCobro venta={venta} ventaId={id} acceso={acceso} dispositivos={dispositivos} email={email} onCerrar={() => setAccesoAbierto(false)} avisar={avisar} />
       )}
 
       {editando && (

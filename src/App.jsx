@@ -27,6 +27,7 @@ const PortalAdmin = lazy(() => import('./portal/PortalAdmin'))
 const PosInicio = lazy(() => import('./portal/pos/PosInicio'))
 const PosNuevaVenta = lazy(() => import('./portal/pos/PosNuevaVenta'))
 const PosVenta = lazy(() => import('./portal/pos/PosVenta'))
+const PosCobro = lazy(() => import('./portal/pos/PosCobro'))
 
 function PortalLayout() {
   return (
@@ -47,6 +48,9 @@ function App() {
         <Route path="/terminos" element={<TerminosRadgen />} />
         <Route path="/autorizacion/formato" element={<FormatoAutorizacion />} />
         <Route path="/autorizacion/:token" element={<AutorizacionTutor />} />
+
+        {/* Dispositivo de cobro invitado por QR: entra sin cuenta, fuera del login del portal */}
+        <Route path="/cobrar/:ventaId/:token" element={<PosCobro />} />
 
         <Route path="/lideres" element={<PortalLayout />}>
           <Route index element={<PortalLogin />} />
