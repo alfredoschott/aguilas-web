@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { collection, query, orderBy, getDocs } from 'firebase/firestore'
-import { CalendarX2, Menu as MenuIcon, Package, CalendarClock, UserPlus, ShieldCheck, LogOut, GraduationCap } from 'lucide-react'
+import { CalendarX2, Menu as MenuIcon, Package, CalendarClock, UserPlus, ShieldCheck, LogOut, GraduationCap, Receipt } from 'lucide-react'
 import { db } from '../firebase'
 import { usePortalAuth } from './PortalAuthContext'
 import PortalCalendario from './PortalCalendario'
@@ -9,6 +9,7 @@ import AvisosBanner from './AvisosBanner'
 import ActividadReciente from './ActividadReciente'
 import NotificacionesBell from './NotificacionesBell'
 import { IconoMinisterio } from './ministeriosConfig'
+import { accesoPos } from './pos/posUtils'
 import './portal.css'
 import { urlEducation } from '../dominios'
 
@@ -251,6 +252,11 @@ export default function PortalDashboard() {
                 <Link to="/lideres/inventario" style={styles.menuItem} onClick={() => setMenuAbierto(false)}>
                   <Package size={16} strokeWidth={2} /> Inventario
                 </Link>
+                {accesoPos(userData).permitido && (
+                  <Link to="/lideres/pos" style={styles.menuItem} onClick={() => setMenuAbierto(false)}>
+                    <Receipt size={16} strokeWidth={2} /> Ventas (POS)
+                  </Link>
+                )}
                 {puedeVerAgendaPastoral && (
                   <Link to="/lideres/agenda-pastoral" style={styles.menuItem} onClick={() => setMenuAbierto(false)}>
                     <CalendarClock size={16} strokeWidth={2} /> Agenda Pastoral

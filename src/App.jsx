@@ -24,6 +24,9 @@ const EditarItemInventario = lazy(() => import('./portal/EditarItemInventario'))
 const PrestamosInventario = lazy(() => import('./portal/PrestamosInventario'))
 const VisitasNuevas = lazy(() => import('./portal/VisitasNuevas'))
 const PortalAdmin = lazy(() => import('./portal/PortalAdmin'))
+const PosInicio = lazy(() => import('./portal/pos/PosInicio'))
+const PosNuevaVenta = lazy(() => import('./portal/pos/PosNuevaVenta'))
+const PosVenta = lazy(() => import('./portal/pos/PosVenta'))
 
 function PortalLayout() {
   return (
@@ -124,6 +127,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <VisitasNuevas />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="pos"
+            element={
+              <ProtectedRoute>
+                <PosInicio />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="pos/nueva"
+            element={
+              <ProtectedRoute>
+                <PosNuevaVenta />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="pos/:id"
+            element={
+              <ProtectedRoute>
+                <PosVenta />
               </ProtectedRoute>
             }
           />
