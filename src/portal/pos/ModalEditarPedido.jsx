@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { X, Plus, Minus, Trash2, Banknote, Landmark, Clock, User } from 'lucide-react'
+import { X, Plus, Minus, Trash2, Banknote, Landmark, Clock, User, Pencil } from 'lucide-react'
 import { Avatar } from './posUi'
-import { dinero, esCombo, redondear, textoCombo } from './posUtils'
+import ModalElegirCombo from './ModalElegirCombo'
+import { claveItem, dinero, elegidoDe, esCombo, precioConElecciones, redondear, textoCombo, tieneElecciones } from './posUtils'
 
 // Corrige un pedido ya registrado: cliente, productos, cantidades, precios,
 // vendedor y forma de pago. onGuardar recibe los campos ya calculados.
@@ -13,6 +14,7 @@ export default function ModalEditarPedido({ pedido, venta, sugerencias = [], onG
   const [recibido, setRecibido] = useState(pedido.estado === 'pagado' && pedido.metodo === 'efectivo' && pedido.recibido > pedido.total ? String(pedido.recibido) : '')
   const [verificado, setVerificado] = useState(!!pedido.verificado)
   const [error, setError] = useState('')
+  const [eligiendo, setEligiendo] = useState(null) // { producto, indice? (si se cambia una línea), inicial? }
 
   const total = useMemo(() => redondear(items.reduce((a, i) => a + (Number(i.precio) || 0) * i.cantidad, 0)), [items])
   const recibidoNum = recibido === '' ? total : redondear(recibido)
@@ -23,12 +25,40 @@ export default function ModalEditarPedido({ pedido, venta, sugerencias = [], onG
   const cambiarCantidad = (idx, d) => setItems((l) => l.map((it, i) => (i === idx ? { ...it, cantidad: Math.max(0, it.cantidad + d) } : it)).filter((it) => it.cantidad > 0))
   const cambiarPrecio = (idx, v) => setItems((l) => l.map((it, i) => (i === idx ? { ...it, precio: v } : it)))
   const quitar = (idx) => setItems((l) => l.filter((_, i) => i !== idx))
-  function agregar(p) {
+  // Agrega una pieza; las mismas elecciones de un combo se suman en la misma línea.
+  function agregarItem(nuevo) {
     setItems((l) => {
-      const i = l.findIndex((it) => it.productoId === p.id)
+      const i = l.findIndex((it) => claveItem(it) === claveItem(nuevo))
       if (i >= 0) return l.map((it, k) => (k === i ? { ...it, cantidad: it.cantidad + 1 } : it))
-      return [...l, { productoId: p.id, nombre: p.nombre, precio: p.precio, cantidad: 1, ...(esCombo(p) ? { combo: p.combo.map((c) => ({ nombre: c.nombre, cantidad: c.cantidad })) } : {}) }]
+      return [...l, nuevo]
     })
+  }
+  const itemDe = (p, elegido) => ({
+    productoId: p.id, nombre: p.nombre, precio: precioConElecciones(p, elegido), cantidad: 1,
+    ...(esCombo(p) ? { combo: p.combo.map((c) => ({ nombre: c.nombre, cantidad: c.cantidad })) } : {}),
+    ...(elegido?.length ? { elegido } : {}),
+  })
+  function agregar(p) {
+    if (tieneElecciones(p)) setEligiendo({ producto: p })
+    else agregarItem(itemDe(p, []))
+  }
+  // Para volver a abrir el selector con lo que ya estaba elegido en una línea.
+  function cambiarEleccion(idx) {
+    const it = items[idx]
+    const producto = productos.find((x) => x.id === it.productoId)
+    if (!producto) return
+    const inicial = {}
+    ;(producto.grupos || []).forEach((g) => {
+      inicial[g.id] = (it.elegido || []).filter((e) => e.grupo === g.nombre).map((e) => (g.opciones || []).find((o) => o.nombre === e.nombre)?.productoId).filter(Boolean)
+    })
+    setEligiendo({ producto, indice: idx, inicial })
+  }
+  function confirmarEleccion(elec) {
+    const { producto, indice } = eligiendo
+    const elegido = elegidoDe(producto, elec)
+    if (indice === undefined) agregarItem(itemDe(producto, elegido))
+    else setItems((l) => l.map((it, i) => (i === indice ? { ...it, elegido, precio: precioConElecciones(producto, elegido) } : it)))
+    setEligiendo(null)
   }
 
   function guardar() {
@@ -36,7 +66,7 @@ export default function ModalEditarPedido({ pedido, venta, sugerencias = [], onG
     if (items.length === 0) { setError('El pedido debe tener al menos un producto.'); return }
     if (items.some((i) => Number.isNaN(Number(i.precio)) || Number(i.precio) < 0)) { setError('Hay un precio inválido.'); return }
     if (pago === 'efectivo' && recibidoNum < total) { setError('Lo recibido es menor al total.'); return }
-    const limpios = items.map((i) => ({ productoId: i.productoId, nombre: i.nombre, precio: Number(i.precio), cantidad: i.cantidad, ...(i.combo ? { combo: i.combo } : {}) }))
+    const limpios = items.map((i) => ({ productoId: i.productoId, nombre: i.nombre, precio: Number(i.precio), cantidad: i.cantidad, ...(i.combo ? { combo: i.combo } : {}), ...(i.elegido?.length ? { elegido: i.elegido } : {}) }))
     const base = { cliente: cliente.trim(), vendedor, items: limpios, total }
     if (pago === 'pendiente') onGuardar({ ...base, estado: 'pendiente', metodo: null, recibido: 0, cambio: 0, verificado: false })
     else if (pago === 'transferencia') onGuardar({ ...base, estado: 'pagado', metodo: 'transferencia', recibido: total, cambio: 0, verificado })
@@ -50,6 +80,7 @@ export default function ModalEditarPedido({ pedido, venta, sugerencias = [], onG
   ]
 
   return (
+    <>
     <div className="pos-modal-fondo" onClick={onCerrar}>
       <div className="pos-modal pos-modal-ancho" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={`Editar pedido ${pedido.folio}`}>
         <div className="pos-modal-cab">
@@ -86,7 +117,10 @@ export default function ModalEditarPedido({ pedido, venta, sugerencias = [], onG
           {items.length === 0 && <p className="pos-muted" style={{ margin: '0 0 10px' }}>Sin productos. Agrega al menos uno.</p>}
           {items.map((it, idx) => (
             <div key={`${it.productoId}-${idx}`} className="pos-edit-linea">
-              <div className="pos-linea-nombre">{it.nombre}{it.combo && <small>Incluye {textoCombo(it.combo)}</small>}</div>
+              <div className="pos-linea-nombre">{it.nombre}
+                {it.elegido?.length > 0 && <span className="pos-linea-elegido">{it.elegido.map((e) => e.nombre).join(', ')}</span>}
+                {it.combo?.length > 0 && <small>Incluye {textoCombo(it.combo)}</small>}
+                {it.elegido?.length > 0 && <button type="button" className="pos-link-btn" onClick={() => cambiarEleccion(idx)}><Pencil size={12} /> Cambiar elección</button>}</div>
               <label className="pos-edit-precio">
                 <span aria-hidden="true">$</span>
                 <input className="pos-input" type="number" inputMode="decimal" min="0" value={it.precio} onChange={(e) => cambiarPrecio(idx, e.target.value)} aria-label={`Precio de ${it.nombre}`} />
@@ -136,5 +170,10 @@ export default function ModalEditarPedido({ pedido, venta, sugerencias = [], onG
         </div>
       </div>
     </div>
+    {eligiendo && (
+      <ModalElegirCombo producto={eligiendo.producto} productos={productos} inicial={eligiendo.inicial}
+        textoBoton={eligiendo.indice === undefined ? 'Agregar al pedido' : 'Guardar elección'} onCerrar={() => setEligiendo(null)} onConfirmar={confirmarEleccion} />
+    )}
+    </>
   )
 }

@@ -8,13 +8,14 @@ import { usePortalAuth } from '../PortalAuthContext'
 import ModalCobro from './ModalCobro'
 import ModalEditarPedido from './ModalEditarPedido'
 import ModalAccesoCobro from './ModalAccesoCobro'
+import ModalElegirCombo from './ModalElegirCombo'
 import FormConfigPos from './FormConfigPos'
 import PosCabecera from './PosCabecera'
 import { Avatar, BarraEstado, CheckAnimado, Dinero, Dona } from './posUi'
 import { categoriaInfo } from './posUiHelpers'
 import { exportarVentaExcel, exportarVentaPDF } from './exportarVenta'
 import {
-  POS_BASE, calcularCorte, comboDisponible, dinero, esCombo, fechaLegible, textoCombo, horaDe, normalizar, prepararConfig, puedeVerMinisterio, redondear, useMinisterios,
+  POS_BASE, calcularCorte, claveLinea, comboDisponible, dinero, elegidoDe, esCombo, fechaLegible, idProductoDeClave, incluyeCombo, leerClave, nombreItem, precioConElecciones, tieneElecciones, textoCombo, horaDe, normalizar, prepararConfig, puedeVerMinisterio, redondear, useMinisterios,
 } from './posUtils'
 import '../portal.css'
 import './pos.css'
@@ -53,6 +54,7 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
   const [toast, setToast] = useState(null) // { m, fn }
   const [configDraft, setConfigDraft] = useState(null)
   const [sinAcceso, setSinAcceso] = useState(false)
+  const [eligiendo, setEligiendo] = useState(null) // combo a elegir que se está agregando
   const [acceso, setAcceso] = useState(null)
   const [dispositivos, setDispositivos] = useState([])
   const [accesoAbierto, setAccesoAbierto] = useState(false)
@@ -121,6 +123,8 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
   const productos = useMemo(() => (todosProductos || []).filter((p) => p.activo !== false), [todosProductos])
   // Un combo está agotado si falta alguno de los productos que lo forman.
   const agotado = (p) => esCombo(p) && !comboDisponible(p, todosProductos || [])
+  // Cuántas piezas de un producto hay en el carrito (sumando las distintas elecciones de un combo).
+  const enCarrito = (p) => Object.entries(carrito).reduce((a, [k, n]) => (idProductoDeClave(k) === p.id ? a + n : a), 0)
   const categorias = useMemo(() => [...new Set(productos.map((p) => p.categoria || 'Otros'))], [productos])
   const porCategoria = useMemo(() => {
     const g = {}
@@ -129,9 +133,21 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
   }, [productos, categoria])
 
   const lineas = useMemo(
-    () => productos.filter((p) => carrito[p.id] > 0).map((p) => ({ productoId: p.id, nombre: p.nombre, precio: p.precio, cantidad: carrito[p.id], ...(esCombo(p) ? { combo: p.combo.map((c) => ({ nombre: c.nombre, cantidad: c.cantidad })) } : {}) })),
+    () => Object.entries(carrito).map(([clave, cantidad]) => {
+      const { productoId, elec } = leerClave(clave)
+      const p = productos.find((x) => x.id === productoId)
+      if (!p) return null
+      const elegido = tieneElecciones(p) ? elegidoDe(p, elec) : []
+      return {
+        clave, productoId: p.id, nombre: p.nombre, precio: precioConElecciones(p, elegido), cantidad,
+        ...(esCombo(p) ? { combo: p.combo.map((c) => ({ nombre: c.nombre, cantidad: c.cantidad })) } : {}),
+        ...(elegido.length ? { elegido } : {}),
+      }
+    }).filter(Boolean),
     [productos, carrito],
   )
+  // Lo que se guarda en el pedido (sin la clave interna del carrito).
+  const itemsPedido = () => lineas.map((l) => { const item = { ...l }; delete item.clave; return item })
   const totalCarrito = redondear(lineas.reduce((a, l) => a + l.precio * l.cantidad, 0))
   const piezas = lineas.reduce((a, l) => a + l.cantidad, 0)
 
@@ -173,7 +189,7 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
     if (n === 0) delete siguiente[pid]
     fijarCarrito(siguiente)
     if (delta > 0) {
-      setPop(pid)
+      setPop(idProductoDeClave(pid))
       clearTimeout(popRef.current)
       popRef.current = setTimeout(() => setPop(null), 300)
       try { navigator.vibrate?.(8) } catch { /* sin vibración */ }
@@ -212,7 +228,7 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
     try {
       const carritoPrevio = carritoRef.current
       const ref = await addDoc(collection(db, 'pos_pedidos'), {
-        ventaId: id, ministerio: venta.ministerio, folio: siguienteFolio, cliente: nombre, items: lineas, total: totalCarrito,
+        ventaId: id, ministerio: venta.ministerio, folio: siguienteFolio, cliente: nombre, items: itemsPedido(), total: totalCarrito,
         estado: pago.estado, metodo: pago.metodo, recibido: pago.recibido, cambio: pago.cambio, verificado: pago.verificado,
         vendedor: vendedorActual, creadoPor: email, creadoEn: serverTimestamp(), pagadoEn: pago.estado === 'pagado' ? serverTimestamp() : null,
         ...(esAyudante ? { dispositivoUid: ayudante.uid } : {}),
@@ -414,11 +430,11 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
                     {categoria === 'todas' && categorias.length > 1 && <div className="pos-cat-titulo"><Icono size={15} color={color} /> {cat}</div>}
                     <div className="pos-productos">
                       {lista.map((p) => (
-                        <button key={p.id} className="pos-prod" style={{ '--cat': color }} data-en-carrito={carrito[p.id] > 0} data-pop={pop === p.id} data-combo={esCombo(p)} disabled={cerrada || agotado(p)} onClick={() => agregar(p.id, 1)}>
-                          {carrito[p.id] > 0 && <span className="pos-prod-qty" key={carrito[p.id]}>{carrito[p.id]}</span>}
+                        <button key={p.id} className="pos-prod" style={{ '--cat': color }} data-en-carrito={enCarrito(p) > 0} data-pop={pop === p.id} data-combo={esCombo(p)} disabled={cerrada || agotado(p)} onClick={() => (tieneElecciones(p) ? setEligiendo(p) : agregar(p.id, 1))}>
+                          {enCarrito(p) > 0 && <span className="pos-prod-qty" key={enCarrito(p)}>{enCarrito(p)}</span>}
                           <span className="pos-prod-icono"><Icono size={17} /></span>
                           <span className="pos-prod-nombre">{p.nombre}
-                            {esCombo(p) && <small className="pos-prod-incluye">{textoCombo(p.combo)}</small>}
+                            {esCombo(p) && <small className="pos-prod-incluye">{incluyeCombo(p)}</small>}
                           </span>
                           <span className="pos-prod-precio pos-num">{agotado(p) ? <span className="pos-badge pos-badge-off">Agotado</span> : dinero(p.precio)}</span>
                         </button>
@@ -445,12 +461,14 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
                 ) : (
                   <div className="pos-carrito-lista">
                     {lineas.map((l) => (
-                      <div key={l.productoId} className="pos-linea">
-                        <div className="pos-linea-nombre">{l.nombre}<small>{l.combo ? `Incluye ${textoCombo(l.combo)}` : `${dinero(l.precio)} c/u`}</small></div>
+                      <div key={l.clave} className="pos-linea">
+                        <div className="pos-linea-nombre">{l.nombre}
+                          {l.elegido && <span className="pos-linea-elegido">{l.elegido.map((e) => e.nombre).join(', ')}</span>}
+                          <small>{l.combo?.length ? `Incluye ${textoCombo(l.combo)} · ` : ''}{dinero(l.precio)} c/u</small></div>
                         <div className="pos-qty">
-                          <button onClick={() => agregar(l.productoId, -1)} aria-label={`Quitar un ${l.nombre}`}><Minus size={15} /></button>
+                          <button onClick={() => agregar(l.clave, -1)} aria-label={`Quitar un ${l.nombre}`}><Minus size={15} /></button>
                           <span>{l.cantidad}</span>
-                          <button onClick={() => agregar(l.productoId, 1)} aria-label={`Agregar un ${l.nombre}`}><Plus size={15} /></button>
+                          <button onClick={() => agregar(l.clave, 1)} aria-label={`Agregar un ${l.nombre}`}><Plus size={15} /></button>
                         </div>
                         <strong className="pos-linea-monto pos-num">{dinero(l.precio * l.cantidad)}</strong>
                       </div>
@@ -517,7 +535,7 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
                       <span className="pos-pedido-cliente">{p.cliente}<span className="pos-pedido-folio">#{p.folio}</span></span>
                       <strong className="pos-num">{dinero(p.total)}</strong>
                     </div>
-                    <div className="pos-pedido-items">{(p.items || []).map((it) => <span key={it.productoId} className="pos-item-chip" title={it.combo ? `Incluye ${textoCombo(it.combo)}` : undefined}>{it.cantidad}× {it.nombre}{it.combo ? ' ★' : ''}</span>)}</div>
+                    <div className="pos-pedido-items">{(p.items || []).map((it, i) => <span key={`${it.productoId}-${i}`} className="pos-item-chip" title={it.combo?.length ? `Incluye ${textoCombo(it.combo)}` : undefined}>{it.cantidad}× {nombreItem(it)}{it.combo ? ' ★' : ''}</span>)}</div>
                     <div className="pos-pedido-meta">
                       {p.estado === 'pendiente' && <span className="pos-badge pos-badge-warn">Por cobrar</span>}
                       {p.estado === 'pagado' && p.metodo === 'efectivo' && <span className="pos-badge pos-badge-ok"><Banknote size={12} /> Efectivo{p.cambio > 0 ? ` · cambio ${dinero(p.cambio)}` : ''}</span>}
@@ -603,6 +621,29 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
               </section>
             </div>
 
+            {corte.porOpcion.length > 0 && (
+              <section className="pos-card pos-in" style={{ '--i': 4 }}>
+                <h2 className="pos-card-titulo">Opciones elegidas en los combos</h2>
+                <div className="pos-dos-col">
+                  {corte.porOpcion.map(([grupo, opciones]) => (
+                    <div key={grupo}>
+                      <div className="pos-cifra-label" style={{ marginBottom: 8 }}>{grupo}</div>
+                      <div className="pos-ranking">
+                        {opciones.map(([nombre, n]) => (
+                          <div key={nombre} className="pos-rank-fila">
+                            <span className="pos-rank-pos">{n}</span>
+                            <span className="pos-rank-nombre">{nombre}</span>
+                            <strong className="pos-rank-monto pos-num">{n} pza{n > 1 ? 's' : ''}</strong>
+                            <div className="pos-rank-barra"><span style={{ width: `${(n / opciones[0][1]) * 100}%` }} /></div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
               <button className="pos-btn" onClick={() => exportarVentaExcel(venta, pedidos, corte, ministerios[venta.ministerio]?.nombre)}><FileSpreadsheet size={16} /> Excel</button>
               <button className="pos-btn" onClick={() => exportarVentaPDF(venta, pedidos, corte, ministerios[venta.ministerio]?.nombre, ministerios[venta.ministerio]?.color)}><FileText size={16} /> PDF</button>
@@ -625,6 +666,11 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
           onCerrar={() => setCobrando(null)}
           onConfirmar={(pago) => (cobrando.tipo === 'nuevo' ? guardarPedido(pago) : cobrarPendiente(cobrando.pedido, pago))}
         />
+      )}
+
+      {eligiendo && (
+        <ModalElegirCombo producto={eligiendo} productos={todosProductos || []} onCerrar={() => setEligiendo(null)}
+          onConfirmar={(elec) => { agregar(claveLinea(eligiendo.id, elec), 1); setEligiendo(null) }} />
       )}
 
       {accesoAbierto && !esAyudante && (

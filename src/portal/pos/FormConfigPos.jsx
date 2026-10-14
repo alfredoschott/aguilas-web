@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, Minus, Trash2, Eye, EyeOff, X, ClipboardList, Users, ShoppingBag, PackagePlus } from 'lucide-react'
-import { CATEGORIAS_SUGERIDAS, dinero, esCombo, nuevoId, sumaComboSeparado } from './posUtils'
+import { CATEGORIAS_SUGERIDAS, dinero, esCombo, nuevoId, rangoOpcionesSeparado, sumaComboSeparado } from './posUtils'
 import { Avatar } from './posUi'
 import { categoriaInfo } from './posUiHelpers'
 
@@ -16,13 +16,21 @@ export default function FormConfigPos({ valor, onChange, mostrarFecha = false, e
 
   const cambiarProducto = (id, campo, v) => set('productos', productos.map((p) => (p.id === id ? { ...p, [campo]: v } : p)))
   // Al quitar un producto también sale de los combos que lo usaban.
-  const quitarProducto = (id) => set('productos', productos.filter((p) => p.id !== id).map((p) => (esCombo(p) ? { ...p, combo: p.combo.filter((c) => c.productoId !== id) } : p)))
+  const quitarProducto = (id) => set('productos', productos.filter((p) => p.id !== id).map((p) => (esCombo(p)
+    ? { ...p, combo: p.combo.filter((c) => c.productoId !== id), ...(p.grupos ? { grupos: p.grupos.map((g) => ({ ...g, opciones: g.opciones.filter((o) => o.productoId !== id) })) } : {}) }
+    : p)))
   const alternarCombo = (p) => onChange({ ...valor, productos: productos.map((x) => {
     if (x.id !== p.id) return x
-    if (esCombo(x)) { const resto = { ...x }; delete resto.combo; return resto }
+    if (esCombo(x)) { const resto = { ...x }; delete resto.combo; delete resto.grupos; return resto }
     return { ...x, combo: [], categoria: !x.categoria || x.categoria === 'Comida' ? 'Combos' : x.categoria }
   }) })
   const cantidadEnCombo = (p, id) => p.combo.find((c) => c.productoId === id)?.cantidad || 0
+  const grupoNuevo = (p) => cambiarProducto(p.id, 'grupos', [...(p.grupos || []), { id: nuevoId(), nombre: '', cantidad: 1, opciones: [] }])
+  const cambiarGrupo = (p, gid, campo, v) => cambiarProducto(p.id, 'grupos', (p.grupos || []).map((g) => (g.id === gid ? { ...g, [campo]: v } : g)))
+  const quitarGrupo = (p, gid) => cambiarProducto(p.id, 'grupos', (p.grupos || []).filter((g) => g.id !== gid))
+  const opcionDe = (g, id) => g.opciones.find((o) => o.productoId === id)
+  const alternarOpcion = (p, g, x) => cambiarGrupo(p, g.id, 'opciones', opcionDe(g, x.id) ? g.opciones.filter((o) => o.productoId !== x.id) : [...g.opciones, { productoId: x.id, nombre: x.nombre, extra: 0 }])
+  const extraOpcion = (p, g, id, v) => cambiarGrupo(p, g.id, 'opciones', g.opciones.map((o) => (o.productoId === id ? { ...o, extra: v } : o)))
   const ponerEnCombo = (p, id, delta) => {
     const nueva = Math.max(0, cantidadEnCombo(p, id) + delta)
     const resto = p.combo.filter((c) => c.productoId !== id)
@@ -91,7 +99,9 @@ export default function FormConfigPos({ valor, onChange, mostrarFecha = false, e
           const { Icono, color } = categoriaInfo(p.categoria)
           const combo = esCombo(p)
           const sueltos = productos.filter((x) => !esCombo(x) && x.id !== p.id && x.nombre)
-          const suma = combo ? sumaComboSeparado(p, productos) : 0
+          const [opMin, opMax] = combo ? rangoOpcionesSeparado(p, productos) : [0, 0]
+          const sepMin = combo ? sumaComboSeparado(p, productos) + opMin : 0
+          const sepMax = combo ? sumaComboSeparado(p, productos) + opMax : 0
           const precio = Number(p.precio) || 0
           return (
             <div key={p.id} className="pos-prod-bloque" data-combo={combo}>
@@ -112,7 +122,7 @@ export default function FormConfigPos({ valor, onChange, mostrarFecha = false, e
               </div>
               {combo && (
                 <div className="pos-combo-editor">
-                  <div className="pos-label" style={{ marginBottom: 8 }}>¿Qué incluye este combo?</div>
+                  <div className="pos-label" style={{ marginBottom: 8 }}>¿Qué incluye siempre?</div>
                   {sueltos.length === 0 ? <p className="pos-muted" style={{ margin: 0, fontSize: '.85rem' }}>Primero agrega los productos sueltos (con nombre) y luego elige cuáles forman el combo.</p> : (
                     <div className="pos-combo-lista">
                       {sueltos.map((x) => {
@@ -130,11 +140,35 @@ export default function FormConfigPos({ valor, onChange, mostrarFecha = false, e
                       })}
                     </div>
                   )}
-                  {suma > 0 && (
+                  <div className="pos-label" style={{ margin: '14px 0 8px' }}>Lo que el cliente elige <span className="pos-muted">(opcional)</span></div>
+                  {(p.grupos || []).map((g) => (
+                    <div key={g.id} className="pos-grupo-editor">
+                      <div className="pos-grupo-cab">
+                        <input className="pos-input" value={g.nombre} onChange={(e) => cambiarGrupo(p, g.id, 'nombre', e.target.value)} placeholder="¿Qué se elige? Ej. Bebida" aria-label="Nombre de lo que se elige" />
+                        <label className="pos-grupo-cant">Elige <input className="pos-input" type="number" min="1" max="5" value={g.cantidad} onChange={(e) => cambiarGrupo(p, g.id, 'cantidad', e.target.value)} aria-label="Cuántas opciones se eligen" /></label>
+                        <button className="pos-icon-btn" onClick={() => quitarGrupo(p, g.id)} aria-label="Quitar esta elección"><Trash2 size={16} /></button>
+                      </div>
+                      {sueltos.length === 0 ? <p className="pos-muted" style={{ margin: 0, fontSize: '.85rem' }}>Agrega productos sueltos para usarlos como opciones.</p> : (
+                        <div className="pos-combo-lista">
+                          {sueltos.map((x) => {
+                            const o = opcionDe(g, x.id)
+                            return (
+                              <div key={x.id} className="pos-opcion-fila" data-en={!!o}>
+                                <label><input type="checkbox" checked={!!o} onChange={() => alternarOpcion(p, g, x)} /> <span className="pos-combo-nombre">{x.nombre} <small>{dinero(x.precio)}</small></span></label>
+                                {o && <label className="pos-opcion-extra">+$<input className="pos-input" type="number" inputMode="decimal" min="0" value={o.extra || ''} placeholder="extra" onChange={(e) => extraOpcion(p, g, x.id, e.target.value)} aria-label={`Costo extra de ${x.nombre}`} /></label>}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <button className="pos-btn pos-btn-sm" style={{ marginTop: 10 }} onClick={() => grupoNuevo(p)}><Plus size={14} /> Agregar algo a elegir</button>
+                  {sepMin > 0 && (
                     <div className="pos-combo-resumen">
-                      <span>Por separado <b>{dinero(suma)}</b></span>
+                      <span>Por separado <b>{sepMin === sepMax ? dinero(sepMin) : `${dinero(sepMin)} – ${dinero(sepMax)}`}</b></span>
                       <span>Precio del combo <b>{dinero(precio)}</b></span>
-                      <span data-ahorro={suma - precio >= 0}>{suma - precio >= 0 ? <>El cliente ahorra <b>{dinero(suma - precio)}</b></> : <>Cuesta <b>{dinero(precio - suma)}</b> más que por separado</>}</span>
+                      <span data-ahorro={sepMin - precio >= 0}>{sepMin - precio >= 0 ? <>El cliente ahorra {sepMin !== sepMax && 'desde '}<b>{dinero(sepMin - precio)}</b></> : <>Cuesta <b>{dinero(precio - sepMin)}</b> más que por separado</>}</span>
                     </div>
                   )}
                 </div>

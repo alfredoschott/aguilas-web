@@ -90,6 +90,7 @@ export function calcularCorte(pedidos) {
 
   const porVendedor = {}
   const porProducto = {}
+  const porOpcion = {}
   vivos.forEach((p) => {
     const v = p.vendedor || 'Sin vendedor'
     porVendedor[v] ||= { pedidos: 0, vendido: 0, cobrado: 0 }
@@ -101,6 +102,10 @@ export function calcularCorte(pedidos) {
       porProducto[k] ||= { cantidad: 0, importe: 0 }
       porProducto[k].cantidad += it.cantidad
       porProducto[k].importe = redondear(porProducto[k].importe + it.cantidad * it.precio)
+      ;(it.elegido || []).forEach((e) => {
+        porOpcion[e.grupo] ||= {}
+        porOpcion[e.grupo][e.nombre] = (porOpcion[e.grupo][e.nombre] || 0) + it.cantidad
+      })
     })
   })
 
@@ -116,26 +121,81 @@ export function calcularCorte(pedidos) {
     pendientes: pendientes.length,
     porVendedor: Object.entries(porVendedor).sort((a, b) => b[1].vendido - a[1].vendido),
     porProducto: Object.entries(porProducto).sort((a, b) => b[1].cantidad - a[1].cantidad),
+    porOpcion: Object.entries(porOpcion).map(([grupo, o]) => [grupo, Object.entries(o).sort((a, b) => b[1] - a[1])]),
   }
 }
 
 export function resumenItems(items) {
-  return (items || []).map((i) => `${i.cantidad}× ${i.nombre}`).join(', ')
+  return (items || []).map((i) => `${i.cantidad}× ${nombreItem(i)}`).join(', ')
 }
 
 // Limpia y valida la configuración antes de guardarla. Devuelve { datos } o { error }.
 // ---- Combos: un producto con precio propio formado por otros productos de la misma venta ----
+// combo:  [{ productoId, nombre, cantidad }]            → lo que incluye siempre
+// grupos: [{ id, nombre, cantidad, opciones: [{ productoId, nombre, extra }] }] → lo que el cliente elige
 export const esCombo = (p) => Array.isArray(p?.combo)
+export const tieneElecciones = (p) => esCombo(p) && (p.grupos || []).length > 0
 
-// Lo que costarían los productos del combo por separado.
+const productoDe = (productos, id) => (productos || []).find((x) => x.id === id)
+
+// Lo que costarían por separado los productos fijos del combo.
 export function sumaComboSeparado(p, productos) {
-  return redondear((p.combo || []).reduce((a, c) => a + (Number(productos.find((x) => x.id === c.productoId)?.precio) || 0) * (c.cantidad || 0), 0))
+  return redondear((p.combo || []).reduce((a, c) => a + (Number(productoDe(productos, c.productoId)?.precio) || 0) * (c.cantidad || 0), 0))
 }
 
-// Un combo se puede vender solo si todos sus productos están disponibles.
-export const comboDisponible = (p, productos) => (p.combo || []).every((c) => { const x = productos.find((y) => y.id === c.productoId); return x && x.activo !== false })
+// Rango [mínimo, máximo] de lo que sumarían por separado las opciones a elegir.
+export function rangoOpcionesSeparado(p, productos) {
+  let min = 0
+  let max = 0
+  for (const g of p.grupos || []) {
+    const precios = (g.opciones || []).map((o) => Number(productoDe(productos, o.productoId)?.precio) || 0).sort((x, y) => x - y)
+    if (precios.length === 0) continue
+    const n = g.cantidad || 1
+    min += precios.slice(0, n).reduce((a, x) => a + x, 0)
+    max += precios.slice(-n).reduce((a, x) => a + x, 0)
+  }
+  return [redondear(min), redondear(max)]
+}
+
+export const opcionDisponible = (o, productos) => { const x = productoDe(productos, o.productoId); return !!x && x.activo !== false }
+
+// Un combo se puede vender solo si están sus productos fijos y le quedan opciones suficientes en cada grupo.
+export const comboDisponible = (p, productos) =>
+  (p.combo || []).every((c) => opcionDisponible(c, productos))
+  && (p.grupos || []).every((g) => (g.opciones || []).filter((o) => opcionDisponible(o, productos)).length >= (g.cantidad || 1))
 
 export const textoCombo = (combo) => (combo || []).map((c) => `${c.cantidad > 1 ? `${c.cantidad}× ` : ''}${c.nombre}`).join(' + ')
+export const textoGrupos = (grupos) => (grupos || []).map((g) => `${g.nombre} a elegir`).join(' + ')
+
+// Descripción corta de lo que incluye un combo (fijo + a elegir).
+export const incluyeCombo = (p) => [textoCombo(p.combo), textoGrupos(p.grupos)].filter(Boolean).join(' + ')
+
+// Clave de una línea del carrito: el producto y, si es combo a elegir, lo elegido en cada grupo.
+export function claveLinea(productoId, elec) {
+  const partes = Object.keys(elec || {}).sort().map((g) => `${g}:${[...elec[g]].sort().join('+')}`)
+  return partes.length ? `${productoId}~${partes.join(';')}` : productoId
+}
+export function leerClave(clave) {
+  const [productoId, resto] = String(clave).split('~')
+  const elec = {}
+  if (resto) resto.split(';').forEach((s) => { const [g, ids] = s.split(':'); elec[g] = ids.split('+') })
+  return { productoId, elec }
+}
+export const idProductoDeClave = (clave) => String(clave).split('~')[0]
+
+// Lo elegido, en el orden de los grupos del combo.
+export function elegidoDe(p, elec) {
+  return (p.grupos || []).flatMap((g) => (elec?.[g.id] || []).map((id) => {
+    const o = (g.opciones || []).find((x) => x.productoId === id)
+    return o ? { grupo: g.nombre, nombre: o.nombre, extra: Number(o.extra) || 0 } : null
+  }).filter(Boolean))
+}
+export const precioConElecciones = (p, elegido) => redondear(Number(p.precio) + (elegido || []).reduce((a, e) => a + (e.extra || 0), 0))
+
+// Nombre completo de una línea de pedido, con lo elegido: "Combo Taco + Bebida (Refresco)".
+export const nombreItem = (it) => (it.elegido?.length ? `${it.nombre} (${it.elegido.map((e) => e.nombre).join(', ')})` : it.nombre)
+// Dos líneas del mismo producto son la misma línea solo si eligieron lo mismo.
+export const claveItem = (it) => `${it.productoId}|${(it.elegido || []).map((e) => `${e.grupo}:${e.nombre}`).sort().join(',')}`
 
 // Copia productos con ids nuevos, conservando las referencias de los combos.
 export function copiarProductos(productos) {
@@ -143,12 +203,16 @@ export function copiarProductos(productos) {
   return (productos || []).map((p) => ({
     ...p, id: ids[p.id], activo: true,
     ...(esCombo(p) ? { combo: p.combo.filter((c) => ids[c.productoId]).map((c) => ({ ...c, productoId: ids[c.productoId] })) } : {}),
+    ...(p.grupos ? { grupos: p.grupos.map((g) => ({ ...g, opciones: (g.opciones || []).filter((o) => ids[o.productoId]).map((o) => ({ ...o, productoId: ids[o.productoId] })) })) } : {}),
   }))
 }
 
 export function prepararConfig(valor) {
   const productos = (valor.productos || [])
-    .map((p) => ({ id: p.id, nombre: (p.nombre || '').trim(), precio: Number(p.precio), categoria: (p.categoria || '').trim() || 'Otros', activo: p.activo !== false, ...(esCombo(p) ? { combo: p.combo } : {}) }))
+    .map((p) => ({
+      id: p.id, nombre: (p.nombre || '').trim(), precio: Number(p.precio), categoria: (p.categoria || '').trim() || 'Otros', activo: p.activo !== false,
+      ...(esCombo(p) ? { combo: p.combo, ...((p.grupos || []).length ? { grupos: p.grupos } : {}) } : {}),
+    }))
     .filter((p) => p.nombre || !Number.isNaN(p.precio))
   if (!(valor.nombre || '').trim()) return { error: 'Ponle un nombre.' }
   if (productos.length === 0) return { error: 'Agrega al menos un producto.' }
@@ -156,11 +220,22 @@ export function prepararConfig(valor) {
   if (productos.some((p) => Number.isNaN(p.precio) || p.precio < 0 || valor.productos.find((x) => x.id === p.id)?.precio === '')) {
     return { error: 'Hay un producto sin precio válido.' }
   }
-  // Combos: cada uno necesita al menos un producto, y solo productos sueltos de esta misma lista.
+  const suelto = (id, yo) => productos.find((x) => x.id === id && !esCombo(x) && x.id !== yo)
+  // Combos: cada uno necesita algo fijo o algo a elegir, y solo con productos sueltos de esta misma lista.
   for (const p of productos.filter(esCombo)) {
-    const sueltos = p.combo.filter((c) => c.cantidad > 0 && productos.some((x) => x.id === c.productoId && !esCombo(x) && x.id !== p.id))
-    if (sueltos.length === 0) return { error: `El combo “${p.nombre}” necesita al menos un producto.` }
-    p.combo = sueltos.map((c) => ({ productoId: c.productoId, nombre: productos.find((x) => x.id === c.productoId).nombre, cantidad: c.cantidad }))
+    const fijos = p.combo.filter((c) => c.cantidad > 0 && suelto(c.productoId, p.id))
+    const grupos = (p.grupos || []).map((g) => ({
+      id: g.id, nombre: (g.nombre || '').trim(), cantidad: Math.max(1, Number(g.cantidad) || 1),
+      opciones: (g.opciones || []).filter((o) => suelto(o.productoId, p.id)).map((o) => ({ productoId: o.productoId, nombre: suelto(o.productoId, p.id).nombre, extra: Math.max(0, Number(o.extra) || 0) })),
+    }))
+    if (fijos.length === 0 && grupos.length === 0) return { error: `El combo “${p.nombre}” necesita al menos un producto.` }
+    for (const g of grupos) {
+      if (!g.nombre) return { error: `Ponle nombre a lo que se elige en “${p.nombre}” (por ejemplo, “Bebida”).` }
+      if (g.opciones.length < g.cantidad) return { error: `En “${p.nombre}”, “${g.nombre}” necesita al menos ${g.cantidad} opción${g.cantidad > 1 ? 'es' : ''}.` }
+    }
+    p.combo = fijos.map((c) => ({ productoId: c.productoId, nombre: suelto(c.productoId, p.id).nombre, cantidad: c.cantidad }))
+    if (grupos.length) p.grupos = grupos
+    else delete p.grupos
   }
   return {
     datos: {

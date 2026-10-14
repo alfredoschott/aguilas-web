@@ -1,5 +1,5 @@
 // Exportación del corte de una venta del POS (Excel y PDF) y del reporte general.
-import { dinero, fechaLegible, horaDe } from './posUtils'
+import { dinero, fechaLegible, horaDe, nombreItem } from './posUtils'
 import {
   MARCA, PAGINA, aclarar, barraApilada, cabeceraCompacta, cargarLogo, encabezado, estiloTabla, hexARgb, leyenda, pies, seccion, tarjetaKpi,
 } from './pdfMarca'
@@ -17,7 +17,7 @@ const textoPago = (p) => {
   if (p.metodo === 'transferencia') return p.verificado ? 'Transferencia' : 'Transf. sin verificar'
   return 'Efectivo'
 }
-const resumenPedido = (p) => (p.items || []).map((i) => `${i.cantidad}× ${i.nombre}`).join(', ')
+const resumenPedido = (p) => (p.items || []).map((i) => `${i.cantidad}× ${nombreItem(i)}`).join(', ')
 const porcentaje = (v, total) => (total > 0 ? `${Math.round((v / total) * 100)}%` : '0%')
 
 /* ============================== EXCEL ============================== */
@@ -67,6 +67,7 @@ export async function exportarVentaExcel(venta, pedidos, corte, ministerioNombre
   }))
   XLSX.utils.book_append_sheet(libro, hojaDesdeFilas(XLSX, pedidosFilas, { anchos: [8, 10, 24, 46, 12, 13, 16, 22, 16], dinero: ['Total'] }), 'Pedidos')
   XLSX.utils.book_append_sheet(libro, hojaDesdeFilas(XLSX, corte.porProducto.map(([Producto, v]) => ({ Producto, Cantidad: v.cantidad, Importe: v.importe })), { anchos: [30, 10, 14], dinero: ['Importe'] }), 'Productos')
+  if (corte.porOpcion.length) XLSX.utils.book_append_sheet(libro, hojaDesdeFilas(XLSX, corte.porOpcion.flatMap(([Elección, ops]) => ops.map(([Opción, Cantidad]) => ({ Elección, Opción, Cantidad }))), { anchos: [22, 28, 10] }), 'Opciones')
   XLSX.utils.book_append_sheet(libro, hojaDesdeFilas(XLSX, corte.porVendedor.map(([Vendedor, v]) => ({ Vendedor, Pedidos: v.pedidos, Vendido: v.vendido, Cobrado: v.cobrado })), { anchos: [24, 10, 14, 14], dinero: ['Vendido', 'Cobrado'] }), 'Vendedores')
   XLSX.writeFile(libro, `${nombreArchivo(venta)}.xlsx`)
 }
@@ -167,6 +168,20 @@ export async function exportarVentaPDF(venta, pedidos, corte, ministerioNombre, 
     didParseCell: derecha,
   })
   y = Math.max(finProductos, doc.lastAutoTable.finalY) + 10
+
+  // Opciones elegidas en combos (si hay)
+  if (corte.porOpcion.length) {
+    const filasOpc = corte.porOpcion.flatMap(([grupo, ops]) => ops.map(([n, c]) => [grupo, n, String(c)]))
+    y = asegurar(y, Math.min(16 + 8 * (filasOpc.length + 1), 100))
+    y = seccion(doc, y, 'Opciones elegidas en los combos', color)
+    tabla({
+      startY: y + 1, tableWidth: 110,
+      head: [['Elección', 'Opción', 'Cant.']], body: filasOpc,
+      columnStyles: { 2: { halign: 'right', fontStyle: 'bold' } },
+      didParseCell: (d) => { if (d.section === 'head' && d.column.index === 2) d.cell.styles.halign = 'right' },
+    })
+    y = doc.lastAutoTable.finalY + 10
+  }
 
   // Pendientes de cobro (si hay)
   const pendientes = pedidos.filter((p) => p.estado === 'pendiente').sort((a, b) => (a.cliente || '').localeCompare(b.cliente || ''))
