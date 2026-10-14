@@ -389,3 +389,22 @@
   .pos-acceso-qr { justify-content: center; }
   .pos-dispositivo-acciones { align-items: stretch; width: 100%; }
 }
+
+/* combos */
+.pos-prod-bloque { margin-bottom: 8px; }
+.pos-prod-bloque .pos-prod-fila { margin-bottom: 0; }
+.pos-prod-bloque[data-combo="true"] .pos-prod-fila { border-color: color-mix(in srgb, #A78BFA 55%, var(--portal-card-border)); border-radius: 12px 12px 0 0; }
+.pos-icon-btn[data-activo="true"] { color: #A78BFA; border-color: #A78BFA; background: color-mix(in srgb, #A78BFA 14%, var(--portal-input-bg)); }
+.pos-combo-editor { padding: 12px; border: 1px solid color-mix(in srgb, #A78BFA 55%, var(--portal-card-border)); border-top: none; border-radius: 0 0 12px 12px; background: color-mix(in srgb, #A78BFA 6%, var(--pos-elev)); animation: posIn .25s both; }
+.pos-combo-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.pos-combo-item { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border-radius: 10px; border: 1px solid var(--portal-card-border); background: var(--portal-card-bg); }
+.pos-combo-item[data-en="true"] { border-color: #A78BFA; background: color-mix(in srgb, #A78BFA 12%, var(--portal-card-bg)); }
+.pos-combo-nombre { flex: 1; min-width: 0; font-size: .88rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pos-combo-nombre small { color: var(--portal-muted); font-weight: 400; margin-left: 4px; }
+.pos-combo-resumen { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--portal-card-border); font-size: .82rem; color: var(--portal-muted); }
+.pos-combo-resumen b { color: var(--portal-text); font-family: Montserrat, sans-serif; }
+.pos-combo-resumen [data-ahorro="true"] b { color: var(--pos-ef); }
+.pos-combo-resumen [data-ahorro="false"] b { color: var(--pos-pe); }
+.pos-prod-incluye { display: block; margin-top: 3px; font-weight: 400; font-size: .74rem; line-height: 1.3; color: var(--portal-muted); }
+.pos-prod[data-combo="true"]::after { content: 'COMBO'; position: absolute; top: 10px; right: 10px; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, #A78BFA 22%, #141414); color: #C4B5FD; font: 800 .6rem Montserrat, sans-serif; letter-spacing: .06em; }
+.pos-prod[data-combo="true"][data-en-carrito="true"]::after { display: none; }

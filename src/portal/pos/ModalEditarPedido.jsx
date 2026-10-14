@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { X, Plus, Minus, Trash2, Banknote, Landmark, Clock, User } from 'lucide-react'
 import { Avatar } from './posUi'
-import { dinero, redondear } from './posUtils'
+import { dinero, esCombo, redondear, textoCombo } from './posUtils'
 
 // Corrige un pedido ya registrado: cliente, productos, cantidades, precios,
 // vendedor y forma de pago. onGuardar recibe los campos ya calculados.
@@ -27,7 +27,7 @@ export default function ModalEditarPedido({ pedido, venta, sugerencias = [], onG
     setItems((l) => {
       const i = l.findIndex((it) => it.productoId === p.id)
       if (i >= 0) return l.map((it, k) => (k === i ? { ...it, cantidad: it.cantidad + 1 } : it))
-      return [...l, { productoId: p.id, nombre: p.nombre, precio: p.precio, cantidad: 1 }]
+      return [...l, { productoId: p.id, nombre: p.nombre, precio: p.precio, cantidad: 1, ...(esCombo(p) ? { combo: p.combo.map((c) => ({ nombre: c.nombre, cantidad: c.cantidad })) } : {}) }]
     })
   }
 
@@ -36,7 +36,7 @@ export default function ModalEditarPedido({ pedido, venta, sugerencias = [], onG
     if (items.length === 0) { setError('El pedido debe tener al menos un producto.'); return }
     if (items.some((i) => Number.isNaN(Number(i.precio)) || Number(i.precio) < 0)) { setError('Hay un precio inválido.'); return }
     if (pago === 'efectivo' && recibidoNum < total) { setError('Lo recibido es menor al total.'); return }
-    const limpios = items.map((i) => ({ productoId: i.productoId, nombre: i.nombre, precio: Number(i.precio), cantidad: i.cantidad }))
+    const limpios = items.map((i) => ({ productoId: i.productoId, nombre: i.nombre, precio: Number(i.precio), cantidad: i.cantidad, ...(i.combo ? { combo: i.combo } : {}) }))
     const base = { cliente: cliente.trim(), vendedor, items: limpios, total }
     if (pago === 'pendiente') onGuardar({ ...base, estado: 'pendiente', metodo: null, recibido: 0, cambio: 0, verificado: false })
     else if (pago === 'transferencia') onGuardar({ ...base, estado: 'pagado', metodo: 'transferencia', recibido: total, cambio: 0, verificado })
@@ -86,7 +86,7 @@ export default function ModalEditarPedido({ pedido, venta, sugerencias = [], onG
           {items.length === 0 && <p className="pos-muted" style={{ margin: '0 0 10px' }}>Sin productos. Agrega al menos uno.</p>}
           {items.map((it, idx) => (
             <div key={`${it.productoId}-${idx}`} className="pos-edit-linea">
-              <div className="pos-linea-nombre">{it.nombre}</div>
+              <div className="pos-linea-nombre">{it.nombre}{it.combo && <small>Incluye {textoCombo(it.combo)}</small>}</div>
               <label className="pos-edit-precio">
                 <span aria-hidden="true">$</span>
                 <input className="pos-input" type="number" inputMode="decimal" min="0" value={it.precio} onChange={(e) => cambiarPrecio(idx, e.target.value)} aria-label={`Precio de ${it.nombre}`} />

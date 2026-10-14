@@ -124,15 +124,43 @@ export function resumenItems(items) {
 }
 
 // Limpia y valida la configuración antes de guardarla. Devuelve { datos } o { error }.
+// ---- Combos: un producto con precio propio formado por otros productos de la misma venta ----
+export const esCombo = (p) => Array.isArray(p?.combo)
+
+// Lo que costarían los productos del combo por separado.
+export function sumaComboSeparado(p, productos) {
+  return redondear((p.combo || []).reduce((a, c) => a + (Number(productos.find((x) => x.id === c.productoId)?.precio) || 0) * (c.cantidad || 0), 0))
+}
+
+// Un combo se puede vender solo si todos sus productos están disponibles.
+export const comboDisponible = (p, productos) => (p.combo || []).every((c) => { const x = productos.find((y) => y.id === c.productoId); return x && x.activo !== false })
+
+export const textoCombo = (combo) => (combo || []).map((c) => `${c.cantidad > 1 ? `${c.cantidad}× ` : ''}${c.nombre}`).join(' + ')
+
+// Copia productos con ids nuevos, conservando las referencias de los combos.
+export function copiarProductos(productos) {
+  const ids = Object.fromEntries((productos || []).map((p) => [p.id, nuevoId()]))
+  return (productos || []).map((p) => ({
+    ...p, id: ids[p.id], activo: true,
+    ...(esCombo(p) ? { combo: p.combo.filter((c) => ids[c.productoId]).map((c) => ({ ...c, productoId: ids[c.productoId] })) } : {}),
+  }))
+}
+
 export function prepararConfig(valor) {
   const productos = (valor.productos || [])
-    .map((p) => ({ id: p.id, nombre: (p.nombre || '').trim(), precio: Number(p.precio), categoria: (p.categoria || '').trim() || 'Otros', activo: p.activo !== false }))
+    .map((p) => ({ id: p.id, nombre: (p.nombre || '').trim(), precio: Number(p.precio), categoria: (p.categoria || '').trim() || 'Otros', activo: p.activo !== false, ...(esCombo(p) ? { combo: p.combo } : {}) }))
     .filter((p) => p.nombre || !Number.isNaN(p.precio))
   if (!(valor.nombre || '').trim()) return { error: 'Ponle un nombre.' }
   if (productos.length === 0) return { error: 'Agrega al menos un producto.' }
   if (productos.some((p) => !p.nombre)) return { error: 'Hay un producto sin nombre.' }
   if (productos.some((p) => Number.isNaN(p.precio) || p.precio < 0 || valor.productos.find((x) => x.id === p.id)?.precio === '')) {
     return { error: 'Hay un producto sin precio válido.' }
+  }
+  // Combos: cada uno necesita al menos un producto, y solo productos sueltos de esta misma lista.
+  for (const p of productos.filter(esCombo)) {
+    const sueltos = p.combo.filter((c) => c.cantidad > 0 && productos.some((x) => x.id === c.productoId && !esCombo(x) && x.id !== p.id))
+    if (sueltos.length === 0) return { error: `El combo “${p.nombre}” necesita al menos un producto.` }
+    p.combo = sueltos.map((c) => ({ productoId: c.productoId, nombre: productos.find((x) => x.id === c.productoId).nombre, cantidad: c.cantidad }))
   }
   return {
     datos: {

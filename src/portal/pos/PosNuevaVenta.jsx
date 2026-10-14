@@ -5,7 +5,7 @@ import { Copy, FilePlus2, History } from 'lucide-react'
 import { usePortalAuth } from '../PortalAuthContext'
 import FormConfigPos from './FormConfigPos'
 import PosCabecera from './PosCabecera'
-import { POS_BASE, accesoPos, hoyISO, idMinisterioUsuario, nuevoId, prepararConfig, useMinisterios } from './posUtils'
+import { POS_BASE, accesoPos, copiarProductos, hoyISO, idMinisterioUsuario, prepararConfig, useMinisterios } from './posUtils'
 import '../portal.css'
 import './pos.css'
 
@@ -57,7 +57,7 @@ export default function PosNuevaVenta() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraft((d) => ({
       ...d, nombre: fuente.nombre, meta: fuente.meta || '', fondoInicial: fuente.fondoInicial || '', vendedores: fuente.vendedores || [],
-      productos: (fuente.productos || []).map((p) => ({ ...p, id: nuevoId(), activo: true })),
+      productos: copiarProductos(fuente.productos),
     }))
   }, [fuente])
 

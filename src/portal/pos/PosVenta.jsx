@@ -14,7 +14,7 @@ import { Avatar, BarraEstado, CheckAnimado, Dinero, Dona } from './posUi'
 import { categoriaInfo } from './posUiHelpers'
 import { exportarVentaExcel, exportarVentaPDF } from './exportarVenta'
 import {
-  POS_BASE, calcularCorte, dinero, fechaLegible, horaDe, normalizar, prepararConfig, puedeVerMinisterio, redondear, useMinisterios,
+  POS_BASE, calcularCorte, comboDisponible, dinero, esCombo, fechaLegible, textoCombo, horaDe, normalizar, prepararConfig, puedeVerMinisterio, redondear, useMinisterios,
 } from './posUtils'
 import '../portal.css'
 import './pos.css'
@@ -117,7 +117,10 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exito])
 
-  const productos = useMemo(() => (venta?.productos || []).filter((p) => p.activo !== false), [venta])
+  const todosProductos = venta?.productos
+  const productos = useMemo(() => (todosProductos || []).filter((p) => p.activo !== false), [todosProductos])
+  // Un combo está agotado si falta alguno de los productos que lo forman.
+  const agotado = (p) => esCombo(p) && !comboDisponible(p, todosProductos || [])
   const categorias = useMemo(() => [...new Set(productos.map((p) => p.categoria || 'Otros'))], [productos])
   const porCategoria = useMemo(() => {
     const g = {}
@@ -126,7 +129,7 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
   }, [productos, categoria])
 
   const lineas = useMemo(
-    () => productos.filter((p) => carrito[p.id] > 0).map((p) => ({ productoId: p.id, nombre: p.nombre, precio: p.precio, cantidad: carrito[p.id] })),
+    () => productos.filter((p) => carrito[p.id] > 0).map((p) => ({ productoId: p.id, nombre: p.nombre, precio: p.precio, cantidad: carrito[p.id], ...(esCombo(p) ? { combo: p.combo.map((c) => ({ nombre: c.nombre, cantidad: c.cantidad })) } : {}) })),
     [productos, carrito],
   )
   const totalCarrito = redondear(lineas.reduce((a, l) => a + l.precio * l.cantidad, 0))
@@ -411,11 +414,13 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
                     {categoria === 'todas' && categorias.length > 1 && <div className="pos-cat-titulo"><Icono size={15} color={color} /> {cat}</div>}
                     <div className="pos-productos">
                       {lista.map((p) => (
-                        <button key={p.id} className="pos-prod" style={{ '--cat': color }} data-en-carrito={carrito[p.id] > 0} data-pop={pop === p.id} disabled={cerrada} onClick={() => agregar(p.id, 1)}>
+                        <button key={p.id} className="pos-prod" style={{ '--cat': color }} data-en-carrito={carrito[p.id] > 0} data-pop={pop === p.id} data-combo={esCombo(p)} disabled={cerrada || agotado(p)} onClick={() => agregar(p.id, 1)}>
                           {carrito[p.id] > 0 && <span className="pos-prod-qty" key={carrito[p.id]}>{carrito[p.id]}</span>}
                           <span className="pos-prod-icono"><Icono size={17} /></span>
-                          <span className="pos-prod-nombre">{p.nombre}</span>
-                          <span className="pos-prod-precio pos-num">{dinero(p.precio)}</span>
+                          <span className="pos-prod-nombre">{p.nombre}
+                            {esCombo(p) && <small className="pos-prod-incluye">{textoCombo(p.combo)}</small>}
+                          </span>
+                          <span className="pos-prod-precio pos-num">{agotado(p) ? <span className="pos-badge pos-badge-off">Agotado</span> : dinero(p.precio)}</span>
                         </button>
                       ))}
                     </div>
@@ -441,7 +446,7 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
                   <div className="pos-carrito-lista">
                     {lineas.map((l) => (
                       <div key={l.productoId} className="pos-linea">
-                        <div className="pos-linea-nombre">{l.nombre}<small>{dinero(l.precio)} c/u</small></div>
+                        <div className="pos-linea-nombre">{l.nombre}<small>{l.combo ? `Incluye ${textoCombo(l.combo)}` : `${dinero(l.precio)} c/u`}</small></div>
                         <div className="pos-qty">
                           <button onClick={() => agregar(l.productoId, -1)} aria-label={`Quitar un ${l.nombre}`}><Minus size={15} /></button>
                           <span>{l.cantidad}</span>
@@ -512,7 +517,7 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
                       <span className="pos-pedido-cliente">{p.cliente}<span className="pos-pedido-folio">#{p.folio}</span></span>
                       <strong className="pos-num">{dinero(p.total)}</strong>
                     </div>
-                    <div className="pos-pedido-items">{(p.items || []).map((it) => <span key={it.productoId} className="pos-item-chip">{it.cantidad}× {it.nombre}</span>)}</div>
+                    <div className="pos-pedido-items">{(p.items || []).map((it) => <span key={it.productoId} className="pos-item-chip" title={it.combo ? `Incluye ${textoCombo(it.combo)}` : undefined}>{it.cantidad}× {it.nombre}{it.combo ? ' ★' : ''}</span>)}</div>
                     <div className="pos-pedido-meta">
                       {p.estado === 'pendiente' && <span className="pos-badge pos-badge-warn">Por cobrar</span>}
                       {p.estado === 'pagado' && p.metodo === 'efectivo' && <span className="pos-badge pos-badge-ok"><Banknote size={12} /> Efectivo{p.cambio > 0 ? ` · cambio ${dinero(p.cambio)}` : ''}</span>}

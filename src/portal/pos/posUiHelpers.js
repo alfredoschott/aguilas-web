@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { UtensilsCrossed, CupSoda, IceCreamCone, Package } from 'lucide-react'
+import { UtensilsCrossed, CupSoda, IceCreamCone, Package, PackagePlus } from 'lucide-react'
 import { normalizar } from './posUtils'
 
 export const reducirMovimiento = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
@@ -40,6 +40,7 @@ export function iniciales(nombre) {
 }
 export function categoriaInfo(categoria) {
   const n = normalizar(categoria)
+  if (n.includes('combo') || n.includes('paquete') || n.includes('promo')) return { Icono: PackagePlus, color: '#A78BFA' }
   if (n.includes('comida') || n.includes('plat') || n.includes('antojit')) return { Icono: UtensilsCrossed, color: '#F59E0B' }
   if (n.includes('beb')) return { Icono: CupSoda, color: '#38BDF8' }
   if (n.includes('postre') || n.includes('dulce')) return { Icono: IceCreamCone, color: '#F472B6' }
