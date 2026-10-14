@@ -9,6 +9,7 @@ import { claveItem, dinero, elegidoDe, esCombo, precioConElecciones, redondear, 
 export default function ModalEditarPedido({ pedido, venta, sugerencias = [], onGuardar, onCerrar, guardando }) {
   const [cliente, setCliente] = useState(pedido.cliente || '')
   const [vendedor, setVendedor] = useState(pedido.vendedor || '')
+  const [nota, setNota] = useState(pedido.nota || '')
   const [items, setItems] = useState(() => (pedido.items || []).map((i) => ({ ...i })))
   const [pago, setPago] = useState(pedido.estado === 'pendiente' ? 'pendiente' : pedido.metodo || 'efectivo')
   const [recibido, setRecibido] = useState(pedido.estado === 'pagado' && pedido.metodo === 'efectivo' && pedido.recibido > pedido.total ? String(pedido.recibido) : '')
@@ -67,7 +68,7 @@ export default function ModalEditarPedido({ pedido, venta, sugerencias = [], onG
     if (items.some((i) => Number.isNaN(Number(i.precio)) || Number(i.precio) < 0)) { setError('Hay un precio inválido.'); return }
     if (pago === 'efectivo' && recibidoNum < total) { setError('Lo recibido es menor al total.'); return }
     const limpios = items.map((i) => ({ productoId: i.productoId, nombre: i.nombre, precio: Number(i.precio), cantidad: i.cantidad, ...(i.combo ? { combo: i.combo } : {}), ...(i.elegido?.length ? { elegido: i.elegido } : {}) }))
-    const base = { cliente: cliente.trim(), vendedor, items: limpios, total }
+    const base = { cliente: cliente.trim(), vendedor, items: limpios, total, nota: nota.trim() }
     if (pago === 'pendiente') onGuardar({ ...base, estado: 'pendiente', metodo: null, recibido: 0, cambio: 0, verificado: false })
     else if (pago === 'transferencia') onGuardar({ ...base, estado: 'pagado', metodo: 'transferencia', recibido: total, cambio: 0, verificado })
     else onGuardar({ ...base, estado: 'pagado', metodo: 'efectivo', recibido: recibidoNum, cambio, verificado: true })
@@ -109,6 +110,10 @@ export default function ModalEditarPedido({ pedido, venta, sugerencias = [], onG
                 </div>
               </div>
             )}
+          </div>
+          <div className="pos-field" style={{ marginBottom: 0 }}>
+            <label className="pos-label" htmlFor="pos-e-nota">Nota del pedido <span className="pos-muted">(opcional)</span></label>
+            <input id="pos-e-nota" className="pos-input" value={nota} onChange={(e) => setNota(e.target.value)} maxLength={200} placeholder="Ej. sin cebolla, poco picante" autoComplete="off" />
           </div>
         </section>
 

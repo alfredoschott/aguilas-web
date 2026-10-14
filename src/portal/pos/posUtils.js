@@ -130,6 +130,19 @@ export function resumenItems(items) {
 }
 
 // Limpia y valida la configuración antes de guardarla. Devuelve { datos } o { error }.
+// ---- Diezmo: porcentaje de lo cobrado que se aparta al cerrar caja (configurable; 0 = no se muestra) ----
+export const DIEZMO_PCT = 10
+export function pctDiezmo(venta) {
+  const v = venta?.diezmoPct
+  if (v === undefined || v === null || v === '') return DIEZMO_PCT
+  const n = Number(v)
+  return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : DIEZMO_PCT
+}
+export function calcularDiezmo(corte, pct) {
+  const sugerido = redondear((corte.cobrado * pct) / 100)
+  return { pct, sugerido, quedaria: redondear(corte.cobrado - sugerido), extraPendiente: redondear((corte.pendiente * pct) / 100) }
+}
+
 // ---- Combos: un producto con precio propio formado por otros productos de la misma venta ----
 // combo:  [{ productoId, nombre, cantidad }]            → lo que incluye siempre
 // grupos: [{ id, nombre, cantidad, opciones: [{ productoId, nombre, extra }] }] → lo que el cliente elige
@@ -242,6 +255,7 @@ export function prepararConfig(valor) {
       nombre: valor.nombre.trim(),
       meta: (valor.meta || '').trim(),
       fondoInicial: Number(valor.fondoInicial) || 0,
+      diezmoPct: pctDiezmo({ diezmoPct: valor.diezmoPct }),
       vendedores: valor.vendedores || [],
       productos,
     },

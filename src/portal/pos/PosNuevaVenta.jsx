@@ -5,11 +5,11 @@ import { Copy, FilePlus2, History } from 'lucide-react'
 import { usePortalAuth } from '../PortalAuthContext'
 import FormConfigPos from './FormConfigPos'
 import PosCabecera from './PosCabecera'
-import { POS_BASE, accesoPos, copiarProductos, hoyISO, idMinisterioUsuario, prepararConfig, useMinisterios } from './posUtils'
+import { POS_BASE, accesoPos, copiarProductos, hoyISO, idMinisterioUsuario, pctDiezmo, prepararConfig, useMinisterios } from './posUtils'
 import '../portal.css'
 import './pos.css'
 
-const VACIO = (nombreUsuario) => ({ nombre: '', fecha: hoyISO(), meta: '', fondoInicial: '', vendedores: nombreUsuario ? [nombreUsuario] : [], productos: [] })
+const VACIO = (nombreUsuario) => ({ nombre: '', fecha: hoyISO(), meta: '', fondoInicial: '', diezmoPct: 10, vendedores: nombreUsuario ? [nombreUsuario] : [], productos: [] })
 
 export default function PosNuevaVenta() {
   const navigate = useNavigate()
@@ -56,7 +56,7 @@ export default function PosNuevaVenta() {
     if (!fuente) return
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraft((d) => ({
-      ...d, nombre: fuente.nombre, meta: fuente.meta || '', fondoInicial: fuente.fondoInicial || '', vendedores: fuente.vendedores || [],
+      ...d, nombre: fuente.nombre, meta: fuente.meta || '', fondoInicial: fuente.fondoInicial || '', diezmoPct: pctDiezmo(fuente), vendedores: fuente.vendedores || [],
       productos: copiarProductos(fuente.productos),
     }))
   }, [fuente])

@@ -436,3 +436,31 @@
 .pos-opcion-extra .pos-input { width: 78px; min-height: 36px; padding: 4px 8px; }
 
 .pos-link-btn { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; padding: 2px 0; background: none; border: none; color: #C4B5FD; font: 600 .76rem Inter, sans-serif; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+
+/* notas del pedido */
+.pos-notas-rapidas { margin-top: 8px; gap: 6px; }
+.pos-notas-rapidas .pos-chip { padding: 6px 11px; min-height: 34px; font-size: .78rem; }
+.pos-pedido-nota { display: flex; gap: 8px; align-items: flex-start; margin: 2px 0 8px; padding: 7px 10px; border-radius: 10px; background: color-mix(in srgb, var(--pos-pe) 12%, #101010); border: 1px solid color-mix(in srgb, var(--pos-pe) 35%, transparent); color: var(--pos-pe); font-size: .84rem; font-weight: 600; line-height: 1.35; }
+.pos-pedido-nota svg { flex-shrink: 0; margin-top: 2px; }
+
+/* diezmo y cierre de caja */
+.pos-page { --pos-diezmo: #D4AF37; }
+.pos-cierre-resumen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.pos-cierre-resumen > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--pos-elev); border: 1px solid var(--portal-card-border); }
+.pos-cierre-resumen span { font-size: .74rem; color: var(--portal-muted); }
+.pos-cierre-resumen small { opacity: .7; }
+.pos-cierre-resumen b { font-size: 1.1rem; }
+.pos-diezmo-cierre { margin-top: 16px; padding: 14px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--pos-diezmo) 50%, var(--portal-card-border)); background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--pos-diezmo) 14%, transparent), transparent 60%), var(--portal-card-bg); }
+.pos-diezmo-titulo { display: flex; align-items: center; gap: 8px; font-family: Montserrat, sans-serif; font-weight: 900; color: var(--pos-diezmo); margin-bottom: 8px; }
+.pos-diezmo-sugerido { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: .85rem; color: var(--portal-muted); }
+.pos-diezmo-sugerido b { font-size: 1.5rem; color: var(--portal-text); }
+.pos-diezmo-resultado { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--portal-card-border); }
+.pos-diezmo-resultado > div { display: flex; flex-direction: column; gap: 2px; }
+.pos-diezmo-resultado span { font-size: .74rem; color: var(--portal-muted); }
+.pos-diezmo-resultado b { font-size: 1.15rem; }
+.pos-diezmo-resultado > div:first-child b { color: var(--pos-ef); }
+.pos-diezmo-card { padding: 16px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--pos-diezmo) 45%, var(--portal-card-border)); background: radial-gradient(100% 120% at 50% 0%, color-mix(in srgb, var(--pos-diezmo) 12%, transparent), transparent 70%), var(--portal-card-bg); display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.pos-diezmo-card .pos-diezmo-valor { font-size: 1.9rem; color: var(--pos-diezmo); line-height: 1.1; }
+.pos-diezmo-card .pos-diezmo-detalle { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 3px; font-size: .84rem; color: var(--portal-muted); }
+.pos-diezmo-card .pos-diezmo-detalle b { color: var(--portal-text); font-family: Montserrat, sans-serif; }
+@media (max-width: 640px) { .pos-diezmo-resultado, .pos-cierre-resumen { grid-template-columns: 1fr 1fr; } }

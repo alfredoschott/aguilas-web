@@ -10,7 +10,7 @@ import FormConfigPos from './FormConfigPos'
 import PosCabecera from './PosCabecera'
 import { Anillo, Avatar, BarraEstado, Cantidad, Dinero, GraficaVentas } from './posUi'
 import { exportarReporteExcel, exportarReportePDF } from './exportarVenta'
-import { POS_BASE, accesoPos, calcularCorte, dinero, idMinisterioUsuario, fechaLegible, nuevoId, normalizar, prepararConfig, redondear, useMinisterios } from './posUtils'
+import { POS_BASE, accesoPos, calcularCorte, dinero, idMinisterioUsuario, fechaLegible, nuevoId, normalizar, pctDiezmo, prepararConfig, redondear, useMinisterios } from './posUtils'
 import '../portal.css'
 import './pos.css'
 
@@ -166,7 +166,7 @@ export default function PosInicio() {
 
   const datosReporte = () => ({ ministerioNombre: ministerios[ministerio]?.nombre || ministerio, colorMinisterio: ministerios[ministerio]?.color, ministerio, ventas, cortes, deudores })
 
-  const nuevaPlantilla = () => setPlantillaDraft({ nombre: '', meta: '', fondoInicial: '', vendedores: [], productos: [{ id: nuevoId(), nombre: '', precio: '', categoria: 'Comida', activo: true }] })
+  const nuevaPlantilla = () => setPlantillaDraft({ nombre: '', meta: '', fondoInicial: '', diezmoPct: 10, vendedores: [], productos: [{ id: nuevoId(), nombre: '', precio: '', categoria: 'Comida', activo: true }] })
   const urlNueva = (extra = '') => `${POS_BASE}/nueva?ministerio=${ministerio}${extra}`
 
   return (
@@ -269,7 +269,7 @@ export default function PosInicio() {
                       <span className="pos-plantilla-icono"><Copy size={18} /></span>
                       <div style={{ flex: 1, minWidth: 140 }}><strong>{p.nombre}</strong><div className="pos-sub" style={{ marginTop: 2 }}>{(p.productos || []).length} productos · {(p.vendedores || []).length} vendedores</div></div>
                       <Link to={urlNueva(`&plantilla=${p.id}`)} className="pos-btn pos-btn-primary pos-btn-sm">Usar hoy</Link>
-                      <button className="pos-icon-btn" onClick={() => setPlantillaDraft({ ...p, fondoInicial: p.fondoInicial || '' })} aria-label={`Editar ${p.nombre}`}><Pencil size={16} /></button>
+                      <button className="pos-icon-btn" onClick={() => setPlantillaDraft({ ...p, fondoInicial: p.fondoInicial || '', diezmoPct: pctDiezmo(p) })} aria-label={`Editar ${p.nombre}`}><Pencil size={16} /></button>
                       <button className="pos-icon-btn" onClick={() => borrarPlantilla(p)} aria-label={`Eliminar ${p.nombre}`}><Trash2 size={16} /></button>
                     </div>
                   ))}

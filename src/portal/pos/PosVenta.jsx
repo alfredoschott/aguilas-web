@@ -3,19 +3,20 @@ import { useParams } from 'react-router-dom'
 import {
   addDoc, arrayUnion, collection, doc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where, db,
 } from './posFirestore'
-import { Settings, ShoppingCart, FileSpreadsheet, FileText, Lock, Unlock, X, Plus, Minus, User, Search, Check, Banknote, Landmark, ShoppingBag, ReceiptText, Undo2, Pencil, RotateCcw, QrCode, WifiOff } from 'lucide-react'
+import { Settings, ShoppingCart, FileSpreadsheet, FileText, Lock, Unlock, X, Plus, Minus, User, Search, Check, Banknote, Landmark, ShoppingBag, ReceiptText, Undo2, Pencil, RotateCcw, QrCode, WifiOff, StickyNote, HandHeart } from 'lucide-react'
 import { usePortalAuth } from '../PortalAuthContext'
 import ModalCobro from './ModalCobro'
 import ModalEditarPedido from './ModalEditarPedido'
 import ModalAccesoCobro from './ModalAccesoCobro'
 import ModalElegirCombo from './ModalElegirCombo'
+import ModalCierreCaja from './ModalCierreCaja'
 import FormConfigPos from './FormConfigPos'
 import PosCabecera from './PosCabecera'
 import { Avatar, BarraEstado, CheckAnimado, Dinero, Dona } from './posUi'
 import { categoriaInfo } from './posUiHelpers'
 import { exportarVentaExcel, exportarVentaPDF } from './exportarVenta'
 import {
-  POS_BASE, calcularCorte, claveLinea, comboDisponible, dinero, elegidoDe, esCombo, fechaLegible, idProductoDeClave, incluyeCombo, leerClave, nombreItem, precioConElecciones, tieneElecciones, textoCombo, horaDe, normalizar, prepararConfig, puedeVerMinisterio, redondear, useMinisterios,
+  POS_BASE, calcularCorte, calcularDiezmo, pctDiezmo, claveLinea, comboDisponible, dinero, elegidoDe, esCombo, fechaLegible, idProductoDeClave, incluyeCombo, leerClave, nombreItem, precioConElecciones, tieneElecciones, textoCombo, horaDe, normalizar, prepararConfig, puedeVerMinisterio, redondear, useMinisterios,
 } from './posUtils'
 import '../portal.css'
 import './pos.css'
@@ -43,6 +44,7 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
   const [nHist, setNHist] = useState(0)
   const [carritoAbierto, setCarritoAbierto] = useState(false)
   const [cliente, setCliente] = useState('')
+  const [nota, setNota] = useState('')
   const [vendedor, setVendedor] = useState(() => { try { return localStorage.getItem(`pos_vendedor_${id}`) || '' } catch { return '' } })
   const [categoria, setCategoria] = useState('todas')
   const [pop, setPop] = useState(null)
@@ -54,6 +56,7 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
   const [toast, setToast] = useState(null) // { m, fn }
   const [configDraft, setConfigDraft] = useState(null)
   const [sinAcceso, setSinAcceso] = useState(false)
+  const [cerrando, setCerrando] = useState(false) // pantalla de cierre de caja
   const [eligiendo, setEligiendo] = useState(null) // combo a elegir que se está agregando
   const [acceso, setAcceso] = useState(null)
   const [dispositivos, setDispositivos] = useState([])
@@ -172,6 +175,18 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
     return [...todos].sort((a, b) => a.localeCompare(b))
   }, [nombresGuardados, pedidos, pendientesBase])
 
+  // Atajos de nota: los típicos más las que ya se han usado en esta venta.
+  const notasRapidas = useMemo(() => {
+    const usadas = {}
+    pedidos.forEach((p) => { const n = (p.nota || '').trim(); if (n && n.length <= 32) usadas[n] = (usadas[n] || 0) + 1 })
+    const frecuentes = Object.entries(usadas).sort((a, b) => b[1] - a[1]).map(([n]) => n).slice(0, 3)
+    return [...new Set(['Sin cebolla', 'Sin picante', 'Para llevar', ...frecuentes])]
+  }, [pedidos])
+  const alternarNota = (t) => setNota((actual) => {
+    const partes = actual.split(',').map((x) => x.trim()).filter(Boolean)
+    return (partes.some((x) => x.toLowerCase() === t.toLowerCase()) ? partes.filter((x) => x.toLowerCase() !== t.toLowerCase()) : [...partes, t]).join(', ')
+  })
+
   const corte = useMemo(() => calcularCorte(pedidos), [pedidos])
   const cerrada = venta?.estado === 'cerrada'
   const siguienteFolio = pedidos.reduce((m, p) => Math.max(m, p.folio || 0), 0) + 1
@@ -227,8 +242,9 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
     setError('')
     try {
       const carritoPrevio = carritoRef.current
+      const notaPrevia = nota
       const ref = await addDoc(collection(db, 'pos_pedidos'), {
-        ventaId: id, ministerio: venta.ministerio, folio: siguienteFolio, cliente: nombre, items: itemsPedido(), total: totalCarrito,
+        ventaId: id, ministerio: venta.ministerio, folio: siguienteFolio, cliente: nombre, items: itemsPedido(), total: totalCarrito, ...(nota.trim() ? { nota: nota.trim() } : {}),
         estado: pago.estado, metodo: pago.metodo, recibido: pago.recibido, cambio: pago.cambio, verificado: pago.verificado,
         vendedor: vendedorActual, creadoPor: email, creadoEn: serverTimestamp(), pagadoEn: pago.estado === 'pagado' ? serverTimestamp() : null,
         ...(esAyudante ? { dispositivoUid: ayudante.uid } : {}),
@@ -237,12 +253,12 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
       const deshacer = async () => {
         try {
           await updateDoc(doc(db, 'pos_pedidos', ref.id), { estado: 'anulado', anuladoPor: email, anuladoEn: serverTimestamp() })
-          fijarCarrito(carritoPrevio); reiniciarHistorial(); setCliente(nombre); setExito(null)
+          fijarCarrito(carritoPrevio); reiniciarHistorial(); setCliente(nombre); setNota(notaPrevia); setExito(null)
           avisar('Pedido deshecho: volvió al carrito')
         } catch (e) { console.error(e); setError('No se pudo deshacer el pedido.') }
       }
       setExito({ folio: siguienteFolio, cliente: nombre, total: totalCarrito, estado: pago.estado, metodo: pago.metodo, cambio: pago.cambio, deshacer })
-      fijarCarrito({}); reiniciarHistorial(); setCliente(''); setCarritoAbierto(false); setCobrando(null)
+      fijarCarrito({}); reiniciarHistorial(); setCliente(''); setNota(''); setCarritoAbierto(false); setCobrando(null)
     } catch (e) {
       console.error(e)
       setError('No se pudo guardar el pedido. Revisa tu conexión e intenta de nuevo.')
@@ -287,7 +303,7 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
 
   // Guarda la corrección de un pedido y deja un aviso para deshacerla.
   async function guardarEdicion(pedido, cambios) {
-    const claves = ['cliente', 'vendedor', 'items', 'total', 'estado', 'metodo', 'recibido', 'cambio', 'verificado', 'pagadoEn', 'cobradoPor', 'editadoEn', 'editadoPor']
+    const claves = ['cliente', 'vendedor', 'items', 'total', 'estado', 'metodo', 'recibido', 'cambio', 'verificado', 'pagadoEn', 'cobradoPor', 'nota', 'editadoEn', 'editadoPor']
     const previo = Object.fromEntries(claves.map((k) => [k, pedido[k] ?? null]))
     const extra = {}
     if (cambios.estado === 'pagado' && pedido.estado !== 'pagado') { extra.pagadoEn = serverTimestamp(); extra.cobradoPor = email }
@@ -310,15 +326,18 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
     try { await updateDoc(doc(db, 'pos_pedidos', pedido.id), { verificado: !pedido.verificado }) } catch (e) { console.error(e) }
   }
 
-  async function cambiarEstadoVenta(estado) {
-    if (estado === 'cerrada' && corte.pendientes > 0 && !window.confirm(`Quedan ${corte.pendientes} pedido(s) sin cobrar (${dinero(corte.pendiente)}). Seguirán en “Por cobrar”. ¿Cerrar la venta?`)) return
+  // Cerrar guarda además lo del cierre de caja (diezmo apartado); reabrir lo borra para recalcularlo al volver a cerrar.
+  async function cambiarEstadoVenta(estado, extra = {}) {
+    setGuardando(true)
     try {
-      await updateDoc(doc(db, 'pos_ventas', id), { estado, ...(estado === 'cerrada' ? { cerradaEn: serverTimestamp() } : {}) })
+      const reabrir = estado === 'abierta' ? { diezmoApartado: null, diezmoSugerido: null, cierreCobrado: null } : {}
+      await updateDoc(doc(db, 'pos_ventas', id), { estado, ...(estado === 'cerrada' ? { cerradaEn: serverTimestamp(), cerradaPor: email } : {}), ...extra, ...reabrir })
+      setCerrando(false)
       if (estado === 'cerrada') {
         if (acceso?.activo) updateDoc(doc(db, 'pos_accesos', id), { activo: false }).catch(() => {})
         avisar('Venta cerrada', () => cambiarEstadoVenta('abierta'))
       }
-    } catch (e) { console.error(e); setError('No se pudo actualizar la venta.') }
+    } catch (e) { console.error(e); setError('No se pudo actualizar la venta.') } finally { setGuardando(false) }
   }
 
   async function guardarConfig() {
@@ -378,7 +397,7 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
                 <QrCode size={16} /> Invitar a cobrar
                 {pendientesDisp > 0 && <span className="pos-tab-n" style={{ position: 'absolute', top: -7, right: -4 }}>{pendientesDisp}</span>}
               </button>
-              <button className="pos-btn" onClick={() => setConfigDraft({ nombre: venta.nombre, fecha: venta.fecha, meta: venta.meta, fondoInicial: venta.fondoInicial || '', vendedores: venta.vendedores || [], productos: venta.productos || [] })}>
+              <button className="pos-btn" onClick={() => setConfigDraft({ nombre: venta.nombre, fecha: venta.fecha, meta: venta.meta, fondoInicial: venta.fondoInicial || '', diezmoPct: pctDiezmo(venta), vendedores: venta.vendedores || [], productos: venta.productos || [] })}>
                 <Settings size={16} /> Editar
               </button>
             </>
@@ -486,6 +505,14 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
                 </div>
                 {deudaCliente && <div className="pos-aviso" role="status">⚠ {cliente.trim()} ya debe {dinero(deudaCliente.total)} ({deudaCliente.n} pedido{deudaCliente.n > 1 ? 's' : ''} sin cobrar).</div>}
 
+                <div className="pos-field">
+                  <label className="pos-label" htmlFor="pos-nota">Nota del pedido <span className="pos-muted">(opcional)</span></label>
+                  <input id="pos-nota" className="pos-input" value={nota} onChange={(e) => setNota(e.target.value)} maxLength={200} placeholder="Ej. sin cebolla, poco picante" autoComplete="off" enterKeyHint="done" />
+                  <div className="pos-chips pos-notas-rapidas">
+                    {notasRapidas.map((t) => <button key={t} type="button" className="pos-chip" aria-pressed={nota.toLowerCase().includes(t.toLowerCase())} onClick={() => alternarNota(t)}>{t}</button>)}
+                  </div>
+                </div>
+
                 {vendedores.length > 1 && (
                   <div className="pos-field">
                     <span className="pos-label">Vende</span>
@@ -536,6 +563,7 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
                       <strong className="pos-num">{dinero(p.total)}</strong>
                     </div>
                     <div className="pos-pedido-items">{(p.items || []).map((it, i) => <span key={`${it.productoId}-${i}`} className="pos-item-chip" title={it.combo?.length ? `Incluye ${textoCombo(it.combo)}` : undefined}>{it.cantidad}× {nombreItem(it)}{it.combo ? ' ★' : ''}</span>)}</div>
+                    {p.nota && <div className="pos-pedido-nota"><StickyNote size={14} /> <span>{p.nota}</span></div>}
                     <div className="pos-pedido-meta">
                       {p.estado === 'pendiente' && <span className="pos-badge pos-badge-warn">Por cobrar</span>}
                       {p.estado === 'pagado' && p.metodo === 'efectivo' && <span className="pos-badge pos-badge-ok"><Banknote size={12} /> Efectivo{p.cambio > 0 ? ` · cambio ${dinero(p.cambio)}` : ''}</span>}
@@ -573,6 +601,27 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
                 {venta.fondoInicial > 0 && <span>+ Fondo {dinero(venta.fondoInicial)}</span>}
               </div>
             </section>
+
+            {pctDiezmo(venta) > 0 && (() => {
+              const d = calcularDiezmo(corte, pctDiezmo(venta))
+              const apartado = cerrada && typeof venta.diezmoApartado === 'number'
+              const monto = apartado ? venta.diezmoApartado : d.sugerido
+              return (
+                <section className="pos-diezmo-card pos-in" style={{ '--i': 1 }} aria-label="Diezmo">
+                  <HandHeart size={30} color="var(--pos-diezmo)" />
+                  <div>
+                    <div className="pos-cifra-label">{apartado ? 'Diezmo apartado' : `Diezmo sugerido (${d.pct}% de lo cobrado)`}</div>
+                    <div className="pos-diezmo-valor pos-num"><Dinero valor={monto} decimales /></div>
+                  </div>
+                  <div className="pos-diezmo-detalle">
+                    <span>{apartado ? 'Cobrado al cerrar' : 'Cobrado hasta ahora'} <b>{dinero(apartado && venta.cierreCobrado != null ? venta.cierreCobrado : corte.cobrado)}</b></span>
+                    <span>Queda para el ministerio <b>{dinero(redondear((apartado && venta.cierreCobrado != null ? venta.cierreCobrado : corte.cobrado) - monto))}</b></span>
+                    {apartado && venta.diezmoSugerido != null && venta.diezmoSugerido !== monto && <span>Sugerido era <b>{dinero(venta.diezmoSugerido)}</b></span>}
+                    {!apartado && corte.pendiente > 0 && <span>Si se cobra lo pendiente, el diezmo sube <b>{dinero(d.extraPendiente)}</b></span>}
+                  </div>
+                </section>
+              )
+            })()}
 
             <section className="pos-card pos-in" style={{ '--i': 1 }}>
               <h2 className="pos-card-titulo"><ReceiptText size={17} color="var(--pos-accent)" /> ¿Cómo se pagó?</h2>
@@ -650,7 +699,7 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
               <span className="pos-spacer" />
               {cerrada
                 ? <button className="pos-btn" onClick={() => cambiarEstadoVenta('abierta')}><Unlock size={16} /> Reabrir venta</button>
-                : <button className="pos-btn pos-btn-primary" onClick={() => cambiarEstadoVenta('cerrada')}><Lock size={16} /> Cerrar venta</button>}
+                : <button className="pos-btn pos-btn-primary" onClick={() => setCerrando(true)}><Lock size={16} /> Cerrar venta</button>}
             </div>
           </div>
         )}
@@ -666,6 +715,10 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
           onCerrar={() => setCobrando(null)}
           onConfirmar={(pago) => (cobrando.tipo === 'nuevo' ? guardarPedido(pago) : cobrarPendiente(cobrando.pedido, pago))}
         />
+      )}
+
+      {cerrando && !esAyudante && (
+        <ModalCierreCaja venta={venta} corte={corte} efectivoCaja={efectivoCaja} guardando={guardando} onCerrar={() => setCerrando(false)} onConfirmar={(extra) => cambiarEstadoVenta('cerrada', extra)} />
       )}
 
       {eligiendo && (

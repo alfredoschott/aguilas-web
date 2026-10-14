@@ -1,5 +1,5 @@
 // Exportación del corte de una venta del POS (Excel y PDF) y del reporte general.
-import { dinero, fechaLegible, horaDe, nombreItem } from './posUtils'
+import { calcularDiezmo, dinero, fechaLegible, horaDe, nombreItem, pctDiezmo, redondear } from './posUtils'
 import {
   MARCA, PAGINA, aclarar, barraApilada, cabeceraCompacta, cargarLogo, encabezado, estiloTabla, hexARgb, leyenda, pies, seccion, tarjetaKpi,
 } from './pdfMarca'
@@ -18,6 +18,15 @@ const textoPago = (p) => {
   return 'Efectivo'
 }
 const resumenPedido = (p) => (p.items || []).map((i) => `${i.cantidad}× ${nombreItem(i)}`).join(', ')
+// Diezmo de una venta: el apartado al cerrar (si ya cerraron) o el sugerido hasta ahora.
+function datosDiezmo(venta, corte) {
+  const pct = pctDiezmo(venta)
+  const d = calcularDiezmo(corte, pct)
+  const apartado = venta.estado === 'cerrada' && typeof venta.diezmoApartado === 'number'
+  const monto = apartado ? venta.diezmoApartado : d.sugerido
+  const base = apartado && venta.cierreCobrado != null ? venta.cierreCobrado : corte.cobrado
+  return { pct, apartado, monto, base, sugerido: apartado && venta.diezmoSugerido != null ? venta.diezmoSugerido : d.sugerido, queda: redondear(base - monto) }
+}
 const porcentaje = (v, total) => (total > 0 ? `${Math.round((v / total) * 100)}%` : '0%')
 
 /* ============================== EXCEL ============================== */
@@ -53,19 +62,20 @@ export async function exportarVentaExcel(venta, pedidos, corte, ministerioNombre
     ['Efectivo cobrado', corte.efectivo], ['Fondo de caja', venta.fondoInicial || 0],
     ['Efectivo que debe haber en caja', corte.efectivo + (venta.fondoInicial || 0)],
     ['Transferencias', corte.transferencia], ['Transferencias sin verificar', corte.transferenciaSinVerificar],
+    ...(pctDiezmo(venta) > 0 ? (() => { const z = datosDiezmo(venta, corte); return [[], [`Diezmo ${z.apartado ? 'apartado' : 'sugerido'} (${z.pct}% de lo cobrado)`, z.monto], ['Diezmo sugerido', z.sugerido], ['Queda para el ministerio', z.queda]] })() : []),
   ]
   const resumen = XLSX.utils.aoa_to_sheet(filasResumen)
   resumen['!cols'] = [{ wch: 34 }, { wch: 40 }]
-  const monetarias = new Set(['Vendido', 'Cobrado', 'Por cobrar', 'Efectivo cobrado', 'Fondo de caja', 'Efectivo que debe haber en caja', 'Transferencias', 'Transferencias sin verificar'])
-  filasResumen.forEach((f, r) => { if (monetarias.has(f[0])) resumen[XLSX.utils.encode_cell({ r, c: 1 })].z = FORMATO_DINERO })
+  const monetarias = new Set(['Vendido', 'Cobrado', 'Por cobrar', 'Efectivo cobrado', 'Fondo de caja', 'Efectivo que debe haber en caja', 'Transferencias', 'Transferencias sin verificar', 'Diezmo sugerido', 'Queda para el ministerio'])
+  filasResumen.forEach((f, r) => { if ((monetarias.has(f[0]) || String(f[0]).startsWith('Diezmo')) && resumen[XLSX.utils.encode_cell({ r, c: 1 })]) resumen[XLSX.utils.encode_cell({ r, c: 1 })].z = FORMATO_DINERO })
   XLSX.utils.book_append_sheet(libro, resumen, 'Resumen')
 
   const pedidosFilas = [...pedidos].sort((a, b) => (a.folio || 0) - (b.folio || 0)).map((p) => ({
     Folio: p.folio, Hora: horaDe(p.creadoEn), Cliente: p.cliente, Pedido: resumenPedido(p), Total: p.total,
     Estado: ETIQUETA_ESTADO[p.estado] || p.estado, 'Forma de pago': ETIQUETA_METODO[p.metodo] || '',
-    'Transferencia verificada': p.metodo === 'transferencia' ? (p.verificado ? 'Sí' : 'No') : '', Vendedor: p.vendedor || '',
+    'Transferencia verificada': p.metodo === 'transferencia' ? (p.verificado ? 'Sí' : 'No') : '', Vendedor: p.vendedor || '', Nota: p.nota || '',
   }))
-  XLSX.utils.book_append_sheet(libro, hojaDesdeFilas(XLSX, pedidosFilas, { anchos: [8, 10, 24, 46, 12, 13, 16, 22, 16], dinero: ['Total'] }), 'Pedidos')
+  XLSX.utils.book_append_sheet(libro, hojaDesdeFilas(XLSX, pedidosFilas, { anchos: [8, 10, 24, 46, 12, 13, 16, 22, 16, 34], dinero: ['Total'] }), 'Pedidos')
   XLSX.utils.book_append_sheet(libro, hojaDesdeFilas(XLSX, corte.porProducto.map(([Producto, v]) => ({ Producto, Cantidad: v.cantidad, Importe: v.importe })), { anchos: [30, 10, 14], dinero: ['Importe'] }), 'Productos')
   if (corte.porOpcion.length) XLSX.utils.book_append_sheet(libro, hojaDesdeFilas(XLSX, corte.porOpcion.flatMap(([Elección, ops]) => ops.map(([Opción, Cantidad]) => ({ Elección, Opción, Cantidad }))), { anchos: [22, 28, 10] }), 'Opciones')
   XLSX.utils.book_append_sheet(libro, hojaDesdeFilas(XLSX, corte.porVendedor.map(([Vendedor, v]) => ({ Vendedor, Pedidos: v.pedidos, Vendido: v.vendido, Cobrado: v.cobrado })), { anchos: [24, 10, 14, 14], dinero: ['Vendido', 'Cobrado'] }), 'Vendedores')
@@ -123,7 +133,25 @@ export async function exportarVentaPDF(venta, pedidos, corte, ministerioNombre, 
   doc.text(`Cobrado en efectivo ${dinero(corte.efectivo)}${venta.fondoInicial > 0 ? `   +   Fondo de caja ${dinero(venta.fondoInicial)}` : ''}`, margen + 6, y + 16.5)
   doc.setFont('helvetica', 'bold'); doc.setFontSize(23); doc.setTextColor(...MARCA.verdeOscuro)
   doc.text(dinero(caja), margen + util - 6, y + 15.5, { align: 'right' })
-  y += 24 + 9
+  y += 24 + 5
+
+  // Diezmo (apartado al cerrar caja, o sugerido mientras tanto)
+  const dz = datosDiezmo(venta, corte)
+  if (dz.pct > 0) {
+    const oro = [212, 175, 55]
+    const oroOscuro = [133, 100, 8]
+    doc.setFillColor(...aclarar(oro, 0.86)); doc.setDrawColor(...aclarar(oro, 0.35)); doc.setLineWidth(0.3)
+    doc.roundedRect(margen, y, util, 22, 2.6, 2.6, 'FD')
+    doc.setFillColor(...oro); doc.roundedRect(margen, y + 3, 1.5, 16, 0.7, 0.7, 'F')
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...oroOscuro)
+    doc.text(dz.apartado ? 'DIEZMO APARTADO' : `DIEZMO SUGERIDO (${dz.pct}% DE LO COBRADO)`, margen + 6, y + 8, { charSpace: 0.6 })
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.2); doc.setTextColor(...MARCA.gris)
+    doc.text(`Cobrado ${dinero(dz.base)}   ·   Queda para el ministerio ${dinero(dz.queda)}${dz.apartado && dz.sugerido !== dz.monto ? `   ·   Sugerido era ${dinero(dz.sugerido)}` : ''}`, margen + 6, y + 15.5)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(21); doc.setTextColor(...oroOscuro)
+    doc.text(dinero(dz.monto), margen + util - 6, y + 14.5, { align: 'right' })
+    y += 22 + 4
+  }
+  y += 4
 
   // ¿Cómo se pagó?
   y = seccion(doc, y, '¿Cómo se pagó?', color)
@@ -191,7 +219,7 @@ export async function exportarVentaPDF(venta, pedidos, corte, ministerioNombre, 
     tabla({
       startY: y + 1,
       head: [['#', 'Cliente', 'Pedido', 'Debe']],
-      body: pendientes.map((p) => [String(p.folio), p.cliente, resumenPedido(p), dinero(p.total)]),
+      body: pendientes.map((p) => [String(p.folio), p.cliente, resumenPedido(p) + (p.nota ? `\nNota: ${p.nota}` : ''), dinero(p.total)]),
       foot: [['', 'Total por cobrar', '', dinero(corte.pendiente)]],
       showFoot: 'lastPage',
       headStyles: { fillColor: MARCA.ambarOscuro },
@@ -209,7 +237,7 @@ export async function exportarVentaPDF(venta, pedidos, corte, ministerioNombre, 
   tabla({
     startY: y + 1,
     head: [['#', 'Hora', 'Cliente', 'Pedido', 'Total', 'Pago', 'Vendió']],
-    body: ordenados.map((p) => [String(p.folio), horaCorta(p.creadoEn), p.cliente, resumenPedido(p), dinero(p.total), textoPago(p), p.vendedor || '']),
+    body: ordenados.map((p) => [String(p.folio), horaCorta(p.creadoEn), p.cliente, resumenPedido(p) + (p.nota ? `\nNota: ${p.nota}` : ''), dinero(p.total), textoPago(p), p.vendedor || '']),
     styles: { fontSize: 7.9 },
     columnStyles: { 0: { cellWidth: 9, textColor: MARCA.gris }, 1: { cellWidth: 13, textColor: MARCA.gris }, 4: { halign: 'right', fontStyle: 'bold', cellWidth: 20 }, 5: { cellWidth: 33 }, 6: { cellWidth: 20 } },
     didParseCell: (d) => {
@@ -310,7 +338,17 @@ export async function exportarReportePDF({ ministerioNombre, colorMinisterio, ve
       if (d.section === 'body' && d.column.index === 6 && d.cell.raw !== dinero(0)) d.cell.styles.textColor = MARCA.ambarOscuro
     },
   })
-  y = doc.lastAutoTable.finalY + 10
+  y = doc.lastAutoTable.finalY + 6
+  const diezmoTotal = redondear(filas.reduce((a, { v, c }) => (pctDiezmo(v) > 0 ? a + datosDiezmo(v, c).monto : a), 0))
+  if (diezmoTotal > 0) {
+    y = asegurar(y, 12)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(133, 100, 8)
+    doc.text(`Diezmo acumulado de estas ventas: ${dinero(diezmoTotal)}`, margen, y + 2)
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(...MARCA.gris)
+    doc.text('(apartado al cerrar cada venta; en las abiertas, el sugerido sobre lo cobrado)', margen + 74, y + 2)
+    y += 4
+  }
+  y += 6
 
   if (deudores.length) {
     y = asegurar(y, 30)
@@ -336,8 +374,8 @@ export async function exportarReporteExcel({ ventas, cortes, ministerio }) {
   const libro = XLSX.utils.book_new()
   const filas = ventas.map((v) => {
     const c = cortes[v.id]
-    return { Fecha: v.fecha, Venta: v.nombre, Estado: v.estado === 'cerrada' ? 'Cerrada' : 'Abierta', Pedidos: c?.pedidos || 0, Vendido: c?.vendido || 0, Efectivo: c?.efectivo || 0, Transferencia: c?.transferencia || 0, 'Por cobrar': c?.pendiente || 0 }
+    return { Fecha: v.fecha, Venta: v.nombre, Estado: v.estado === 'cerrada' ? 'Cerrada' : 'Abierta', Pedidos: c?.pedidos || 0, Vendido: c?.vendido || 0, Efectivo: c?.efectivo || 0, Transferencia: c?.transferencia || 0, 'Por cobrar': c?.pendiente || 0, Diezmo: c ? datosDiezmo(v, c).monto : 0 }
   })
-  XLSX.utils.book_append_sheet(libro, hojaDesdeFilas(XLSX, filas, { anchos: [12, 30, 10, 10, 14, 14, 15, 14], dinero: ['Vendido', 'Efectivo', 'Transferencia', 'Por cobrar'] }), 'Ventas')
+  XLSX.utils.book_append_sheet(libro, hojaDesdeFilas(XLSX, filas, { anchos: [12, 30, 10, 10, 14, 14, 15, 14, 14], dinero: ['Vendido', 'Efectivo', 'Transferencia', 'Por cobrar', 'Diezmo'] }), 'Ventas')
   XLSX.writeFile(libro, `reporte-pos-${slug(ministerio)}.xlsx`)
 }

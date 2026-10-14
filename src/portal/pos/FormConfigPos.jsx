@@ -69,6 +69,10 @@ export default function FormConfigPos({ valor, onChange, mostrarFecha = false, e
             <label className="pos-label" htmlFor="pos-f-fondo">Fondo de caja <span className="pos-muted">(para cambio)</span></label>
             <input id="pos-f-fondo" className="pos-input" type="number" inputMode="decimal" min="0" value={valor.fondoInicial ?? ''} onChange={(e) => set('fondoInicial', e.target.value)} placeholder="$ 0" />
           </div>
+          <div className="pos-field">
+            <label className="pos-label" htmlFor="pos-f-diezmo">Diezmo <span className="pos-muted">(% de lo cobrado · 0 para no mostrarlo)</span></label>
+            <input id="pos-f-diezmo" className="pos-input" type="number" inputMode="decimal" min="0" max="100" value={valor.diezmoPct ?? ''} onChange={(e) => set('diezmoPct', e.target.value)} placeholder="10" />
+          </div>
         </div>
       </section>
 
