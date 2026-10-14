@@ -44,18 +44,17 @@ function RadGenPromo() {
         </div>
 
         <div style={{ flex: '1 1 320px', minWidth: '260px' }}>
-          <p style={{
-            color: '#F5F3EE',
-            fontFamily: 'Montserrat, sans-serif',
-            fontWeight: '900',
-            fontSize: '0.72rem',
-            letterSpacing: '0.18em',
-            textTransform: 'uppercase',
-            marginBottom: '0.6rem',
-            opacity: 0.85,
-          }}>
-            Ministerio de jóvenes
-          </p>
+          <div className="radgen-promo-marca">
+            <img
+              src="/radgen-logo.png"
+              alt="RadGen MX"
+              width="640"
+              height="625"
+              loading="lazy"
+              className="radgen-promo-logo"
+            />
+            <span className="radgen-promo-pill">Ministerio de jóvenes</span>
+          </div>
           <h2 style={{
             fontFamily: 'Montserrat, sans-serif',
             fontWeight: '900',
@@ -65,7 +64,7 @@ function RadGenPromo() {
             marginBottom: '0.75rem',
             lineHeight: 1.1,
           }}>
-            ¿Ya conoces RadGen MX?
+            ¿Ya conoces <span style={{ color: '#FFE066' }}>RadGen MX</span>?
           </h2>
           <p style={{
             fontFamily: 'Inter, sans-serif',

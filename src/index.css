@@ -532,11 +532,58 @@ p {
 /* Tarjeta de invitación a RadGen en la página principal — un vistazo al
    estilo neobrutalista de RadGen dentro del sitio "vidrio" de la iglesia. */
 .radgen-promo-card {
-  background: #3a7bff;
+  /* Fondo punteado de la marca RadGen y sombra roja desplazada, como en su portada */
+  background-color: #3a7bff;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.2) 1.5px, transparent 1.6px);
+  background-size: 22px 22px;
   border: 3px solid #F5F3EE;
   border-radius: 28px;
-  box-shadow: 10px 10px 0 #0F0F12;
+  box-shadow: 10px 10px 0 #FF3B3B;
   padding: clamp(1.75rem, 4vw, 3rem);
+}
+
+.radgen-promo-marca {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.7rem;
+  margin-bottom: 0.8rem;
+}
+
+.radgen-promo-logo {
+  height: clamp(78px, 11vw, 96px);
+  width: auto;
+  display: block;
+  flex-shrink: 0;
+  filter: drop-shadow(3px 4px 0 rgba(0, 0, 0, 0.3));
+  transform-origin: 50% 80%;
+  animation: radgenPromoBalanceo 5s ease-in-out infinite;
+}
+
+@keyframes radgenPromoBalanceo {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg) translateY(-3px); }
+}
+
+.radgen-promo-pill {
+  display: inline-block;
+  margin-bottom: 0.45rem;
+  background: #FFE066;
+  color: #0F0F12;
+  border: 2.5px solid #0F0F12;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 3px 3px 0 #0F0F12;
+  transform: rotate(-3deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radgen-promo-logo { animation: none; }
 }
 
 .radgen-promo-badge {
@@ -587,6 +634,7 @@ p {
 }
 
 @media (max-width: 560px) {
+  .radgen-promo-marca { justify-content: center; }
   .radgen-promo-card {
     flex-direction: column;
     text-align: center !important;
