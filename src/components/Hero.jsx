@@ -70,7 +70,9 @@ function Hero() {
 
   return (
     <section style={{
-      minHeight: '100vh',
+      // Siempre ocupa al menos la pantalla completa (incluso con la barra del
+      // navegador móvil recogida), para que la sección siguiente no se asome.
+      minHeight: 'max(100vh, 100dvh)',
       backgroundColor: '#000',
       display: 'flex',
       flexDirection: 'column',

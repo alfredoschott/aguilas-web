@@ -1174,9 +1174,28 @@ p {
 }
 
 @media (max-width: 640px) {
-  .aniv__contenido { text-align: center; }
-  .aniv__texto { align-items: center; }
-  .aniv__datos { justify-content: center; }
-  .aniv__lema { text-align: left; }
-  .aniv__escena { max-width: 300px; }
+  .aniv { padding: 2.2rem 1.25rem 2.6rem; }
+
+  /* En celular todo va en una sola columna ordenada:
+     13 → título → lema → datos → cuenta regresiva → botón. */
+  .aniv__contenido {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 1.1rem;
+    text-align: center;
+  }
+  .aniv__izq, .aniv__texto { display: contents; }
+
+  .aniv__escena { order: 1; max-width: 250px; margin: 0 auto; }
+  .aniv__logo { order: 2; width: 44px; height: 44px; margin: 0.4rem auto 0; }
+  .aniv__anos { order: 3; font-size: 1.7rem; margin-bottom: -0.6rem; }
+  .aniv__fidelidad { order: 4; font-size: 3.4rem; margin: 0; padding-right: 0; }
+  .aniv__lema { order: 5; text-align: left; margin: 0.3rem 0 0; padding: 1rem 1rem 0.9rem 2.9rem; }
+  .aniv__celebra { order: 6; margin: 0 auto; font-size: 0.95rem; }
+  .aniv__datos { order: 7; justify-content: center; margin: 0; }
+  .aniv__cuenta, .aniv__ahora { order: 8; margin-top: 0.4rem; gap: 0.5rem; }
+  .aniv-unidad { min-width: 0; flex: 1 1 0; padding: 0.65rem 0.25rem 0.5rem; }
+  .aniv-unidad__valor { font-size: 1.8rem; }
+  .aniv__boton { order: 9; align-self: center; margin-top: 0.4rem; }
 }
