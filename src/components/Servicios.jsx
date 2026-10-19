@@ -36,9 +36,12 @@ function agruparHorarios(horarios) {
   return grupos
 }
 
-function proximoServicio(horarios) {
+// Duración por defecto de un servicio; un servicio también termina cuando
+// empieza el siguiente del mismo día (ej. el de 9:45 acaba a las 11:45).
+const DURACION_DEFAULT_MIN = 120
+
+function proximoServicio(horarios, ahora = new Date()) {
   if (horarios.length === 0) return null
-  const ahora = new Date()
   let mejor = null
   for (const h of horarios) {
     const fecha = new Date(ahora)
@@ -49,6 +52,36 @@ function proximoServicio(horarios) {
     if (!mejor || fecha < mejor.fecha) mejor = { ...h, fecha }
   }
   return mejor
+}
+
+function servicioEnCurso(horarios, ahora = new Date()) {
+  const minAhora = ahora.getHours() * 60 + ahora.getMinutes() + ahora.getSeconds() / 60
+  const delDia = horarios.filter((h) => h.diaSemana === ahora.getDay())
+  let enCurso = null
+  for (const h of delDia) {
+    const inicio = h.hora * 60 + h.minuto
+    let fin = inicio + (h.duracionMin || DURACION_DEFAULT_MIN)
+    for (const o of delDia) {
+      const oi = o.hora * 60 + o.minuto
+      if (oi > inicio && oi < fin) fin = oi
+    }
+    if (minAhora >= inicio && minAhora < fin && (!enCurso || inicio > enCurso.inicio)) {
+      enCurso = { ...h, inicio }
+    }
+  }
+  return enCurso
+}
+
+const ORDINALES = ['Primer', 'Segundo', 'Tercer', 'Cuarto', 'Quinto']
+
+// "Primer servicio", "Segundo servicio"... solo cuando ese día/lugar tiene más de uno.
+function ordinalServicio(h, horarios) {
+  const mismos = horarios
+    .filter((o) => o.dia === h.dia && (o.subtitulo || '') === (h.subtitulo || ''))
+    .sort((a, b) => (a.hora * 60 + a.minuto) - (b.hora * 60 + b.minuto))
+  if (mismos.length < 2) return ''
+  const i = mismos.findIndex((o) => o.hora === h.hora && o.minuto === h.minuto)
+  return i >= 0 && ORDINALES[i] ? `${ORDINALES[i]} servicio · ` : ''
 }
 
 function useHorarios() {
@@ -65,34 +98,20 @@ function useHorarios() {
 }
 
 function useProximoServicio(horarios) {
-  const [proximo, setProximo] = useState(() => proximoServicio(horarios))
-  const [prevHorarios, setPrevHorarios] = useState(horarios)
-  const [restante, setRestante] = useState(0)
-
-  if (horarios !== prevHorarios) {
-    setPrevHorarios(horarios)
-    setProximo(proximoServicio(horarios))
-  }
+  const [ahora, setAhora] = useState(() => new Date())
 
   useEffect(() => {
-    if (!proximo) return
-    const interval = setInterval(() => {
-      const ahora = new Date()
-      let diff = proximo.fecha - ahora
-      if (diff <= 0) {
-        const nuevo = proximoServicio(horarios)
-        setProximo(nuevo)
-        diff = nuevo ? nuevo.fecha - ahora : 0
-      }
-      setRestante(diff)
-    }, 1000)
+    const interval = setInterval(() => setAhora(new Date()), 1000)
     return () => clearInterval(interval)
-  }, [proximo, horarios])
+  }, [])
 
-  return { proximo, restante }
+  const proximo = proximoServicio(horarios, ahora)
+  const enCurso = servicioEnCurso(horarios, ahora)
+  const restante = proximo ? Math.max(0, proximo.fecha - ahora) : 0
+  return { proximo, enCurso, restante }
 }
 
-function CardServicio({ dia, subtitulo, horarios, activo, esHoy }) {
+function CardServicio({ dia, subtitulo, horarios, activo, esHoy, enCurso }) {
   return (
     <div
       className="card-servicio"
@@ -130,7 +149,7 @@ function CardServicio({ dia, subtitulo, horarios, activo, esHoy }) {
             backgroundColor: 'var(--verde)',
             animation: 'whatsappPulso 1.6s ease-out infinite',
           }} />
-          {esHoy ? 'Hoy' : 'Próximo'}
+          {enCurso ? 'En curso' : esHoy ? 'Hoy' : 'Próximo'}
         </span>
       )}
       <div className="card-servicio__sweep" style={{
@@ -196,9 +215,11 @@ function Servicios() {
   const refCards = useReveal()
   const horarios = useHorarios()
   const grupos = agruparHorarios(horarios)
-  const { proximo, restante } = useProximoServicio(horarios)
+  const { proximo, enCurso, restante } = useProximoServicio(horarios)
   const esHoy = !!proximo && proximo.fecha.toDateString() === new Date().toDateString()
   const esUrgente = restante > 0 && restante < 2 * 60 * 60 * 1000
+  const etiqueta = (h) => `${ordinalServicio(h, horarios)}${h.dia} ${formatearHora(h.hora, h.minuto)}${h.subtitulo ? ` (${h.subtitulo})` : ''}`
+  const enCursoLabel = enCurso ? etiqueta(enCurso) : ''
   const proximoLabel = proximo
     ? `${proximo.dia} ${formatearHora(proximo.hora, proximo.minuto)}${proximo.subtitulo ? ` (${proximo.subtitulo})` : ''}`
     : ''
@@ -234,7 +255,7 @@ function Servicios() {
         </h2>
       </div>
 
-      {proximo && (
+      {(proximo || enCurso) && (
         <div style={{ textAlign: 'center', marginBottom: 'clamp(1.5rem, 4vw, 3rem)', position: 'relative', zIndex: 1 }}>
           <div className="glass-panel" style={{
             display: 'inline-flex',
@@ -248,18 +269,33 @@ function Servicios() {
             fontSize: '0.85rem',
             color: 'var(--texto-suave)',
             maxWidth: '100%',
-            borderColor: esUrgente ? 'rgba(255,159,10,0.5)' : undefined,
-            animation: esUrgente ? 'urgentPulso 1.8s ease-in-out infinite' : 'none',
+            borderColor: enCurso ? 'rgba(61,220,4,0.5)' : esUrgente ? 'rgba(255,159,10,0.5)' : undefined,
+            animation: !enCurso && esUrgente ? 'urgentPulso 1.8s ease-in-out infinite' : 'none',
           }}>
-            <span>{esUrgente ? '¡Ya casi empieza!' : 'Próximo servicio:'} <strong style={{ color: 'var(--texto)' }}>{proximoLabel}</strong></span>
-            <span style={{
-              fontFamily: 'Montserrat, sans-serif',
-              fontWeight: '700',
-              color: esUrgente ? '#FF9F0A' : 'var(--verde)',
-              fontVariantNumeric: 'tabular-nums',
-            }}>
-              {formatearRestante(restante)}
-            </span>
+            {enCurso ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--verde)',
+                  animation: 'whatsappPulso 1.6s ease-out infinite',
+                }} />
+                Servicio en curso: <strong style={{ color: 'var(--verde)' }}>{enCursoLabel}</strong>
+              </span>
+            ) : (
+              <>
+                <span>{esUrgente ? '¡Ya casi empieza!' : 'Próximo servicio:'} <strong style={{ color: 'var(--texto)' }}>{proximoLabel}</strong></span>
+                <span style={{
+                  fontFamily: 'Montserrat, sans-serif',
+                  fontWeight: '700',
+                  color: esUrgente ? '#FF9F0A' : 'var(--verde)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}>
+                  {formatearRestante(restante)}
+                </span>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -275,7 +311,8 @@ function Servicios() {
         zIndex: 1,
       }}>
         {grupos.map((g) => {
-          const activo = !!proximo && proximo.dia === g.dia && (proximo.subtitulo || '') === g.subtitulo
+          const objetivo = enCurso || proximo
+          const activo = !!objetivo && objetivo.dia === g.dia && (objetivo.subtitulo || '') === g.subtitulo
           return (
             <CardServicio
               key={g.dia + '||' + g.subtitulo}
@@ -283,7 +320,8 @@ function Servicios() {
               subtitulo={g.subtitulo}
               horarios={g.horarios.map((h) => formatearHora(h.hora, h.minuto))}
               activo={activo}
-              esHoy={activo && esHoy}
+              esHoy={activo && (!!enCurso || esHoy)}
+              enCurso={activo && !!enCurso}
             />
           )
         })}

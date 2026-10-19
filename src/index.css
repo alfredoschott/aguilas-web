@@ -401,29 +401,41 @@ p {
 }
 
 /* ===== NAVBAR PILLS ===== */
+.nav-capsula {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(245, 243, 238, 0.07);
+  border: 1.5px solid rgba(245, 243, 238, 0.12);
+}
+
 .nav-pill {
   font-family: 'Inter', sans-serif;
   font-size: 0.85rem;
-  font-weight: 500;
+  font-weight: 600;
   text-decoration: none;
-  padding: 0.4rem 1rem;
+  padding: 0.45rem 1rem;
   border-radius: 999px;
-  color: rgba(255, 255, 255, 0.85);
-  transition: background-color 0.25s ease, color 0.25s ease;
+  color: rgba(255, 255, 255, 0.72);
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.nav-pill:hover {
+.nav-pill:hover,
+.scrolled .nav-pill:hover {
+  background-color: rgba(245, 243, 238, 0.1);
+  color: #ffffff;
+}
+
+.nav-pill.active,
+.scrolled .nav-pill.active,
+.nav-pill.active:hover,
+.scrolled .nav-pill.active:hover {
   background-color: var(--verde);
   color: #000000;
-}
-
-.nav-pill.active {
-  color: var(--verde);
   font-weight: 700;
-}
-
-.scrolled .nav-pill.active {
-  color: var(--verde);
 }
 
 .nav-pill-movil {
@@ -447,13 +459,10 @@ p {
   color: #000000;
 }
 
-.nav-pill-movil.active {
+.nav-pill-movil.active,
+.nav-pill-movil.active:hover {
   color: var(--verde);
   font-weight: 700;
-}
-
-.scrolled .nav-pill {
-  color: var(--texto-suave);
 }
 
 /* Link a RadGen Mx en el navbar — mismo estilo neobrutalista de la página
@@ -748,4 +757,426 @@ p {
     width: 100%;
     max-width: 100%;
   }
+}
+/* ===== ANIVERSARIO 13 (paleta del flyer: naranja, azul cielo, pizarra, papel) ===== */
+.aniv {
+  --aniv-naranja: #f4680b;
+  --aniv-cielo: #4cc3ea;
+  --aniv-pizarra: #26313b;
+  --aniv-papel: #ecebe6;
+  --aniv-fuente: 'Galvji', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: var(--aniv-fuente);
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(0, 0, 0, 0.035) 0 22%, transparent 22% 55%, rgba(0, 0, 0, 0.03) 55% 78%, transparent 78%),
+    var(--aniv-papel);
+  color: var(--aniv-pizarra);
+  padding: clamp(2.5rem, 6vw, 4.5rem) 1.5rem;
+}
+
+/* Luz suave que sigue al cursor sobre el fondo de papel. */
+.aniv__luz {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(520px circle at 20% 30%, rgba(76, 195, 234, 0.30), transparent 60%),
+    radial-gradient(420px circle at 80% 70%, rgba(244, 104, 11, 0.20), transparent 60%);
+  background-size: 140% 140%;
+  animation: anivLuz 14s ease-in-out infinite alternate;
+}
+
+@keyframes anivLuz {
+  from { background-position: 0% 0%; }
+  to { background-position: 100% 100%; }
+}
+
+/* Planos diagonales del fondo del flyer, con parallax leve. */
+.aniv__forma {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.04);
+}
+@keyframes anivForma {
+  from { translate: -22px -16px; }
+  to { translate: 22px 16px; }
+}
+.aniv__forma--1 {
+  width: 55%;
+  height: 160%;
+  top: -30%;
+  left: -8%;
+  transform: rotate(35deg);
+  animation: anivForma 16s ease-in-out infinite alternate;
+}
+.aniv__forma--2 {
+  width: 40%;
+  height: 160%;
+  top: -20%;
+  right: 4%;
+  transform: rotate(35deg);
+  animation: anivForma 20s ease-in-out infinite alternate-reverse;
+}
+
+.aniv__barra {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 14px;
+  background: linear-gradient(90deg, var(--aniv-naranja) 0%, #111 25%, var(--aniv-cielo) 50%, #111 75%, var(--aniv-naranja) 100%);
+  background-size: 200% 100%;
+  animation: anivBarra 10s linear infinite;
+  z-index: 2;
+}
+
+@keyframes anivBarra {
+  to { background-position: -200% 0; }
+}
+
+.aniv__barra--abajo {
+  top: auto;
+  bottom: 0;
+}
+
+.aniv__contenido {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1.5rem, 5vw, 4rem);
+  flex-wrap: wrap;
+}
+
+/* El "13" con águila del flyer: la silueta sirve de máscara y se rellena con
+   el degradado naranja → negro → azul. */
+.aniv__izq {
+  flex: 1 1 340px;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.6rem;
+}
+
+.aniv__escena {
+  width: 100%;
+  position: relative;
+  perspective: 900px;
+}
+
+.aniv__numero {
+  width: 100%;
+  aspect-ratio: 1374 / 1145;
+  background: linear-gradient(125deg, var(--aniv-cielo) 0%, #14323f 12%, var(--aniv-naranja) 25%, #111 37%, var(--aniv-cielo) 50%, #14323f 62%, var(--aniv-naranja) 75%, #111 87%, var(--aniv-cielo) 100%);
+  background-size: 200% 200%;
+  animation: anivDegradado 12s ease-in-out infinite alternate;
+  -webkit-mask: url('/aniversario-13.png') center / contain no-repeat;
+  mask: url('/aniversario-13.png') center / contain no-repeat;
+}
+
+@keyframes anivDegradado {
+  from { background-position: 15% 15%; }
+  to { background-position: 85% 85%; }
+}
+
+/* Reflejo que cruza el 13 de vez en cuando. */
+.aniv__numero--brillo {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.55) 50%, transparent 60%);
+  background-size: 300% 100%;
+  background-position: 150% 0;
+  animation: anivBrillo 11s ease-in-out 2s infinite;
+}
+
+@keyframes anivBrillo {
+  0%, 78% { background-position: 150% 0; }
+  100% { background-position: -50% 0; }
+}
+
+/* Entrada: el 13 sube y se enfoca; el texto aparece escalonado. */
+.aniv__contenido:not(.visible) .aniv__escena { opacity: 0; transform: scale(0.85) rotate(-4deg); }
+.aniv__escena { transition: opacity 0.9s ease, transform 0.9s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+.aniv__contenido:not(.visible) .aniv__texto > * { opacity: 0; transform: translateX(30px); }
+.aniv__texto > * { transition: opacity 0.6s ease, transform 0.6s ease; }
+.aniv__contenido.visible .aniv__texto > :nth-child(1) { transition-delay: 0.15s; }
+.aniv__contenido.visible .aniv__texto > :nth-child(2) { transition-delay: 0.25s; }
+.aniv__contenido.visible .aniv__texto > :nth-child(3) { transition-delay: 0.35s; }
+.aniv__contenido.visible .aniv__texto > :nth-child(4) { transition-delay: 0.45s; }
+.aniv__contenido.visible .aniv__texto > :nth-child(5) { transition-delay: 0.55s; }
+.aniv__contenido.visible .aniv__texto > :nth-child(6) { transition-delay: 0.65s; }
+.aniv__contenido.visible .aniv__texto > :nth-child(7) { transition-delay: 0.75s; }
+.aniv__contenido.visible .aniv__texto > :nth-child(8) { transition-delay: 0.85s; }
+
+.aniv__texto {
+  flex: 1 1 340px;
+  max-width: 540px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.aniv__logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  margin-bottom: 0.9rem;
+  /* el logo verde pasa a pizarra, como en el flyer */
+  filter: brightness(0) opacity(0.85);
+}
+
+.aniv__anos {
+  font-family: var(--aniv-fuente);
+  font-weight: 600;
+  font-size: clamp(1.8rem, 4.5vw, 2.8rem);
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.aniv__fidelidad {
+  font-family: var(--aniv-fuente);
+  font-weight: 900;
+  font-style: italic;
+  font-size: clamp(3rem, 9vw, 5.6rem);
+  letter-spacing: -0.06em;
+  line-height: 0.95;
+  margin: 0 0 1rem;
+  padding-right: 0.15em;
+  /* Pizarra sólida con un destello azulado que la cruza de vez en cuando
+     (mismo ritmo que el reflejo del 13), sin mezcla de colores. */
+  background: linear-gradient(100deg, var(--aniv-pizarra) 40%, #5f8aa3 50%, var(--aniv-pizarra) 60%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: anivTexto 11s ease-in-out 2s infinite;
+}
+
+@keyframes anivTexto {
+  0%, 78% { background-position: 100% 0; }
+  100% { background-position: 0% 0; }
+}
+
+.aniv__lema {
+  position: relative;
+  margin: 0 0 1rem;
+  padding: 1.1rem 1.3rem 1rem 3.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  background: var(--aniv-pizarra);
+  border-radius: 16px;
+  box-shadow: 6px 6px 0 var(--aniv-naranja);
+  color: #f5f3ee;
+  overflow: hidden;
+}
+
+.aniv__lema::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 8px;
+  background: linear-gradient(180deg, var(--aniv-naranja), var(--aniv-cielo));
+}
+
+.aniv__lema-comillas {
+  position: absolute;
+  left: 0.9rem;
+  top: -0.4rem;
+  font-family: Georgia, serif;
+  font-size: 4.2rem;
+  line-height: 1;
+  color: var(--aniv-naranja);
+  opacity: 0.9;
+}
+
+.aniv__lema-1,
+.aniv__lema-2 {
+  font-weight: 800;
+  font-size: clamp(1.15rem, 2.4vw, 1.5rem);
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.aniv__lema-2 { color: var(--aniv-cielo); }
+
+.aniv__lema-tag {
+  margin-top: 0.5rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(245, 243, 238, 0.55);
+}
+
+.aniv__celebra {
+  font-size: 0.98rem;
+  font-weight: 500;
+  max-width: 420px;
+  margin-bottom: 1.1rem;
+  color: rgba(38, 49, 59, 0.85);
+}
+
+.aniv__datos {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.3rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: -0.02em;
+}
+
+.aniv__datos li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.9rem 0.3rem 0.3rem;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1.5px solid rgba(38, 49, 59, 0.15);
+  border-radius: 999px;
+  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.aniv__datos li:hover {
+  transform: translateY(-2px);
+  border-color: var(--aniv-naranja);
+  background: #fff;
+}
+
+.aniv__datos .aniv__dato-enlace { padding: 0; }
+.aniv__dato-enlace a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.8rem 0.3rem 0.3rem;
+  border-radius: 999px;
+  color: inherit;
+  text-decoration: none;
+}
+.aniv__flecha { color: var(--aniv-naranja); transition: transform 0.2s ease; }
+.aniv__dato-enlace:hover .aniv__flecha { transform: translate(2px, -2px); }
+
+.aniv__icono {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(135deg, var(--aniv-naranja), #ff8a3d);
+}
+
+.aniv__datos li:nth-child(2) .aniv__icono { background: linear-gradient(135deg, var(--aniv-cielo), #2a9fc9); }
+.aniv__datos li:nth-child(3) .aniv__icono { background: linear-gradient(135deg, var(--aniv-pizarra), #3b4a57); }
+
+.aniv__cuenta {
+  display: flex;
+  justify-content: center;
+  gap: 0.8rem;
+}
+
+.aniv-unidad {
+  min-width: 76px;
+  padding: 0.75rem 0.5rem 0.6rem;
+  text-align: center;
+  background: var(--aniv-pizarra);
+  border-radius: 12px;
+  box-shadow: 4px 4px 0 var(--aniv-naranja);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.aniv-unidad:nth-child(even) {
+  box-shadow: 4px 4px 0 var(--aniv-cielo);
+}
+
+.aniv-unidad:hover { transform: translateY(-4px) rotate(-2deg); }
+.aniv-unidad { transition: transform 0.2s ease; }
+
+.aniv-unidad__valor {
+  animation: anivDigito 0.35s ease-out;
+  font-family: var(--aniv-fuente);
+  font-weight: 900;
+  font-size: 2.1rem;
+  line-height: 1;
+  color: #f5f3ee;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes anivDigito {
+  from { transform: translateY(-40%); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+.aniv__boton {
+  margin-top: 0.2rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.3rem;
+  font-family: var(--aniv-fuente);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--aniv-pizarra);
+  background: transparent;
+  border: 2px solid var(--aniv-pizarra);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.aniv__boton:hover {
+  background: var(--aniv-pizarra);
+  color: #f5f3ee;
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 var(--aniv-naranja);
+}
+.aniv__boton:active { transform: none; box-shadow: none; }
+
+.aniv-unidad__etiqueta {
+  font-family: var(--aniv-fuente);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--aniv-cielo);
+}
+
+.aniv__ahora {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--aniv-fuente);
+  font-weight: 900;
+  font-size: 1.3rem;
+  text-transform: uppercase;
+}
+
+.aniv__punto {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--aniv-naranja);
+  animation: whatsappPulso 1.6s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aniv__barra, .aniv__numero--brillo, .aniv-unidad__valor, .aniv__fidelidad { animation: none; }
+  .aniv__numero, .aniv__forma, .aniv__luz { animation: none; }
+}
+
+@media (max-width: 640px) {
+  .aniv__contenido { text-align: center; }
+  .aniv__texto { align-items: center; }
+  .aniv__datos { justify-content: center; }
+  .aniv__lema { text-align: left; }
+  .aniv__escena { max-width: 300px; }
 }

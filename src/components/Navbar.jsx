@@ -96,11 +96,13 @@ function Navbar({ logoVisible }) {
         </div>
 
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }} className="nav-desktop">
-          <a href="#servicios" onClick={() => handleNavClick('#servicios')} className={`nav-pill${seccionActiva === 'servicios' ? ' active' : ''}`}>Servicios</a>
-          <a href="#nosotros" onClick={() => handleNavClick('#nosotros')} className={`nav-pill${seccionActiva === 'nosotros' ? ' active' : ''}`}>Nosotros</a>
-          <a href="#valores" onClick={() => handleNavClick('#valores')} className={`nav-pill${seccionActiva === 'valores' ? ' active' : ''}`}>Valores</a>
-          <a href="#contacto" onClick={() => handleNavClick('#contacto')} className={`nav-pill${seccionActiva === 'contacto' ? ' active' : ''}`}>Contacto</a>
-          <Link to="/lideres" onClick={() => setMenuAbierto(false)} className="nav-pill">Líderes</Link>
+          <div className="nav-capsula">
+            <a href="#servicios" onClick={() => handleNavClick('#servicios')} className={`nav-pill${seccionActiva === 'servicios' ? ' active' : ''}`}>Servicios</a>
+            <a href="#nosotros" onClick={() => handleNavClick('#nosotros')} className={`nav-pill${seccionActiva === 'nosotros' ? ' active' : ''}`}>Nosotros</a>
+            <a href="#valores" onClick={() => handleNavClick('#valores')} className={`nav-pill${seccionActiva === 'valores' ? ' active' : ''}`}>Valores</a>
+            <a href="#contacto" onClick={() => handleNavClick('#contacto')} className={`nav-pill${seccionActiva === 'contacto' ? ' active' : ''}`}>Contacto</a>
+            <Link to="/lideres" onClick={() => setMenuAbierto(false)} className="nav-pill">Líderes</Link>
+          </div>
           <LinkSitio to={urlRadgen()} onClick={() => setMenuAbierto(false)} className="nav-pill-radgen">
             <span className="nav-pill-radgen__dot" />
             RadGen Mx

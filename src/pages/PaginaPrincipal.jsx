@@ -7,6 +7,7 @@ import Servicios from '../components/Servicios'
 import Nosotros from '../components/Nosotros'
 import Valores from '../components/Valores'
 import RadGenPromo from '../components/RadGenPromo'
+import Aniversario from '../components/Aniversario'
 import Galeria from '../components/Galeria'
 import Contacto from '../components/Contacto'
 import Footer from '../components/Footer'
@@ -32,6 +33,7 @@ function PaginaPrincipal() {
       <LogoAnimado onComplete={() => setLogoVisible(true)} />
       <Navbar logoVisible={logoVisible} />
       <Hero />
+      <Aniversario />
       <ProximosEventos />
       <Anuncios />
       <Servicios />
