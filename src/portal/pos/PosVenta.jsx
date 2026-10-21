@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import {
   addDoc, arrayUnion, collection, doc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where, db,
 } from './posFirestore'
-import { Settings, ShoppingCart, FileSpreadsheet, FileText, Lock, Unlock, X, Plus, Minus, User, Search, Check, Banknote, Landmark, ShoppingBag, ReceiptText, Undo2, Pencil, RotateCcw, QrCode, WifiOff, StickyNote, HandHeart } from 'lucide-react'
+import { Settings, ShoppingCart, FileSpreadsheet, FileText, Lock, Unlock, X, Plus, Minus, User, Search, Check, Banknote, Landmark, ShoppingBag, ReceiptText, Undo2, Pencil, RotateCcw, QrCode, WifiOff, StickyNote, HandHeart, PackageCheck } from 'lucide-react'
 import { usePortalAuth } from '../PortalAuthContext'
 import ModalCobro from './ModalCobro'
 import ModalEditarPedido from './ModalEditarPedido'
@@ -322,6 +322,23 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
     } catch (e) { console.error(e); setError('No se pudo guardar la edición.') } finally { setGuardando(false) }
   }
 
+  // Entregado: el pedido ya se le dio al cliente. Los pedidos anteriores (sin el campo) cuentan como no entregados.
+  async function marcarEntregado(pedido, entregado) {
+    try {
+      await updateDoc(doc(db, 'pos_pedidos', pedido.id), entregado
+        ? { entregado: true, entregadoEn: serverTimestamp(), entregadoPor: email }
+        : { entregado: false, entregadoEn: null, entregadoPor: null })
+      avisar(entregado ? `Pedido #${pedido.folio} entregado` : `Pedido #${pedido.folio} otra vez por entregar`, async () => {
+        try {
+          await updateDoc(doc(db, 'pos_pedidos', pedido.id), entregado
+            ? { entregado: false, entregadoEn: null, entregadoPor: null }
+            : { entregado: true, entregadoEn: serverTimestamp(), entregadoPor: email })
+          avisar(`Pedido #${pedido.folio} ${entregado ? 'sin entregar' : 'entregado'}`)
+        } catch (e) { console.error(e); setError('No se pudo deshacer.') }
+      })
+    } catch (e) { console.error(e); setError('No se pudo actualizar la entrega del pedido.') }
+  }
+
   async function alternarVerificado(pedido) {
     try { await updateDoc(doc(db, 'pos_pedidos', pedido.id), { verificado: !pedido.verificado }) } catch (e) { console.error(e) }
   }
@@ -372,10 +389,11 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
     )
   }
 
-  const filtros = [['todos', 'Todos'], ['pendientes', 'Por cobrar'], ['pagados', 'Pagados'], ['anulados', 'Anulados']]
-  const cuenta = (k) => pedidos.filter((p) => (k === 'pendientes' ? p.estado === 'pendiente' : k === 'pagados' ? p.estado === 'pagado' : k === 'anulados' ? p.estado === 'anulado' : true)).length
+  const filtros = [['todos', 'Todos'], ['pendientes', 'Por cobrar'], ['pagados', 'Pagados'], ['porEntregar', 'Por entregar'], ['anulados', 'Anulados']]
+  const porEntregar = (p) => p.estado !== 'anulado' && !p.entregado
+  const cuenta = (k) => pedidos.filter((p) => (k === 'porEntregar' ? porEntregar(p) : k === 'pendientes' ? p.estado === 'pendiente' : k === 'pagados' ? p.estado === 'pagado' : k === 'anulados' ? p.estado === 'anulado' : true)).length
   const pedidosVisibles = pedidos
-    .filter((p) => (filtro === 'pendientes' ? p.estado === 'pendiente' : filtro === 'pagados' ? p.estado === 'pagado' : filtro === 'anulados' ? p.estado === 'anulado' : true))
+    .filter((p) => (filtro === 'porEntregar' ? porEntregar(p) : filtro === 'pendientes' ? p.estado === 'pendiente' : filtro === 'pagados' ? p.estado === 'pagado' : filtro === 'anulados' ? p.estado === 'anulado' : true))
     .filter((p) => !busqueda || normalizar(p.cliente).includes(normalizar(busqueda)))
     .sort((a, b) => (b.folio || 0) - (a.folio || 0))
 
@@ -555,7 +573,7 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
             {pedidosVisibles.length === 0 && <p className="pos-empty">{pedidos.length === 0 ? 'Todavía no hay pedidos en esta venta.' : 'Ningún pedido coincide.'}</p>}
             <div className="pos-pila">
               {pedidosVisibles.map((p, i) => (
-                <article key={p.id} className="pos-card pos-pedido pos-in" data-estado={p.estado} data-metodo={p.metodo || ''} style={{ '--i': Math.min(i, 8) }}>
+                <article key={p.id} className="pos-card pos-pedido pos-in" data-estado={p.estado} data-metodo={p.metodo || ''} data-entrega={p.estado !== 'anulado' ? (p.entregado ? 'si' : 'no') : undefined} style={{ '--i': Math.min(i, 8) }}>
                   <Avatar nombre={p.cliente} />
                   <div className="pos-pedido-cuerpo">
                     <div className="pos-pedido-top">
@@ -569,6 +587,9 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
                       {p.estado === 'pagado' && p.metodo === 'efectivo' && <span className="pos-badge pos-badge-ok"><Banknote size={12} /> Efectivo{p.cambio > 0 ? ` · cambio ${dinero(p.cambio)}` : ''}</span>}
                       {p.estado === 'pagado' && p.metodo === 'transferencia' && <span className={`pos-badge ${p.verificado ? 'pos-badge-info' : 'pos-badge-warn'}`}><Landmark size={12} /> Transferencia{p.verificado ? ' ✓' : ' · sin verificar'}</span>}
                       {p.estado === 'anulado' && <span className="pos-badge pos-badge-off">Anulado</span>}
+                      {p.estado !== 'anulado' && (p.entregado
+                        ? <span className="pos-badge pos-badge-ok"><PackageCheck size={12} /> Entregado{horaDe(p.entregadoEn) ? ` · ${horaDe(p.entregadoEn)}` : ''}</span>
+                        : <span className="pos-badge pos-badge-warn">Por entregar</span>)}
                       {p.editadoEn && p.estado !== 'anulado' && <span className="pos-badge">Editado</span>}
                       <span>{p.vendedor}{p.vendedor && horaDe(p.creadoEn) ? ' · ' : ''}{horaDe(p.creadoEn)}</span>
                     </div>
@@ -577,6 +598,9 @@ export function PosVentaNucleo({ id, userData, email, ayudante, onReconectar }) 
                     )}
                     {p.estado !== 'anulado' && (
                       <div className="pos-pedido-acciones">
+                        {p.entregado
+                          ? <button className="pos-btn pos-btn-sm" onClick={() => marcarEntregado(p, false)}><Undo2 size={14} /> Deshacer entrega</button>
+                          : <button className="pos-btn pos-btn-primary pos-btn-sm" onClick={() => marcarEntregado(p, true)}><PackageCheck size={14} /> Entregado</button>}
                         {puedeEditarPedidos && <button className="pos-btn pos-btn-sm" onClick={() => setEditando(p)}><Pencil size={14} /> Editar</button>}
                         {p.estado === 'pendiente' && <button className="pos-btn pos-btn-primary pos-btn-sm" onClick={() => setCobrando({ tipo: 'pedido', pedido: p })}>Cobrar</button>}
                         {puedeEditarPedidos && p.estado === 'pagado' && p.metodo === 'transferencia' && <button className="pos-btn pos-btn-sm" onClick={() => alternarVerificado(p)}><Check size={14} /> {p.verificado ? 'Quitar verificado' : 'Marcar verificado'}</button>}

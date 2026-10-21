@@ -103,6 +103,12 @@ service cloud.firestore {
         .hasOnly(['estado', 'metodo', 'recibido', 'cambio', 'verificado', 'pagadoEn', 'cobradoPor']);
     }
 
+    // Campos que cambian al marcar un pedido como entregado (o al deshacerlo).
+    function soloCamposDeEntrega() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['entregado', 'entregadoEn', 'entregadoPor']);
+    }
+
     // ============================================================
     // TUS COLECCIONES EXISTENTES (sin cambios)
     // ============================================================
@@ -235,6 +241,8 @@ service cloud.firestore {
           && (
             // cobrar un pedido pendiente
             (resource.data.estado == 'pendiente' && request.resource.data.estado == 'pagado' && soloCamposDeCobro())
+            // marcar (o desmarcar) como entregado un pedido que no está anulado
+            || (resource.data.estado != 'anulado' && soloCamposDeEntrega())
             // deshacer su propio pedido recién creado
             || (resource.data.get('dispositivoUid', '') == request.auth.uid
                 && request.time < resource.data.creadoEn + duration.value(3, 'm'))
